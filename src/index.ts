@@ -38,7 +38,7 @@ const PORT = process.env.PORT || 3000;
     console.log(`Server is running on http://localhost:${PORT}`);
   });
 
-  app.use(ROUTES.SWAGGER, swaggerUi.serve, swaggerUi.setup(specs));
+  app.use(ROUTES.SWAGGER, ...swaggerUi.serve, swaggerUi.setup(specs));
 
   app.put(ROUTES.UPDATE_NAVER, putNaver);
 
