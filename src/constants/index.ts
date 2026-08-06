@@ -1,6 +1,7 @@
 export * from './routes';
 
 export const DOMAIN =
-  process.env.NODE_ENV === 'production'
-    ? 'https://korea-webtoon-api-cc7dda2f0d77.herokuapp.com'
-    : 'http://localhost:3000';
+  process.env.RENDER_EXTERNAL_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://quokka-toon-api.onrender.com'
+    : 'http://localhost:3000');
