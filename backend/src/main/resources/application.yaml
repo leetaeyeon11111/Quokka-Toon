@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: quokkatoon
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/quokkatoon?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:quokka}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: validate        # schema.sql 로 만든 스키마를 검증만 (JPA가 손대지 않음)
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET:change-this-to-a-very-long-random-secret-key-at-least-32-bytes}
+  access-token-validity-seconds: 3600        # 1시간
+
+recommend:
+  base-url: ${RECOMMEND_URL:http://localhost:8000}
