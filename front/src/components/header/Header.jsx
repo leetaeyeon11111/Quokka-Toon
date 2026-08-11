@@ -1,0 +1,89 @@
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
+import SearchDropdown from './SearchDropdown'
+import HamburgerMenu from './HamburgerMenu'
+
+export default function Header() {
+  const { isLoggedIn, user } = useAuth()
+  const [open, setOpen] = useState(null) // 'search' | 'menu' | null
+  const location = useLocation()
+  const rootRef = useRef(null)
+
+  // 경로가 바뀌면 열려있던 드롭다운을 닫는다 (렌더 중 상태 조정 패턴).
+  const [lastPath, setLastPath] = useState(location.pathname)
+  if (location.pathname !== lastPath) {
+    setLastPath(location.pathname)
+    setOpen(null)
+  }
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(null)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  return (
+    <header ref={rootRef} className="sticky top-0 z-30 border-b border-ink-100 bg-white">
+      <div className="relative mx-auto flex h-16 w-full max-w-300 items-center justify-between px-6">
+        <Link to="/" className="flex items-center gap-1.5 text-lg font-extrabold text-ink-900">
+          <span aria-hidden>🐿</span>
+          쿼카툰
+        </Link>
+
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm font-semibold text-ink-700 md:flex">
+          <Link to="/webtoons" className="transition hover:text-brand-500">
+            웹툰
+          </Link>
+          <Link to="/board" className="transition hover:text-brand-500">
+            게시판
+          </Link>
+          {isLoggedIn && (
+            <Link to="/admin" className="transition hover:text-brand-500">
+              관리자
+            </Link>
+          )}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="검색"
+            onClick={() => setOpen((o) => (o === 'search' ? null : 'search'))}
+            className={`flex h-9 w-9 items-center justify-center rounded-full border border-ink-100 text-ink-700 transition hover:bg-ink-50 ${
+              open === 'search' ? 'bg-ink-50' : ''
+            }`}
+          >
+            🔍
+          </button>
+
+          {isLoggedIn && (
+            <Link
+              to="/mypage/favorites"
+              className="hidden items-center gap-1 rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 sm:flex"
+            >
+              Lv.{user.level} · {user.nickname}
+            </Link>
+          )}
+
+          <button
+            type="button"
+            aria-label="메뉴"
+            onClick={() => setOpen((o) => (o === 'menu' ? null : 'menu'))}
+            className={`flex h-9 w-9 items-center justify-center rounded-full border border-ink-100 text-ink-700 transition hover:bg-ink-50 ${
+              open === 'menu' ? 'bg-ink-50' : ''
+            }`}
+          >
+            ≡
+          </button>
+
+          {open === 'menu' && <HamburgerMenu onClose={() => setOpen(null)} />}
+        </div>
+
+        {open === 'search' && <SearchDropdown onClose={() => setOpen(null)} />}
+      </div>
+    </header>
+  )
+}

@@ -1,0 +1,151 @@
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAppData } from '../hooks/useAppData'
+import { StarsDisplay } from '../components/common/Stars'
+
+const TABS = [
+  { key: 'all', label: '전체게시판', to: '/board' },
+  { key: 'free', label: '자유게시판', to: '/board/free' },
+  { key: 'webtoon', label: '웹툰게시판', to: '/board/webtoon' },
+]
+
+const SORTS = [
+  { key: 'latest', label: '최신순' },
+  { key: 'likes', label: '좋아요순' },
+  { key: 'comments', label: '댓글순' },
+]
+
+const PAGE_SIZE = 5
+
+export default function BoardListPage({ boardType = 'all' }) {
+  const { posts } = useAppData()
+  const [sort, setSort] = useState('latest')
+  const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
+
+  const filtered = useMemo(() => {
+    let list = boardType === 'all' ? posts : posts.filter((p) => p.board === boardType)
+    if (keyword.trim()) {
+      const kw = keyword.trim().toLowerCase()
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(kw) ||
+          p.author.toLowerCase().includes(kw) ||
+          p.webtoonTag?.toLowerCase().includes(kw),
+      )
+    }
+    list = [...list]
+    if (sort === 'likes') list.sort((a, b) => b.likes - a.likes)
+    else if (sort === 'comments') list.sort((a, b) => b.comments.length - a.comments.length)
+    return list
+  }, [posts, boardType, keyword, sort])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  return (
+    <div className="px-6 py-10">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">
+          {TABS.map((tab) => (
+            <Link
+              key={tab.key}
+              to={tab.to}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                tab.key === boardType ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-full border border-ink-100 bg-white px-3 py-2 text-xs font-semibold text-ink-700 outline-none"
+          >
+            {SORTS.map((s) => (
+              <option key={s.key} value={s.key}>
+                정렬: {s.label}
+              </option>
+            ))}
+          </select>
+          <input
+            value={keyword}
+            onChange={(e) => {
+              setKeyword(e.target.value)
+              setPage(1)
+            }}
+            placeholder={boardType === 'webtoon' ? '웹툰 이름으로 검색' : '제목·글쓴이 검색'}
+            className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none"
+          />
+          <Link
+            to="/board/write"
+            className="shrink-0 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            {boardType === 'webtoon' ? '리뷰 쓰기' : '글쓰기'}
+          </Link>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-ink-100 bg-white">
+        <div className="hidden grid-cols-[auto_1fr_auto_auto_auto] gap-4 border-b border-ink-100 px-5 py-3 text-xs font-semibold text-ink-500 sm:grid">
+          <span>번호</span>
+          <span>제목</span>
+          <span>별점</span>
+          <span>글쓴이</span>
+          <span>날짜</span>
+        </div>
+
+        {paged.length === 0 ? (
+          <p className="py-16 text-center text-sm text-ink-500">게시글이 없어요.</p>
+        ) : (
+          paged.map((post, i) => (
+            <Link
+              key={post.id}
+              to={`/board/post/${post.id}`}
+              className="flex flex-col gap-1 border-b border-ink-100 px-5 py-3 last:border-b-0 hover:bg-ink-50 sm:grid sm:grid-cols-[auto_1fr_auto_auto_auto] sm:items-center sm:gap-4"
+            >
+              <span className="hidden text-xs text-ink-300 sm:block">
+                {filtered.length - ((page - 1) * PAGE_SIZE + i)}
+              </span>
+              <span className="flex min-w-0 items-center gap-2">
+                {post.webtoonTag && (
+                  <span className="shrink-0 rounded-full bg-ink-50 px-2 py-0.5 text-[11px] font-semibold text-ink-500">
+                    #{post.webtoonTag}
+                  </span>
+                )}
+                <span className="truncate text-sm font-medium text-ink-900">{post.title}</span>
+                {post.comments.length > 0 && (
+                  <span className="shrink-0 text-xs text-ink-300">댓글 {post.comments.length}</span>
+                )}
+              </span>
+              <span>{post.rating ? <StarsDisplay rating={post.rating} size="text-xs" /> : <span className="text-xs text-ink-200">-</span>}</span>
+              <span className="text-xs text-ink-500">{post.author}</span>
+              <span className="text-xs text-ink-500">{post.date}</span>
+            </Link>
+          ))
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="mt-5 flex justify-center gap-1.5">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPage(p)}
+              className={`h-8 w-8 rounded-full text-xs font-semibold transition ${
+                p === page ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
