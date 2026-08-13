@@ -8,6 +8,7 @@ import PlaceholderPage from './components/common/PlaceholderPage'
 
 import SignupPage from './pages/SignupPage'
 import LoginPage from './pages/LoginPage'
+import OAuthCallback from './pages/OAuthCallback'
 import InquiryPage from './pages/InquiryPage'
 
 import FavoritesPage from './pages/mypage/FavoritesPage'
@@ -32,6 +33,8 @@ function App() {
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/oauth/kakao/callback" element={<OAuthCallback provider="kakao" />} />
+        <Route path="/oauth/naver/callback" element={<OAuthCallback provider="naver" />} />
         <Route path="/inquiry" element={<InquiryPage />} />
 
         <Route path="/mypage/favorites" element={<FavoritesPage />} />

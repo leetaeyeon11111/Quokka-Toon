@@ -4,5 +4,6 @@ public record TokenResponse(
         String accessToken,
         Long userId,
         String nickname,
-        int level
+        int level,
+        String role
 ) {}

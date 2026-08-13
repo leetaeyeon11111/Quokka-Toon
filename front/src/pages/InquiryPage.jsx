@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { INQUIRY_CATEGORIES } from '../data/inquiries'
-import { useAppData } from '../hooks/useAppData'
+import { createInquiry, listMyInquiries } from '../api/inquiry'
 import { useAuth } from '../hooks/useAuth'
-import { nextId } from '../lib/id'
 import PlaceholderPage from '../components/common/PlaceholderPage'
 
 function InquiryHistoryItem({ inquiry }) {
@@ -43,39 +42,46 @@ function InquiryHistoryItem({ inquiry }) {
 
 export default function InquiryPage() {
   const { isLoggedIn } = useAuth()
-  const { inquiries, submitInquiry } = useAppData()
   const [tab, setTab] = useState('write')
+  const [myInquiries, setMyInquiries] = useState([])
 
   const [category, setCategory] = useState('')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [fileName, setFileName] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    listMyInquiries()
+      .then(setMyInquiries)
+      .catch(() => setMyInquiries([]))
+  }, [isLoggedIn])
 
   if (!isLoggedIn) {
     return <PlaceholderPage title="문의하기" description="문의하기는 로그인 후 이용할 수 있어요." showDemoLogin />
   }
 
-  const myInquiries = inquiries.filter((inq) => inq.isMine)
-
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!category || !title.trim() || !content.trim()) return
-    submitInquiry({
-      id: nextId('inq'),
-      category,
-      title,
-      content,
-      author: '나',
-      isMine: true,
-      status: '답변대기',
-      answer: '',
-      date: '방금 전',
-    })
-    setCategory('')
-    setTitle('')
-    setContent('')
-    setFileName('')
-    setTab('history')
+    setError('')
+    setSubmitting(true)
+    try {
+      await createInquiry({ categoryLabel: category, title: title.trim(), content: content.trim() })
+      const mine = await listMyInquiries()
+      setMyInquiries(mine)
+      setCategory('')
+      setTitle('')
+      setContent('')
+      setFileName('')
+      setTab('history')
+    } catch (err) {
+      setError(err.message ?? '문의 등록에 실패했어요.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -147,12 +153,14 @@ export default function InquiryPage() {
             </label>
           </div>
           <p className="text-xs text-red-400">업로드는 jpg, jpeg, png 파일만 가능하며 10MB까지 등록이 됩니다.</p>
+          {error && <p className="text-xs text-red-500">{error}</p>}
 
           <button
             type="submit"
-            className="mt-1 rounded-xl bg-brand-600 py-3.5 text-sm font-bold text-white transition hover:bg-brand-700"
+            disabled={submitting}
+            className="mt-1 rounded-xl bg-brand-600 py-3.5 text-sm font-bold text-white transition hover:bg-brand-700 disabled:opacity-50"
           >
-            확인
+            {submitting ? '등록 중…' : '확인'}
           </button>
         </form>
       ) : myInquiries.length === 0 ? (

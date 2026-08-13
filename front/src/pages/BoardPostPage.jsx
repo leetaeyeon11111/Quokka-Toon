@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useAppData } from '../hooks/useAppData'
+import * as boardApi from '../api/board'
+import { createReport } from '../api/report'
 import { useAuth } from '../hooks/useAuth'
-import { nextId } from '../lib/id'
 import { StarsDisplay } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
 
-function CommentRow({ comment, postId, onReplyClick, onReact, children }) {
+function CommentRow({ comment, onReplyClick, onReact, onReport, children }) {
   return (
     <div>
       <div className="rounded-xl border border-ink-100 bg-white p-3">
@@ -15,13 +15,13 @@ function CommentRow({ comment, postId, onReplyClick, onReact, children }) {
         </p>
         <p className="mb-2 text-sm text-ink-700">{comment.text}</p>
         <div className="flex items-center gap-3 text-xs text-ink-500">
-          <button type="button" onClick={() => onReact(postId, comment.id)} className="hover:text-brand-500">
+          <button type="button" onClick={() => onReact(comment.id)} className="hover:text-brand-500">
             👍 {comment.likes}
           </button>
           <button type="button" onClick={() => onReplyClick(comment.id)} className="hover:text-brand-500">
             💬 답글
           </button>
-          <button type="button" onClick={() => alert('신고가 접수됐어요.')} className="hover:text-red-500">
+          <button type="button" onClick={() => onReport(comment.id)} className="hover:text-red-500">
             🚩 신고
           </button>
         </div>
@@ -34,52 +34,125 @@ function CommentRow({ comment, postId, onReplyClick, onReact, children }) {
 export default function BoardPostPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { posts, reactPost, reactComment, addComment, deletePost } = useAppData()
-  const { user, isLoggedIn } = useAuth()
+  const { isLoggedIn } = useAuth()
+
+  const [post, setPost] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyText, setReplyText] = useState('')
 
-  const post = posts.find((p) => p.id === id)
+  useEffect(() => {
+    let cancelled = false
+    async function fetchPost() {
+      setLoading(true)
+      try {
+        const data = await boardApi.getPost(id)
+        if (!cancelled) setPost(data)
+      } catch {
+        if (!cancelled) setNotFound(true)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchPost()
+    return () => {
+      cancelled = true
+    }
+  }, [id])
 
-  const topLevelComments = useMemo(
-    () => post?.comments.filter((c) => !c.parentId) ?? [],
-    [post],
-  )
-  const repliesOf = (commentId) => post?.comments.filter((c) => c.parentId === commentId) ?? []
+  const comments = useMemo(() => post?.comments ?? [], [post])
+  const topLevelComments = useMemo(() => comments.filter((c) => !c.parentId), [comments])
+  const repliesOf = (commentId) => comments.filter((c) => c.parentId === commentId)
 
-  if (!post) {
-    return <PlaceholderPage title="게시글을 찾을 수 없어요" description="삭제되었거나 잘못된 주소예요." />
+  function requireLogin() {
+    if (!isLoggedIn) {
+      alert('로그인 후 이용할 수 있어요.')
+      return false
+    }
+    return true
   }
 
-  function submitComment(e) {
+  async function handleReactPost(kind) {
+    if (!requireLogin()) return
+    try {
+      const res = await boardApi.reactPost(post.id, kind)
+      setPost((prev) => ({
+        ...prev,
+        likes: res.likes,
+        dislikes: res.dislikes,
+        myReaction: res.myReaction,
+      }))
+    } catch (err) {
+      alert(err.message ?? '처리에 실패했어요.')
+    }
+  }
+
+  async function handleReactComment(commentId) {
+    if (!requireLogin()) return
+    try {
+      const res = await boardApi.reactComment(commentId)
+      setPost((prev) => ({
+        ...prev,
+        comments: prev.comments.map((c) =>
+          c.id === commentId ? { ...c, likes: res.likes, liked: res.liked } : c,
+        ),
+      }))
+    } catch (err) {
+      alert(err.message ?? '처리에 실패했어요.')
+    }
+  }
+
+  async function submitComment(e) {
     e.preventDefault()
     if (!commentText.trim()) return
-    addComment(post.id, {
-      id: nextId('c'),
-      author: user?.nickname ?? '익명',
-      isMine: true,
-      text: commentText,
-      likes: 0,
-      parentId: null,
-      date: '방금 전',
-    })
-    setCommentText('')
+    try {
+      const created = await boardApi.addComment(post.id, { text: commentText.trim() })
+      setPost((prev) => ({ ...prev, comments: [...prev.comments, created] }))
+      setCommentText('')
+    } catch (err) {
+      alert(err.message ?? '댓글 등록에 실패했어요.')
+    }
   }
 
-  function submitReply(parentId) {
+  async function submitReply(parentId) {
     if (!replyText.trim()) return
-    addComment(post.id, {
-      id: nextId('c'),
-      author: user?.nickname ?? '익명',
-      isMine: true,
-      text: replyText,
-      likes: 0,
-      parentId,
-      date: '방금 전',
-    })
-    setReplyText('')
-    setReplyingTo(null)
+    try {
+      const created = await boardApi.addComment(post.id, { text: replyText.trim(), parentId })
+      setPost((prev) => ({ ...prev, comments: [...prev.comments, created] }))
+      setReplyText('')
+      setReplyingTo(null)
+    } catch (err) {
+      alert(err.message ?? '답글 등록에 실패했어요.')
+    }
+  }
+
+  async function handleReport(targetType, targetId) {
+    if (!requireLogin()) return
+    try {
+      await createReport({ targetType, targetId })
+      alert('신고가 접수됐어요.')
+    } catch (err) {
+      alert(err.message ?? '신고 접수에 실패했어요.')
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm('게시글을 삭제할까요?')) return
+    try {
+      await boardApi.deletePost(post.id)
+      navigate(-1)
+    } catch (err) {
+      alert(err.message ?? '삭제에 실패했어요.')
+    }
+  }
+
+  if (loading) {
+    return <p className="py-24 text-center text-sm text-ink-500">불러오는 중…</p>
+  }
+  if (notFound || !post) {
+    return <PlaceholderPage title="게시글을 찾을 수 없어요" description="삭제되었거나 잘못된 주소예요." />
   }
 
   return (
@@ -93,17 +166,8 @@ export default function BoardPostPage() {
         <span>👤 {post.author}</span>
         <span>🗓 {post.date}</span>
         {post.rating && <StarsDisplay rating={post.rating} size="text-xs" />}
-        {post.isMine && (
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm('게시글을 삭제할까요?')) {
-                deletePost(post.id)
-                navigate(-1)
-              }
-            }}
-            className="ml-auto text-red-400 hover:text-red-600"
-          >
+        {post.mine && (
+          <button type="button" onClick={handleDelete} className="ml-auto text-red-400 hover:text-red-600">
             삭제
           </button>
         )}
@@ -116,28 +180,28 @@ export default function BoardPostPage() {
       <div className="mb-8 flex gap-2">
         <button
           type="button"
-          onClick={() => reactPost(post.id, 'like')}
+          onClick={() => handleReactPost('like')}
           className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
         >
           👍 추천 {post.likes}
         </button>
         <button
           type="button"
-          onClick={() => reactPost(post.id, 'dislike')}
+          onClick={() => handleReactPost('dislike')}
           className="rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:bg-ink-50"
         >
           👎 비추천 {post.dislikes}
         </button>
         <button
           type="button"
-          onClick={() => alert('신고가 접수됐어요.')}
+          onClick={() => handleReport('POST', post.id)}
           className="rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50"
         >
           🚩 신고
         </button>
       </div>
 
-      <p className="mb-3 text-sm font-bold text-ink-900">💬 댓글 {post.comments.length}</p>
+      <p className="mb-3 text-sm font-bold text-ink-900">💬 댓글 {comments.length}</p>
 
       {isLoggedIn ? (
         <form onSubmit={submitComment} className="mb-5 flex gap-2">
@@ -160,10 +224,9 @@ export default function BoardPostPage() {
           <CommentRow
             key={comment.id}
             comment={comment}
-            postId={post.id}
-            onReact={reactComment}
+            onReact={handleReactComment}
+            onReport={(cid) => handleReport('COMMENT', cid)}
             onReplyClick={(cid) => setReplyingTo(cid === replyingTo ? null : cid)}
-            replyingTo={replyingTo}
           >
             <div className="mt-2 flex flex-col gap-2">
               {repliesOf(comment.id).map((reply) => (
@@ -175,7 +238,7 @@ export default function BoardPostPage() {
                     <p className="mb-1 text-sm text-ink-700">{reply.text}</p>
                     <button
                       type="button"
-                      onClick={() => reactComment(post.id, reply.id)}
+                      onClick={() => handleReactComment(reply.id)}
                       className="text-xs text-ink-500 hover:text-brand-500"
                     >
                       👍 {reply.likes}
@@ -184,7 +247,7 @@ export default function BoardPostPage() {
                 </div>
               ))}
 
-              {replyingTo === comment.id && (
+              {replyingTo === comment.id && isLoggedIn && (
                 <div className="ml-8 flex gap-2 pl-4">
                   <input
                     autoFocus

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAppData } from '../hooks/useAppData'
+import { listPosts } from '../api/board'
 import { StarsDisplay } from '../components/common/Stars'
 
 const TABS = [
@@ -18,13 +18,38 @@ const SORTS = [
 const PAGE_SIZE = 5
 
 export default function BoardListPage({ boardType = 'all' }) {
-  const { posts } = useAppData()
+  const [posts, setPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [sort, setSort] = useState('latest')
   const [keyword, setKeyword] = useState('')
   const [page, setPage] = useState(1)
 
+  useEffect(() => {
+    let cancelled = false
+    async function fetchPosts() {
+      setLoading(true)
+      setError('')
+      try {
+        const list = await listPosts(boardType)
+        if (!cancelled) {
+          setPosts(list)
+          setPage(1)
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.message ?? '게시글을 불러오지 못했어요.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    fetchPosts()
+    return () => {
+      cancelled = true
+    }
+  }, [boardType])
+
   const filtered = useMemo(() => {
-    let list = boardType === 'all' ? posts : posts.filter((p) => p.board === boardType)
+    let list = posts
     if (keyword.trim()) {
       const kw = keyword.trim().toLowerCase()
       list = list.filter(
@@ -36,9 +61,9 @@ export default function BoardListPage({ boardType = 'all' }) {
     }
     list = [...list]
     if (sort === 'likes') list.sort((a, b) => b.likes - a.likes)
-    else if (sort === 'comments') list.sort((a, b) => b.comments.length - a.comments.length)
+    else if (sort === 'comments') list.sort((a, b) => b.commentCount - a.commentCount)
     return list
-  }, [posts, boardType, keyword, sort])
+  }, [posts, keyword, sort])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -99,7 +124,11 @@ export default function BoardListPage({ boardType = 'all' }) {
           <span>날짜</span>
         </div>
 
-        {paged.length === 0 ? (
+        {loading ? (
+          <p className="py-16 text-center text-sm text-ink-500">불러오는 중…</p>
+        ) : error ? (
+          <p className="py-16 text-center text-sm text-red-500">{error}</p>
+        ) : paged.length === 0 ? (
           <p className="py-16 text-center text-sm text-ink-500">게시글이 없어요.</p>
         ) : (
           paged.map((post, i) => (
@@ -118,8 +147,8 @@ export default function BoardListPage({ boardType = 'all' }) {
                   </span>
                 )}
                 <span className="truncate text-sm font-medium text-ink-900">{post.title}</span>
-                {post.comments.length > 0 && (
-                  <span className="shrink-0 text-xs text-ink-300">댓글 {post.comments.length}</span>
+                {post.commentCount > 0 && (
+                  <span className="shrink-0 text-xs text-ink-300">댓글 {post.commentCount}</span>
                 )}
               </span>
               <span>{post.rating ? <StarsDisplay rating={post.rating} size="text-xs" /> : <span className="text-xs text-ink-200">-</span>}</span>

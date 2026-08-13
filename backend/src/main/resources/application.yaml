@@ -1,4 +1,8 @@
 spring:
+  # 실제 비밀값(DB 비번, 소셜 시크릿)은 커밋 금지. 아래 secret.properties(로컬, gitignore)에서 로드.
+  # 파일이 없으면 무시(optional). 팀원은 secret.properties 를 각자 두거나 환경변수로 주입.
+  config:
+    import: optional:file:./secret.properties
   application:
     name: quokkatoon
   datasource:
@@ -28,3 +32,14 @@ jwt:
 
 recommend:
   base-url: ${RECOMMEND_URL:http://localhost:8000}
+
+# 소셜 로그인 — 실제 키/시크릿은 secret.properties 또는 환경변수로 주입 (커밋 금지)
+oauth:
+  kakao:
+    rest-key: ${KAKAO_REST_API_KEY:}
+    client-secret: ${KAKAO_CLIENT_SECRET:}
+    redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:5173/oauth/kakao/callback}
+  naver:
+    client-id: ${NAVER_CLIENT_ID:}
+    client-secret: ${NAVER_CLIENT_SECRET:}
+    redirect-uri: ${NAVER_REDIRECT_URI:http://localhost:5173/oauth/naver/callback}

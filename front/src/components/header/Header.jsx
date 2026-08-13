@@ -5,7 +5,7 @@ import SearchDropdown from './SearchDropdown'
 import HamburgerMenu from './HamburgerMenu'
 
 export default function Header() {
-  const { isLoggedIn, user } = useAuth()
+  const { isLoggedIn, isAdmin, user } = useAuth()
   const [open, setOpen] = useState(null) // 'search' | 'menu' | null
   const location = useLocation()
   const rootRef = useRef(null)
@@ -40,7 +40,7 @@ export default function Header() {
           <Link to="/board" className="transition hover:text-brand-500">
             게시판
           </Link>
-          {isLoggedIn && (
+          {isAdmin && (
             <Link to="/admin" className="transition hover:text-brand-500">
               관리자
             </Link>

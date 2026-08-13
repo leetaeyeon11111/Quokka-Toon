@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,10 +30,16 @@ public class SecurityConfig {
             .cors(cors -> {})
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // 현재 회원 조회는 로그인 필요 (permitAll 보다 먼저 선언)
+                .requestMatchers("/api/auth/me").authenticated()
                 // 인증 없이 접근 가능
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/webtoons/**").permitAll()
                 .requestMatchers("/api/recommend/**").permitAll()
+                // 내가 쓴 글은 로그인 필요 (공개 GET 보다 먼저 선언)
+                .requestMatchers("/api/board/mine").authenticated()
+                // 게시판 조회는 공개, 작성/삭제/반응은 로그인 필요
+                .requestMatchers(HttpMethod.GET, "/api/board/**").permitAll()
                 // 관리자 전용
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // 그 외는 로그인 필요

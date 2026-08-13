@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import * as adminReqApi from '../../api/adminRequest'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
 
 function EditableRow({ label, value, locked, onSave, mask }) {
@@ -61,8 +62,225 @@ function EditableRow({ label, value, locked, onSave, mask }) {
   )
 }
 
+const GENDER_LABEL = { M: '남', F: '여', NONE: '미설정' }
+
+function calcAge(birthDate) {
+  if (!birthDate) return null
+  const birth = new Date(birthDate)
+  if (Number.isNaN(birth.getTime())) return null
+  const now = new Date()
+  let age = now.getFullYear() - birth.getFullYear()
+  const m = now.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age -= 1
+  return age
+}
+
+// 일반 유저: 관리자 승격 요청
+function AdminRequestSection() {
+  const [status, setStatus] = useState(undefined) // undefined=로딩, null=요청없음, 'PENDING'/'APPROVED'/'REJECTED'
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    adminReqApi
+      .getMyAdminRequest()
+      .then((r) => setStatus(r?.status ?? null))
+      .catch(() => setStatus(null))
+  }, [])
+
+  async function handleRequest() {
+    setSubmitting(true)
+    try {
+      await adminReqApi.requestAdmin()
+      setStatus('PENDING')
+    } catch (err) {
+      alert(err.message ?? '요청에 실패했어요.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-ink-100 bg-white p-5">
+      <p className="mb-1 text-sm font-bold text-ink-900">관리자 권한</p>
+      <p className="mb-3 text-xs text-ink-500">
+        관리자에게 승격을 요청할 수 있어요. 승인되면 신고·문의 관리 기능을 사용할 수 있습니다.
+      </p>
+
+      {status === 'PENDING' ? (
+        <span className="inline-block rounded-full bg-ink-100 px-4 py-2 text-xs font-semibold text-ink-500">
+          ⏳ 승인 대기중
+        </span>
+      ) : status === 'APPROVED' ? (
+        <span className="inline-block rounded-full bg-mint-100 px-4 py-2 text-xs font-semibold text-mint-500">
+          ✅ 승인됨 — 다시 로그인하면 관리자 기능을 쓸 수 있어요.
+        </span>
+      ) : (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRequest}
+            disabled={submitting || status === undefined}
+            className="rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-ink-700 disabled:opacity-50"
+          >
+            {submitting ? '요청 중…' : '관리자 요청하기'}
+          </button>
+          {status === 'REJECTED' && (
+            <span className="text-xs text-red-500">이전 요청이 거절됐어요. 다시 요청할 수 있어요.</span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 관리자: 승격 요청 목록 + 승인/거절
+function AdminApprovalSection() {
+  const [requests, setRequests] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    adminReqApi
+      .listAdminRequests()
+      .then(setRequests)
+      .catch(() => setRequests([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handle(id, approve) {
+    try {
+      if (approve) await adminReqApi.approveAdminRequest(id)
+      else await adminReqApi.rejectAdminRequest(id)
+      setRequests((prev) => prev.filter((r) => r.id !== id))
+    } catch (err) {
+      alert(err.message ?? '처리에 실패했어요.')
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-ink-100 bg-white p-5">
+      <p className="mb-3 text-sm font-bold text-ink-900">
+        🛡 관리자 승격 요청 <span className="text-ink-300">{requests.length}건</span>
+      </p>
+
+      {loading ? (
+        <p className="py-6 text-center text-sm text-ink-500">불러오는 중…</p>
+      ) : requests.length === 0 ? (
+        <p className="py-6 text-center text-sm text-ink-500">대기 중인 요청이 없어요.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {requests.map((r) => (
+            <div
+              key={r.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink-900">
+                  {r.nickname} <span className="text-xs font-normal text-ink-300">Lv.{r.level}</span>
+                </p>
+                <p className="truncate text-xs text-ink-500">{r.email}</p>
+              </div>
+              <div className="flex shrink-0 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handle(r.id, true)}
+                  className="rounded-full bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
+                >
+                  승인
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handle(r.id, false)}
+                  className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-500 hover:bg-ink-50"
+                >
+                  거절
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 관리자: 현재 관리자 목록 + 해제(강등)
+function AdminListSection() {
+  const { user } = useAuth()
+  const [admins, setAdmins] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    adminReqApi
+      .listAdmins()
+      .then(setAdmins)
+      .catch(() => setAdmins([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function handleRevoke(userId) {
+    if (!confirm('이 사용자의 관리자 권한을 해제할까요?')) return
+    try {
+      await adminReqApi.revokeAdmin(userId)
+      setAdmins((prev) => prev.filter((a) => a.userId !== userId))
+    } catch (err) {
+      alert(err.message ?? '해제에 실패했어요.')
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-ink-100 bg-white p-5">
+      <p className="mb-3 text-sm font-bold text-ink-900">
+        👑 현재 관리자 <span className="text-ink-300">{admins.length}명</span>
+      </p>
+
+      {loading ? (
+        <p className="py-6 text-center text-sm text-ink-500">불러오는 중…</p>
+      ) : admins.length === 0 ? (
+        <p className="py-6 text-center text-sm text-ink-500">관리자가 없어요.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {admins.map((a) => {
+            const isMe = a.userId === user?.userId
+            return (
+              <div
+                key={a.userId}
+                className="flex items-center justify-between gap-3 rounded-xl border border-ink-100 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink-900">
+                    {a.nickname}
+                    {isMe && <span className="ml-1 text-xs font-normal text-brand-500">(나)</span>}
+                    <span className="ml-1 text-xs font-normal text-ink-300">Lv.{a.level}</span>
+                  </p>
+                  <p className="truncate text-xs text-ink-500">{a.email}</p>
+                </div>
+                {isMe ? (
+                  <span className="shrink-0 rounded-full bg-ink-50 px-3 py-1.5 text-xs text-ink-300">
+                    본인
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleRevoke(a.userId)}
+                    className="shrink-0 rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50"
+                  >
+                    관리자 해제
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <p className="mt-3 text-xs text-ink-300">
+        * 해제된 사용자는 다시 로그인하면 일반 회원으로 돌아갑니다.
+      </p>
+    </div>
+  )
+}
+
 export default function InfoPage() {
-  const { user, login } = useAuth()
+  const { user, isAdmin } = useAuth()
 
   if (!user) {
     return (
@@ -93,19 +311,26 @@ export default function InfoPage() {
 
       <div className="rounded-2xl border border-ink-100 bg-white px-5">
         <p className="pt-4 text-sm font-bold text-ink-900">계정 관리</p>
-        <EditableRow
-          label="닉네임"
-          value={user.nickname}
-          onSave={(v) => login({ ...user, nickname: v })}
-        />
-        <EditableRow label="비밀번호" value="password123" mask onSave={() => {}} />
-        <EditableRow label="이메일 (아이디)" value={user.email ?? 'name@email.com'} locked />
+        {/* 프로필 수정 API는 다음 단계에서 연동 예정 — 현재는 조회 전용 */}
+        <EditableRow label="닉네임" value={user.nickname} locked />
+        <EditableRow label="이메일 (아이디)" value={user.email ?? '-'} locked />
         <EditableRow
           label="성별 / 나이"
-          value={`${user.gender ?? '여'} · ${user.age ? `${user.age}세` : '1998'}`}
+          value={`${GENDER_LABEL[user.gender] ?? '미설정'}${
+            calcAge(user.birthDate) != null ? ` · ${calcAge(user.birthDate)}세` : ''
+          }`}
           locked
         />
       </div>
+
+      {isAdmin ? (
+        <>
+          <AdminApprovalSection />
+          <AdminListSection />
+        </>
+      ) : (
+        <AdminRequestSection />
+      )}
     </div>
   )
 }

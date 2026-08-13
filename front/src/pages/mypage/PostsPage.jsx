@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getWebtoonById } from '../../data/webtoons'
 import { useAppData } from '../../hooks/useAppData'
+import { listMyPosts } from '../../api/board'
 import MyPageShell from '../../components/mypage/MyPageShell'
 import { StarsDisplay } from '../../components/common/Stars'
 
@@ -27,7 +28,7 @@ function PostRow({ post }) {
       </div>
       <div className="flex shrink-0 items-center gap-3 text-xs text-ink-500">
         <span>
-          ♡{post.likes} 💬{post.comments.length}
+          ♡{post.likes} 💬{post.commentCount ?? post.comments?.length ?? 0}
         </span>
         <span>{post.date}</span>
       </div>
@@ -38,8 +39,14 @@ function PostRow({ post }) {
 export default function PostsPage() {
   const { posts, extraReviews } = useAppData()
   const [tab, setTab] = useState('posts')
+  const [myPosts, setMyPosts] = useState([])
 
-  const myPosts = useMemo(() => posts.filter((p) => p.isMine), [posts])
+  useEffect(() => {
+    listMyPosts()
+      .then(setMyPosts)
+      .catch(() => setMyPosts([]))
+  }, [])
+
   const myCommentPosts = useMemo(
     () => posts.filter((p) => p.comments.some((c) => c.isMine)),
     [posts],

@@ -35,3 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### 비밀값 (커밋 금지) ###
+secret.properties
+application-local.yaml
+application-secret.*

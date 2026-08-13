@@ -1,48 +1,53 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { WEBTOONS } from '../data/webtoons'
-import { useAppData } from '../hooks/useAppData'
+import { createPost } from '../api/board'
+import { listWebtoons } from '../api/webtoon'
 import { useAuth } from '../hooks/useAuth'
-import { nextId } from '../lib/id'
 import { StarsInput } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
 
 export default function BoardWritePage() {
   const navigate = useNavigate()
-  const { addPost } = useAppData()
-  const { user, isLoggedIn } = useAuth()
+  const { isLoggedIn } = useAuth()
 
   const [board, setBoard] = useState('free')
+  const [webtoons, setWebtoons] = useState([])
   const [webtoonId, setWebtoonId] = useState('')
   const [rating, setRating] = useState(0)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    listWebtoons()
+      .then(setWebtoons)
+      .catch(() => setWebtoons([]))
+  }, [])
 
   if (!isLoggedIn) {
     return <PlaceholderPage title="글쓰기" description="글쓰기는 로그인 후 이용할 수 있어요." showDemoLogin />
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!title.trim() || !content.trim()) return
+    setError('')
+    setSubmitting(true)
 
-    const webtoon = WEBTOONS.find((w) => w.id === webtoonId)
-    const id = nextId('post')
-    addPost({
-      id,
-      board,
-      webtoonTag: board === 'webtoon' ? webtoon?.title : undefined,
-      title,
-      content,
-      rating: board === 'webtoon' && rating > 0 ? rating : undefined,
-      author: user.nickname,
-      isMine: true,
-      likes: 0,
-      dislikes: 0,
-      date: '방금 전',
-      comments: [],
-    })
-    navigate(`/board/post/${id}`)
+    try {
+      const postId = await createPost({
+        board,
+        webtoonId: board === 'webtoon' && webtoonId ? Number(webtoonId) : null,
+        title: title.trim(),
+        content: content.trim(),
+        rating: board === 'webtoon' && rating > 0 ? rating : null,
+      })
+      navigate(`/board/post/${postId}`)
+    } catch (err) {
+      setError(err.message ?? '등록에 실패했어요.')
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -76,7 +81,7 @@ export default function BoardWritePage() {
               className="flex-1 rounded-full border border-ink-100 bg-white px-3 py-2 text-sm outline-none"
             >
               <option value="">웹툰 선택</option>
-              {WEBTOONS.map((w) => (
+              {webtoons.map((w) => (
                 <option key={w.id} value={w.id}>
                   {w.title}
                 </option>
@@ -100,11 +105,14 @@ export default function BoardWritePage() {
           className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
         />
 
+        {error && <p className="text-xs text-red-500">{error}</p>}
+
         <button
           type="submit"
-          className="mt-1 rounded-full bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600"
+          disabled={submitting}
+          className="mt-1 rounded-full bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
         >
-          등록
+          {submitting ? '등록 중…' : '등록'}
         </button>
       </form>
     </div>

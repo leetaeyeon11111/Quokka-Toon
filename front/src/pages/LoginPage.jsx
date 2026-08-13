@@ -1,24 +1,30 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { goKakaoAuthorize, goNaverAuthorize } from '../api/social'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { login, isLoggedIn, user } = useAuth()
-  const [id, setId] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [justLoggedIn, setJustLoggedIn] = useState(false)
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (!id.trim() || !password) return
-    login({ nickname: id.split('@')[0] || '닉네임' })
-    setJustLoggedIn(true)
-  }
-
-  function handleSocial(provider) {
-    login({ nickname: `${provider}유저` })
-    setJustLoggedIn(true)
+    if (!email.trim() || !password) return
+    setError('')
+    setSubmitting(true)
+    try {
+      await login(email.trim(), password)
+      setJustLoggedIn(true)
+    } catch (err) {
+      setError(err.message ?? '로그인에 실패했어요.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const showSuccess = justLoggedIn || isLoggedIn
@@ -30,9 +36,10 @@ export default function LoginPage() {
           <p className="mb-6 text-center text-lg font-extrabold text-ink-900">🐿 쿼카툰</p>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input
-              value={id}
-              onChange={(e) => setId(e.target.value)}
-              placeholder="아이디 / 이메일"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="이메일"
               className="rounded-full border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
             />
             <input
@@ -42,25 +49,27 @@ export default function LoginPage() {
               placeholder="비밀번호"
               className="rounded-full border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
             />
+            {error && <p className="text-xs text-red-500">{error}</p>}
             <button
               type="submit"
-              className="mt-1 rounded-full bg-ink-900 py-3 text-sm font-semibold text-white transition hover:bg-ink-700"
+              disabled={submitting}
+              className="mt-1 rounded-full bg-ink-900 py-3 text-sm font-semibold text-white transition hover:bg-ink-700 disabled:opacity-50"
             >
-              로그인
+              {submitting ? '로그인 중…' : '로그인'}
             </button>
           </form>
 
           <div className="mt-3 flex gap-2">
             <button
               type="button"
-              onClick={() => handleSocial('카카오')}
+              onClick={goKakaoAuthorize}
               className="flex-1 rounded-full bg-[#fee500] py-3 text-sm font-semibold text-ink-900"
             >
               카카오
             </button>
             <button
               type="button"
-              onClick={() => handleSocial('네이버')}
+              onClick={goNaverAuthorize}
               className="flex-1 rounded-full bg-[#03c75a] py-3 text-sm font-semibold text-white"
             >
               네이버

@@ -3,8 +3,10 @@ package com.quokkatoon.user.controller;
 import com.quokkatoon.global.common.ApiResponse;
 import com.quokkatoon.user.dto.*;
 import com.quokkatoon.user.service.AuthService;
+import com.quokkatoon.user.service.SocialAuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final SocialAuthService socialAuthService;
 
     // 이메일 중복 확인 (STEP 1)
     @GetMapping("/check-email")
@@ -36,5 +39,22 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest req) {
         return ApiResponse.ok(authService.login(req));
+    }
+
+    // 현재 로그인한 회원 정보 (JWT 필요) — 새로고침 시 세션 복원용
+    @GetMapping("/me")
+    public ApiResponse<UserResponse> me(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.ok(authService.getMe(userId));
+    }
+
+    // 소셜 로그인 — 프론트 콜백에서 받은 인가 코드를 전달
+    @PostMapping("/social/kakao")
+    public ApiResponse<TokenResponse> kakao(@Valid @RequestBody SocialLoginRequest req) {
+        return ApiResponse.ok(socialAuthService.kakaoLogin(req));
+    }
+
+    @PostMapping("/social/naver")
+    public ApiResponse<TokenResponse> naver(@Valid @RequestBody SocialLoginRequest req) {
+        return ApiResponse.ok(socialAuthService.naverLogin(req));
     }
 }

@@ -64,6 +64,15 @@ public class AuthService {
             throw new BusinessException(ErrorCode.USER_BANNED);
         }
         String token = jwtProvider.createToken(user.getId(), user.getRole().name());
-        return new TokenResponse(token, user.getId(), user.getNickname(), user.getLevel());
+        return new TokenResponse(token, user.getId(), user.getNickname(),
+                user.getLevel(), user.getRole().name());
+    }
+
+    // 현재 로그인한 회원 정보 조회 (GET /api/auth/me)
+    @Transactional(readOnly = true)
+    public UserResponse getMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return UserResponse.from(user);
     }
 }

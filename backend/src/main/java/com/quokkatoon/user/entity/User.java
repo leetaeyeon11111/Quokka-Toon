@@ -79,7 +79,46 @@ public class User extends BaseTimeEntity {
         this.level = 1;
     }
 
+    // 소셜 전용 계정 (비밀번호 없음)
+    public static User socialUser(String email, String nickname, String profileImageUrl) {
+        User u = new User();
+        u.email = email;
+        u.passwordHash = null;
+        u.nickname = nickname;
+        u.profileImageUrl = profileImageUrl;
+        u.gender = Gender.NONE;
+        u.role = Role.USER;
+        u.status = UserStatus.ACTIVE;
+        u.level = 1;
+        return u;
+    }
+
     public boolean isBanned() {
         return this.status == UserStatus.BANNED;
+    }
+
+    // 관리자 제재: 상태를 정지로 바꾸고 경고 횟수를 누적한다.
+    public void ban() {
+        this.status = UserStatus.BANNED;
+        this.warningCount++;
+    }
+
+    // 정지 해제
+    public void unban() {
+        this.status = UserStatus.ACTIVE;
+    }
+
+    // 관리자 승격
+    public void promoteToAdmin() {
+        this.role = Role.ADMIN;
+    }
+
+    // 관리자 해제(강등)
+    public void demoteToUser() {
+        this.role = Role.USER;
+    }
+
+    public boolean isAdmin() {
+        return this.role == Role.ADMIN;
     }
 }

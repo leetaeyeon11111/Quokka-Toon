@@ -1,12 +1,15 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
+import { Link } from 'react-router-dom'
+import * as authApi from '../api/auth'
+import { goKakaoAuthorize, goNaverAuthorize } from '../api/social'
 
 const STEP_MESSAGES = [
   '이메일이랑 비밀번호 입력해줄래?',
   '나이랑 성별도 알려줄래?',
   '이제 닉네임만 정해줘!',
 ]
+
+const GENDER_MAP = { 남: 'M', 여: 'F' }
 
 function StepDots({ step }) {
   return (
@@ -18,7 +21,7 @@ function StepDots({ step }) {
   )
 }
 
-function SocialButtons({ onSocialLogin }) {
+function SocialButtons() {
   return (
     <div className="mt-6">
       <div className="relative mb-4 text-center text-xs text-ink-300">
@@ -28,14 +31,14 @@ function SocialButtons({ onSocialLogin }) {
       <div className="flex justify-center gap-3">
         <button
           type="button"
-          onClick={() => onSocialLogin('카카오')}
+          onClick={goKakaoAuthorize}
           className="flex h-12 w-12 items-center justify-center rounded-full bg-[#fee500] font-bold text-ink-900"
         >
           카
         </button>
         <button
           type="button"
-          onClick={() => onSocialLogin('네이버')}
+          onClick={goNaverAuthorize}
           className="flex h-12 w-12 items-center justify-center rounded-full bg-[#03c75a] font-bold text-white"
         >
           N
@@ -46,12 +49,12 @@ function SocialButtons({ onSocialLogin }) {
 }
 
 export default function SignupPage() {
-  const navigate = useNavigate()
-  const { login } = useAuth()
   const [step, setStep] = useState(1)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const [email, setEmail] = useState('')
-  const [emailChecked, setEmailChecked] = useState(false)
+  const [emailStatus, setEmailStatus] = useState('idle') // idle | checking | available | taken
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
 
@@ -59,31 +62,78 @@ export default function SignupPage() {
   const [gender, setGender] = useState('')
 
   const [nickname, setNickname] = useState('')
-  const [nicknameChecked, setNicknameChecked] = useState(false)
+  const [nicknameStatus, setNicknameStatus] = useState('idle')
 
-  function handleSocialLogin(provider) {
-    login({ nickname: `${provider}유저` })
-    navigate('/')
+  const passwordTooShort = password.length > 0 && password.length < 8
+
+  async function handleCheckEmail() {
+    if (!email.trim()) return
+    setEmailStatus('checking')
+    try {
+      const { available } = await authApi.checkEmail(email.trim())
+      setEmailStatus(available ? 'available' : 'taken')
+    } catch (err) {
+      setEmailStatus('idle')
+      setError(err.message ?? '중복 확인에 실패했어요.')
+    }
+  }
+
+  async function handleCheckNickname() {
+    if (!nickname.trim()) return
+    setNicknameStatus('checking')
+    try {
+      const { available } = await authApi.checkNickname(nickname.trim())
+      setNicknameStatus(available ? 'available' : 'taken')
+    } catch (err) {
+      setNicknameStatus('idle')
+      setError(err.message ?? '중복 확인에 실패했어요.')
+    }
   }
 
   function goNextFromStep1(e) {
     e.preventDefault()
-    if (!email.trim() || !password || password !== passwordConfirm) return
+    setError('')
+    if (emailStatus !== 'available') {
+      setError('이메일 중복 확인을 해주세요.')
+      return
+    }
+    if (password.length < 8) {
+      setError('비밀번호는 8자 이상이어야 해요.')
+      return
+    }
+    if (password !== passwordConfirm) return
     setStep(2)
   }
 
   function goNextFromStep2(e) {
     e.preventDefault()
+    setError('')
     if (!birth.trim() || !gender) return
     setStep(3)
   }
 
-  function goNextFromStep3(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    if (!nickname.trim()) return
-    const age = birth.length >= 4 ? new Date().getFullYear() - Number(birth.slice(0, 4)) : undefined
-    login({ nickname, email, gender, age })
-    setStep(4)
+    setError('')
+    if (nicknameStatus !== 'available') {
+      setError('닉네임 중복 확인을 해주세요.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      await authApi.signup({
+        email: email.trim(),
+        password,
+        nickname: nickname.trim(),
+        gender: GENDER_MAP[gender] ?? 'NONE',
+        birthDate: birth, // date input 값은 이미 'YYYY-MM-DD'
+      })
+      setStep(4)
+    } catch (err) {
+      setError(err.message ?? '회원가입에 실패했어요.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -112,29 +162,32 @@ export default function SignupPage() {
                       value={email}
                       onChange={(e) => {
                         setEmail(e.target.value)
-                        setEmailChecked(false)
+                        setEmailStatus('idle')
                       }}
                       placeholder="이메일"
                       className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
                     />
                     <button
                       type="button"
-                      onClick={() => email.trim() && setEmailChecked(true)}
-                      className="shrink-0 rounded-full border border-ink-100 px-4 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                      onClick={handleCheckEmail}
+                      disabled={emailStatus === 'checking'}
+                      className="shrink-0 rounded-full border border-ink-100 px-4 text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50"
                     >
-                      중복 확인
+                      {emailStatus === 'checking' ? '확인 중' : '중복 확인'}
                     </button>
                   </div>
-                  {emailChecked && <p className="text-xs text-mint-500">사용 가능한 이메일이에요.</p>}
+                  {emailStatus === 'available' && <p className="text-xs text-mint-500">사용 가능한 이메일이에요.</p>}
+                  {emailStatus === 'taken' && <p className="text-xs text-red-500">이미 사용 중인 이메일이에요.</p>}
 
                   <input
                     type="password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="비밀번호"
+                    placeholder="비밀번호 (8자 이상)"
                     className="rounded-full border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
                   />
+                  {passwordTooShort && <p className="text-xs text-red-500">비밀번호는 8자 이상이어야 해요.</p>}
                   <input
                     type="password"
                     required
@@ -146,6 +199,7 @@ export default function SignupPage() {
                   {password && passwordConfirm && password !== passwordConfirm && (
                     <p className="text-xs text-red-500">비밀번호가 일치하지 않아요.</p>
                   )}
+                  {error && <p className="text-xs text-red-500">{error}</p>}
 
                   <button
                     type="submit"
@@ -184,6 +238,7 @@ export default function SignupPage() {
                       </button>
                     ))}
                   </div>
+                  {error && <p className="text-xs text-red-500">{error}</p>}
                   <button
                     type="submit"
                     className="mt-1 rounded-full bg-ink-900 py-3 text-sm font-semibold text-white transition hover:bg-ink-700"
@@ -197,39 +252,43 @@ export default function SignupPage() {
             {step === 3 && (
               <>
                 <h1 className="mb-4 text-lg font-bold text-ink-900">닉네임</h1>
-                <form onSubmit={goNextFromStep3} className="flex flex-col gap-3">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                   <div className="flex gap-2">
                     <input
                       required
                       value={nickname}
                       onChange={(e) => {
                         setNickname(e.target.value)
-                        setNicknameChecked(false)
+                        setNicknameStatus('idle')
                       }}
                       placeholder="닉네임"
                       className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
                     />
                     <button
                       type="button"
-                      onClick={() => nickname.trim() && setNicknameChecked(true)}
-                      className="shrink-0 rounded-full border border-ink-100 px-4 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                      onClick={handleCheckNickname}
+                      disabled={nicknameStatus === 'checking'}
+                      className="shrink-0 rounded-full border border-ink-100 px-4 text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50"
                     >
-                      중복 확인
+                      {nicknameStatus === 'checking' ? '확인 중' : '중복 확인'}
                     </button>
                   </div>
-                  {nicknameChecked && <p className="text-xs text-mint-500">사용 가능한 닉네임이에요.</p>}
+                  {nicknameStatus === 'available' && <p className="text-xs text-mint-500">사용 가능한 닉네임이에요.</p>}
+                  {nicknameStatus === 'taken' && <p className="text-xs text-red-500">이미 사용 중인 닉네임이에요.</p>}
+                  {error && <p className="text-xs text-red-500">{error}</p>}
 
                   <button
                     type="submit"
-                    className="mt-1 rounded-full bg-ink-900 py-3 text-sm font-semibold text-white transition hover:bg-ink-700"
+                    disabled={submitting}
+                    className="mt-1 rounded-full bg-ink-900 py-3 text-sm font-semibold text-white transition hover:bg-ink-700 disabled:opacity-50"
                   >
-                    다음 →
+                    {submitting ? '가입 중…' : '가입 완료'}
                   </button>
                 </form>
               </>
             )}
 
-            <SocialButtons onSocialLogin={handleSocialLogin} />
+            <SocialButtons />
           </div>
         </div>
       ) : (
