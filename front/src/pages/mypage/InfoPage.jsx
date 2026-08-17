@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import * as adminReqApi from '../../api/adminRequest'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
+import { levelLabel, nicknameLevelClass } from '../../lib/level'
 
 function EditableRow({ label, value, locked, onSave, mask }) {
   const [editing, setEditing] = useState(false)
@@ -295,10 +296,13 @@ export default function InfoPage() {
           🐿
         </div>
         <div className="flex-1">
-          <p className="text-base font-bold text-ink-900">{user.nickname}</p>
+          <p className={`text-base font-bold ${nicknameLevelClass(user.level)}`}>{user.nickname}</p>
           <p className="text-xs text-ink-500">
-            Lv.{user.level} · 경험치 {user.exp}%
+            {levelLabel(user)} · 누적 {user.exp} EXP · 오늘 EXP {user.todayExp ?? 0}/{user.dailyExpCap ?? 20}
           </p>
+          <div className="mt-2 h-1.5 max-w-xs overflow-hidden rounded-full bg-ink-100">
+            <div className="h-full rounded-full bg-brand-500" style={{ width: `${user.progressPercent ?? 0}%` }} />
+          </div>
         </div>
         <button
           type="button"

@@ -3,6 +3,7 @@ package com.quokkatoon.board.controller;
 import com.quokkatoon.board.dto.*;
 import com.quokkatoon.board.service.BoardService;
 import com.quokkatoon.global.common.ApiResponse;
+import com.quokkatoon.level.dto.ActionResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -38,22 +39,21 @@ public class BoardController {
 
     // 글쓰기 (로그인)
     @PostMapping
-    public ApiResponse<Long> create(@AuthenticationPrincipal Long userId,
+    public ApiResponse<ActionResponse<Long>> create(@AuthenticationPrincipal Long userId,
                                     @Valid @RequestBody PostCreateRequest req) {
         return ApiResponse.ok(boardService.createPost(userId, req));
     }
 
     // 삭제 (작성자 본인)
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id,
+    public ApiResponse<ActionResponse<Void>> delete(@PathVariable Long id,
                                     @AuthenticationPrincipal Long userId) {
-        boardService.deletePost(id, userId);
-        return ApiResponse.ok(null);
+        return ApiResponse.ok(boardService.deletePost(id, userId));
     }
 
     // 댓글/대댓글 등록 (로그인)
     @PostMapping("/{id}/comments")
-    public ApiResponse<CommentResponse> addComment(@PathVariable Long id,
+    public ApiResponse<ActionResponse<CommentResponse>> addComment(@PathVariable Long id,
                                                    @AuthenticationPrincipal Long userId,
                                                    @Valid @RequestBody CommentCreateRequest req) {
         return ApiResponse.ok(boardService.addComment(id, userId, req));
@@ -61,10 +61,16 @@ public class BoardController {
 
     // 게시글 추천/비추천 (1인 1표 토글) → 갱신된 카운트 + 내 반응
     @PostMapping("/{id}/react")
-    public ApiResponse<PostReactionResponse> reactPost(@PathVariable Long id,
+    public ApiResponse<ActionResponse<PostReactionResponse>> reactPost(@PathVariable Long id,
                                                        @AuthenticationPrincipal Long userId,
                                                        @RequestParam(defaultValue = "like") String kind) {
         return ApiResponse.ok(boardService.reactPost(id, userId, kind));
+    }
+
+    @DeleteMapping("/comments/{commentId}")
+    public ApiResponse<ActionResponse<Void>> deleteComment(@PathVariable Long commentId,
+                                                           @AuthenticationPrincipal Long userId) {
+        return ApiResponse.ok(boardService.deleteComment(commentId, userId));
     }
 
     // 댓글 좋아요 토글 → 갱신된 카운트 + 내 상태

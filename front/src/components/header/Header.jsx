@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import SearchDropdown from './SearchDropdown'
 import HamburgerMenu from './HamburgerMenu'
+import { levelLabel, nicknameLevelClass } from '../../lib/level'
 
 export default function Header() {
   const { isLoggedIn, isAdmin, user } = useAuth()
@@ -64,7 +65,7 @@ export default function Header() {
               to="/mypage/favorites"
               className="hidden items-center gap-1 rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 sm:flex"
             >
-              Lv.{user.level} · {user.nickname}
+              {levelLabel(user)} · <span className={nicknameLevelClass(user.level)}>{user.nickname}</span>
             </Link>
           )}
 

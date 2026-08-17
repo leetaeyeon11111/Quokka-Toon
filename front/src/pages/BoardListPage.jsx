@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listPosts } from '../api/board'
 import { StarsDisplay } from '../components/common/Stars'
+import { nicknameLevelClass } from '../lib/level'
 
 const TABS = [
   { key: 'all', label: '전체게시판', to: '/board' },
@@ -152,7 +153,7 @@ export default function BoardListPage({ boardType = 'all' }) {
                 )}
               </span>
               <span>{post.rating ? <StarsDisplay rating={post.rating} size="text-xs" /> : <span className="text-xs text-ink-200">-</span>}</span>
-              <span className="text-xs text-ink-500">{post.author}</span>
+              <span className={`text-xs font-semibold ${nicknameLevelClass(post.authorLevel)}`}>{post.author}</span>
               <span className="text-xs text-ink-500">{post.date}</span>
             </Link>
           ))
