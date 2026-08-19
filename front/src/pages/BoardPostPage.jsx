@@ -5,6 +5,7 @@ import { createReport } from '../api/report'
 import { useAuth } from '../hooks/useAuth'
 import { StarsDisplay } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
+import ReportModal from '../components/board/ReportModal'
 
 function CommentRow({ comment, onReplyClick, onReact, onReport, children }) {
   return (
@@ -42,6 +43,7 @@ export default function BoardPostPage() {
   const [commentText, setCommentText] = useState('')
   const [replyingTo, setReplyingTo] = useState(null)
   const [replyText, setReplyText] = useState('')
+  const [reportTarget, setReportTarget] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -128,10 +130,15 @@ export default function BoardPostPage() {
     }
   }
 
-  async function handleReport(targetType, targetId) {
+  function handleReport(targetType, targetId) {
     if (!requireLogin()) return
+    setReportTarget({ targetType, targetId })
+  }
+
+  async function submitReport(typeLabel) {
     try {
-      await createReport({ targetType, targetId })
+      await createReport({ ...reportTarget, typeLabel })
+      setReportTarget(null)
       alert('신고가 접수됐어요.')
     } catch (err) {
       alert(err.message ?? '신고 접수에 실패했어요.')
@@ -269,6 +276,14 @@ export default function BoardPostPage() {
           </CommentRow>
         ))}
       </div>
+
+      {reportTarget && (
+        <ReportModal
+          target={reportTarget}
+          onConfirm={submitReport}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
     </div>
   )
 }
