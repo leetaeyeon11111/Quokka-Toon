@@ -23,6 +23,7 @@
 
 html {
   color-scheme: light;
+  --site-header-height: 4rem;
 }
 
 body {
