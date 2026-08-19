@@ -11,6 +11,10 @@ import { getHealthCheck } from './routes/health-check';
 import { getWebtoons } from './routes/webtoons';
 import { getKakaoPageAbout } from './routes/kakao-page-about';
 import { getExternalWebtoons, searchExternalWebtoonsHandler } from './routes/external-webtoons';
+import { getLezhinAboutHandler } from './routes/lezhin-about';
+import { getToomicsAboutHandler } from './routes/toomics-about';
+import { getRidiAboutHandler } from './routes/ridi-about';
+import { getToptoonAboutHandler } from './routes/toptoon-about';
 import cors from 'cors';
 
 const app = express();
@@ -55,6 +59,14 @@ const PORT = process.env.PORT || 3000;
   app.get(ROUTES.GET_EXTERNAL_WEBTOONS, getExternalWebtoons);
 
   app.get(ROUTES.GET_EXTERNAL_WEBTOONS_SEARCH, searchExternalWebtoonsHandler);
+
+  app.get(ROUTES.GET_LEZHIN_ABOUT, getLezhinAboutHandler);
+
+  app.get(ROUTES.GET_TOOMICS_ABOUT, getToomicsAboutHandler);
+
+  app.get(ROUTES.GET_RIDI_ABOUT, getRidiAboutHandler);
+
+  app.get(ROUTES.GET_TOPTOON_ABOUT, getToptoonAboutHandler);
 
   app.get('/', (_, res) => res.redirect(ROUTES.SWAGGER));
 })();

@@ -20,6 +20,7 @@ interface QueryParams {
   isUpdated?: boolean;
   isFree?: boolean;
   updateDay?: string;
+  exclude19Plus?: boolean;
 }
 
 /**
@@ -103,10 +104,12 @@ export const getWebtoons = async (req: Request, res: Response) => {
       provider = 'ALL',
       genre,
       sort = 'ASC',
-      isUpdated,
-      isFree,
-      updateDay,
     } = req.query as unknown as QueryParams;
+
+    const isUpdated = req.query.isUpdated ? req.query.isUpdated === 'true' : undefined;
+    const isFree = req.query.isFree ? req.query.isFree === 'true' : undefined;
+    const exclude19Plus = req.query.exclude19Plus === 'true';
+    const updateDay = req.query.updateDay as string | undefined;
 
     if (!['ASC', 'DESC'].includes(sort)) {
       return res.status(400).json({ message: 'Invalid sort' });
@@ -178,6 +181,10 @@ export const getWebtoons = async (req: Request, res: Response) => {
 
       if (updateDay) {
         qb.andWhere('webtoon.updateDays LIKE :updateDay', { updateDay: `%${updateDay}%` });
+      }
+
+      if (exclude19Plus) {
+        qb.andWhere('(webtoon.ageGrade < 18 OR webtoon.ageGrade IS NULL)');
       }
 
       return qb;

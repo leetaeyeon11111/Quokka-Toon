@@ -8,4 +8,8 @@ export enum ROUTES {
   GET_KAKAO_PAGE_ABOUT = '/kakao-page/about',
   GET_EXTERNAL_WEBTOONS = '/external/webtoons',
   GET_EXTERNAL_WEBTOONS_SEARCH = '/external/search',
+  GET_LEZHIN_ABOUT = '/lezhin/about',
+  GET_TOOMICS_ABOUT = '/toomics/about',
+  GET_RIDI_ABOUT = '/ridi/about',
+  GET_TOPTOON_ABOUT = '/toptoon/about',
 }
