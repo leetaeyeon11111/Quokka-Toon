@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import SearchDropdown from './SearchDropdown'
 import HamburgerMenu from './HamburgerMenu'
+import { levelLabel, nicknameLevelClass } from '../../lib/level'
 
 export default function Header() {
   const { isLoggedIn, isAdmin, user } = useAuth()
@@ -26,9 +27,17 @@ export default function Header() {
   }, [])
 
   return (
-    <header ref={rootRef} className="sticky top-0 z-30 border-b border-ink-100 bg-white">
-      <div className="relative mx-auto flex h-16 w-full max-w-300 items-center justify-between px-6">
-        <Link to="/" className="flex items-center gap-1.5 text-lg font-extrabold text-ink-900">
+    <header
+      ref={rootRef}
+      data-site-header
+      className="sticky top-0 z-30 border-b border-ink-100 bg-white"
+    >
+      <div className="relative mx-auto flex h-[var(--site-header-height)] w-full max-w-300 items-center justify-between px-6">
+        <Link
+          to="/"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'auto' })}
+          className="flex items-center gap-1.5 text-lg font-extrabold text-ink-900"
+        >
           <span aria-hidden>🐿</span>
           쿼카툰
         </Link>
@@ -51,32 +60,59 @@ export default function Header() {
           <button
             type="button"
             aria-label="검색"
+            aria-expanded={open === 'search'}
             onClick={() => setOpen((o) => (o === 'search' ? null : 'search'))}
-            className={`flex h-9 w-9 items-center justify-center rounded-full border border-ink-100 text-ink-700 transition hover:bg-ink-50 ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full border border-ink-100 text-ink-700 transition hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 ${
               open === 'search' ? 'bg-ink-50' : ''
             }`}
           >
-            🔍
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16 16 4 4" />
+            </svg>
           </button>
 
           {isLoggedIn && (
             <Link
               to="/mypage/favorites"
-              className="hidden items-center gap-1 rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 sm:flex"
+              title={`${levelLabel(user)} · ${user.nickname}`}
+              className="hidden max-w-52 min-w-0 items-center gap-1 rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 lg:flex"
             >
-              Lv.{user.level} · {user.nickname}
+              <span className="shrink-0">{levelLabel(user)} ·</span>
+              <span className={`min-w-0 truncate ${nicknameLevelClass(user.level)}`}>
+                {user.nickname}
+              </span>
             </Link>
           )}
 
           <button
             type="button"
             aria-label="메뉴"
+            aria-expanded={open === 'menu'}
             onClick={() => setOpen((o) => (o === 'menu' ? null : 'menu'))}
-            className={`flex h-9 w-9 items-center justify-center rounded-full border border-ink-100 text-ink-700 transition hover:bg-ink-50 ${
+            className={`flex h-9 w-9 items-center justify-center rounded-full border border-ink-100 text-ink-700 transition hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 ${
               open === 'menu' ? 'bg-ink-50' : ''
             }`}
           >
-            ≡
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
+              <path d="M5 7h14M5 12h14M5 17h14" />
+            </svg>
           </button>
 
           {open === 'menu' && <HamburgerMenu onClose={() => setOpen(null)} />}

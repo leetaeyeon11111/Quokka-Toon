@@ -1,13 +1,12 @@
 import Modal from '../common/Modal'
 
 const RULES = [
-  ['게시글 작성', '+4'],
-  ['댓글 작성', '+3'],
-  ['매일 방문 (출석)', '+1'],
-  ['이틀 이상 연속 방문', '+2'],
-  ['내 글이 받은 추천 (1개당)', '+1'],
-  ['비추천 (1개당)', '−1'],
-  ['신고 누적 (1건당)', '−5'],
+  ['하루 첫 방문', '+1 · 하루 1회'],
+  ['연속 방문 2일째부터', '+2 · 하루 1회'],
+  ['게시글 작성', '+4 · 하루 2건'],
+  ['댓글·대댓글 작성', '+3 · 합산 하루 3건'],
+  ['정식 웹툰 리뷰 최초 작성', '+5 · 하루 2건'],
+  ['내 글·정식 리뷰가 받은 추천', '+1 · 합산 하루 10 EXP'],
 ]
 
 export default function LevelGuideModal({ onClose }) {
@@ -18,14 +17,15 @@ export default function LevelGuideModal({ onClose }) {
         {RULES.map(([label, value]) => (
           <li key={label} className="flex items-center justify-between py-2 text-sm">
             <span className="text-ink-700">{label}</span>
-            <span className={value.startsWith('−') ? 'font-semibold text-red-500' : 'font-semibold text-mint-500'}>
+            <span className="text-right font-semibold text-mint-500">
               {value}
             </span>
           </li>
         ))}
       </ul>
       <p className="mt-4 rounded-xl bg-ink-50 p-3 text-xs text-ink-500">
-        ⚠ 신고 누적 5회당 경고 1회 · 삼진아웃제(경고 3회 시 제재).
+        모든 양의 경험치는 하루 최대 20 EXP까지 자동 지급되며, 남은 한도만큼 부분 지급될 수 있어요.
+        비추천·신고로는 EXP가 차감되지 않습니다. Lv.100 이후에도 EXP는 누적되고 Lv.100 MAX로 표시돼요.
       </p>
     </Modal>
   )

@@ -5,7 +5,9 @@ import { getSimilarWebtoons } from '../api/recommend'
 import { useAuth } from '../hooks/useAuth'
 import { useAppData } from '../hooks/useAppData'
 import { useScrollSpy } from '../hooks/useScrollSpy'
-import { nextId } from '../lib/id'
+import { useExperienceNotification } from '../hooks/useExperienceNotification'
+import * as reviewApi from '../api/review'
+import { nicknameLevelClass } from '../lib/level'
 import WebtoonCard from '../components/webtoon/WebtoonCard'
 import Tag from '../components/webtoon/Tag'
 import ScrollSpyNav from '../components/webtoon/ScrollSpyNav'
@@ -45,14 +47,17 @@ export default function WebtoonDetailPage() {
   const { id } = useParams()
   const webtoon = getWebtoonById(id)
   const navigate = useNavigate()
-  const { isLoggedIn, user } = useAuth()
-  const { favorites, lifeWorks, extraReviews, toggleFavorite, toggleLifeWork, setAlarm, addReview } =
-    useAppData()
+  const { isLoggedIn } = useAuth()
+  const { favorites, lifeWorks, toggleFavorite, toggleLifeWork, setAlarm } = useAppData()
+  const { notifyExperience } = useExperienceNotification()
 
   const [showAllReviews, setShowAllReviews] = useState(false)
   const [showAlarm, setShowAlarm] = useState(false)
   const [draftRating, setDraftRating] = useState(0)
   const [draftText, setDraftText] = useState('')
+  const [reviews, setReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(true)
+  const [reviewError, setReviewError] = useState('')
 
   // 다른 작품 상세로 이동하면(id 변경) 화면 전용 로컬 상태를 초기화한다 (렌더 중 상태 조정 패턴).
   const [renderedId, setRenderedId] = useState(webtoon?.id)
@@ -61,11 +66,40 @@ export default function WebtoonDetailPage() {
     setShowAllReviews(false)
     setDraftRating(0)
     setDraftText('')
+    setReviews([])
+    setReviewsLoading(true)
+    setReviewError('')
   }
 
   useEffect(() => {
     window.scrollTo({ top: 0 })
   }, [webtoon?.id])
+
+  useEffect(() => {
+    if (!webtoon) return
+    let cancelled = false
+    reviewApi.listReviews(webtoon)
+      .then((data) => {
+        if (!cancelled) {
+          setReviews(data)
+          const mine = data.find((review) => review.mine)
+          if (mine) {
+            setDraftRating(mine.rating)
+            setDraftText(mine.text)
+          }
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setReviews([])
+          setReviewError(error.message ?? '리뷰를 불러오지 못했어요.')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [webtoon])
 
   const sectionIds = useMemo(() => SECTIONS.map((s) => s.id), [])
   const activeId = useScrollSpy(sectionIds)
@@ -79,13 +113,12 @@ export default function WebtoonDetailPage() {
 
   const favorited = Boolean(favorites[webtoon.id])
   const isLifeWork = lifeWorks.includes(webtoon.id)
-  const reviews = [...(extraReviews[webtoon.id] ?? []), ...webtoon.reviews]
-
   const avgRating = reviews.length
     ? Number((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1))
     : 0
   const popularReviews = [...reviews].sort((a, b) => b.likes - a.likes)
   const visibleReviews = showAllReviews ? popularReviews : popularReviews.slice(0, 2)
+  const myReview = reviews.find((review) => review.mine)
 
   function requireLogin(action) {
     if (!isLoggedIn) {
@@ -103,20 +136,58 @@ export default function WebtoonDetailPage() {
     requireLogin(() => toggleLifeWork(webtoon.id))
   }
 
-  function submitReview(e) {
+  async function submitReview(e) {
     e.preventDefault()
-    if (draftRating === 0 || !draftText.trim()) return
-    requireLogin(() => {
-      addReview(webtoon.id, {
-        id: nextId('review'),
-        user: user?.nickname ?? '익명',
-        rating: draftRating,
-        text: draftText,
-        likes: 0,
-      })
+    if (!isLoggedIn) {
+      navigate('/login')
+      return
+    }
+    const content = draftText.trim()
+    if (draftRating === 0 || content.length < 20 || content.length > 2000) {
+      setReviewError('별점과 공백을 제외한 20~2,000자의 리뷰를 입력해주세요.')
+      return
+    }
+    try {
+      const mine = reviews.find((review) => review.mine)
+      const action = mine
+        ? await reviewApi.updateReview(mine.id, { rating: draftRating, content })
+        : await reviewApi.createReview(webtoon, { rating: draftRating, content })
+      setReviews((current) => mine
+        ? current.map((review) => review.id === mine.id ? action.result : review)
+        : [action.result, ...current])
+      notifyExperience(action.exp)
       setDraftRating(0)
       setDraftText('')
-    })
+      setReviewError('')
+    } catch (error) {
+      setReviewError(error.message ?? '리뷰 저장에 실패했어요.')
+    }
+  }
+
+  async function handleReviewLike(reviewId) {
+    if (!isLoggedIn) {
+      navigate('/login')
+      return
+    }
+    try {
+      const action = await reviewApi.toggleReviewLike(reviewId)
+      setReviews((current) => current.map((review) =>
+        review.id === reviewId ? { ...review, ...action.result } : review))
+    } catch (error) {
+      setReviewError(error.message ?? '추천 처리에 실패했어요.')
+    }
+  }
+
+  async function handleDeleteReview(reviewId) {
+    if (!confirm('리뷰를 삭제할까요?')) return
+    try {
+      await reviewApi.deleteReview(reviewId)
+      setReviews((current) => current.filter((review) => review.id !== reviewId))
+      setDraftRating(0)
+      setDraftText('')
+    } catch (error) {
+      setReviewError(error.message ?? '리뷰 삭제에 실패했어요.')
+    }
   }
 
   return (
@@ -316,37 +387,70 @@ export default function WebtoonDetailPage() {
             </div>
 
             <div className="mb-6 flex flex-col gap-3">
+              {reviewsLoading && <p className="py-4 text-center text-sm text-ink-500">리뷰를 불러오는 중…</p>}
+              {!reviewsLoading && !reviewError && visibleReviews.length === 0 && (
+                <p className="py-4 text-center text-sm text-ink-500">첫 정식 리뷰를 남겨보세요.</p>
+              )}
               {visibleReviews.map((review) => (
                 <div key={review.id} className="rounded-xl border border-ink-100 p-3">
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-ink-900">{review.user}</span>
+                    <span className={`text-sm font-semibold ${nicknameLevelClass(review.authorLevel)}`}>{review.user}</span>
                     <StarsDisplay rating={review.rating} />
                   </div>
                   <p className="mb-1 text-sm text-ink-700">{review.text}</p>
-                  <span className="text-xs text-ink-300">👍 {review.likes}</span>
+                  <div className="flex items-center gap-3 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => handleReviewLike(review.id)}
+                      className={review.liked ? 'font-semibold text-brand-500' : 'text-ink-300 hover:text-brand-500'}
+                    >
+                      👍 추천 {review.likes}
+                    </button>
+                    {review.mine && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDraftRating(review.rating)
+                            setDraftText(review.text)
+                          }}
+                          className="text-ink-500 hover:text-brand-500"
+                        >
+                          수정
+                        </button>
+                        <button type="button" onClick={() => handleDeleteReview(review.id)} className="text-red-400 hover:text-red-600">
+                          삭제
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
 
             <form onSubmit={submitReview} className="rounded-xl border border-dashed border-ink-100 p-4">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-bold text-ink-900">리뷰 작성 · 별점+댓글 동시</p>
+                <p className="text-sm font-bold text-ink-900">{myReview ? '내 정식 리뷰 수정' : '정식 리뷰 작성'}</p>
                 <StarsInput value={draftRating} onChange={setDraftRating} />
               </div>
               <div className="flex gap-2">
-                <input
+                <textarea
                   value={draftText}
                   onChange={(e) => setDraftText(e.target.value)}
-                  placeholder="평가를 남겨주세요…"
-                  className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none focus:border-brand-300"
+                  placeholder="공백을 제외하고 20~2,000자로 평가를 남겨주세요…"
+                  minLength={20}
+                  maxLength={2000}
+                  rows={3}
+                  className="flex-1 resize-none rounded-xl border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none focus:border-brand-300"
                 />
                 <button
                   type="submit"
                   className="rounded-full bg-ink-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-700"
                 >
-                  등록
+                  {myReview ? '수정' : '등록'}
                 </button>
               </div>
+              {reviewError && <p className="mt-2 text-xs text-red-500">{reviewError}</p>}
             </form>
           </SectionCard>
         </div>

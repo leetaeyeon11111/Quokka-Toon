@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-export default function WebtoonCard({ webtoon, showPlatform = true, className = '' }) {
+export default function WebtoonCard({ webtoon, showPlatform = true, rank, className = '' }) {
   const { id, title, coverGradient, isAdult, platforms, stats } = webtoon
 
   return (
@@ -23,6 +23,14 @@ export default function WebtoonCard({ webtoon, showPlatform = true, className = 
         {showPlatform && platforms?.[0] && !isAdult && (
           <span className="absolute left-2 top-2 rounded-full bg-white/85 px-2 py-0.5 text-[11px] font-medium text-ink-700">
             {platforms[0].name}
+          </span>
+        )}
+        {rank != null && (
+          <span
+            aria-label={`${rank}위`}
+            className="absolute bottom-0 left-0 z-10 flex h-8 min-w-8 items-center justify-center rounded-tr-xl border-r border-t border-white/40 bg-gradient-to-br from-brand-500 to-brand-700 px-2 text-sm font-extrabold tabular-nums text-white shadow-[2px_-2px_10px_rgba(28,26,31,0.16)]"
+          >
+            {rank}
           </span>
         )}
       </div>

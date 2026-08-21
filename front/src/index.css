@@ -23,6 +23,7 @@
 
 html {
   color-scheme: light;
+  --site-header-height: 4rem;
 }
 
 body {
@@ -48,4 +49,12 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.level-nickname-max {
+  color: #b45309;
+  background: linear-gradient(90deg, #d1501e, #b7791f);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

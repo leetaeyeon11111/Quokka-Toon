@@ -121,4 +121,14 @@ public class User extends BaseTimeEntity {
     public boolean isAdmin() {
         return this.role == Role.ADMIN;
     }
+
+    public void updateExperience(int exp, int level) {
+        this.exp = Math.max(0, exp);
+        this.level = Math.max(1, Math.min(100, level));
+    }
+
+    public void recordVisit(LocalDateTime visitedAt, int consecutiveVisitDays) {
+        this.lastVisitAt = visitedAt;
+        this.consecutiveVisitDays = Math.max(1, consecutiveVisitDays);
+    }
 }
