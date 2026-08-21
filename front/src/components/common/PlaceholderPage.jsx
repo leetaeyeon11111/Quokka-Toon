@@ -6,9 +6,12 @@ export default function PlaceholderPage({ title, description, showDemoLogin = fa
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
-      <span className="text-4xl" aria-hidden>
-        🐿
-      </span>
+      <img
+        src="/error_quokka.png"
+        alt=""
+        aria-hidden
+        className="mb-2 h-40 w-40 object-contain sm:h-48 sm:w-48"
+      />
       <h1 className="text-2xl font-bold text-ink-900">{title}</h1>
       <p className="text-ink-500">{description ?? '이 화면은 다음 단계에서 구현될 예정이에요.'}</p>
 

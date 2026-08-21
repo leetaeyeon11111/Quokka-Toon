@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { WEBTOONS, GENRES, PLATFORM_NAMES } from '../data/webtoons'
+import { useEffect, useState } from 'react'
+import { searchWebtoons, getGenreOptions, getPlatformOptions } from '../api/webtoon'
+import { toCardModel } from '../lib/webtoon'
 import WebtoonCard from '../components/webtoon/WebtoonCard'
 
 const SORT_OPTIONS = [
@@ -8,6 +9,8 @@ const SORT_OPTIONS = [
   { key: 'views', label: '조회순' },
   { key: 'rating', label: '평점순' },
 ]
+
+const PAGE_SIZE = 24
 
 function FilterRow({ label, options, active, onChange }) {
   return (
@@ -44,27 +47,72 @@ export default function WebtoonListPage() {
   const [platform, setPlatform] = useState('전체')
   const [genre, setGenre] = useState('전체')
   const [sort, setSort] = useState('latest')
+  const [page, setPage] = useState(0)
 
-  const filtered = useMemo(() => {
-    let list = WEBTOONS.filter((w) => {
-      if (platform !== '전체' && w.platforms[0]?.name !== platform) return false
-      if (genre !== '전체' && w.genre !== genre) return false
-      if (submittedKeyword.trim()) {
-        const kw = submittedKeyword.trim().toLowerCase()
-        const haystack = `${w.title} ${w.authors.writer} ${w.authors.artist}`.toLowerCase()
-        if (!haystack.includes(kw)) return false
+  const [genreOptions, setGenreOptions] = useState([])
+  const [platformOptions, setPlatformOptions] = useState([])
+
+  const [items, setItems] = useState([])
+  const [totalElements, setTotalElements] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // 필터 옵션 1회 로드
+  useEffect(() => {
+    getGenreOptions().then((data) => setGenreOptions((data ?? []).slice(0, 20))).catch(() => {})
+    getPlatformOptions().then((data) => setPlatformOptions((data ?? []).slice(0, 16))).catch(() => {})
+  }, [])
+
+  // 필터/정렬/검색은 항상 첫 페이지부터 다시 조회
+  function changePlatform(v) {
+    setPlatform(v)
+    setPage(0)
+  }
+  function changeGenre(v) {
+    setGenre(v)
+    setPage(0)
+  }
+  function changeSort(v) {
+    setSort(v)
+    setPage(0)
+  }
+  function submitSearch(e) {
+    e.preventDefault()
+    setSubmittedKeyword(keyword)
+    setPage(0)
+  }
+
+  // 목록 로드
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      setError('')
+      try {
+        const data = await searchWebtoons({
+          page,
+          size: PAGE_SIZE,
+          sort,
+          q: submittedKeyword.trim(),
+          platform: platform === '전체' ? '' : platform,
+          genre: genre === '전체' ? '' : genre,
+        })
+        if (cancelled) return
+        setItems((data?.content ?? []).map(toCardModel))
+        setTotalElements(data?.totalElements ?? 0)
+        setTotalPages(data?.totalPages ?? 0)
+      } catch (err) {
+        if (!cancelled) setError(err.message ?? '웹툰을 불러오지 못했어요.')
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      return true
-    })
-
-    list = [...list]
-    if (sort === 'views') list.sort((a, b) => b.stats.views - a.stats.views)
-    else if (sort === 'rating') list.sort((a, b) => b.stats.ratingAvg - a.stats.ratingAvg)
-    else if (sort === 'bookmark') list.sort((a, b) => b.stats.commentCount - a.stats.commentCount)
-    // 'latest'는 데이터 등록 순서를 그대로 사용
-
-    return list
-  }, [platform, genre, sort, submittedKeyword])
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [page, sort, submittedKeyword, platform, genre])
 
   return (
     <div className="px-6 py-10">
@@ -72,22 +120,16 @@ export default function WebtoonListPage() {
         <h1 className="text-xl font-bold text-ink-900">
           일반웹툰{' '}
           <span className="text-sm font-normal text-ink-500">
-            {SORT_OPTIONS.find((s) => s.key === sort)?.label} · 총 {filtered.length}개
+            {SORT_OPTIONS.find((s) => s.key === sort)?.label} · 총 {totalElements.toLocaleString()}개
           </span>
         </h1>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          setSubmittedKeyword(keyword)
-        }}
-        className="mb-4 flex gap-2"
-      >
+      <form onSubmit={submitSearch} className="mb-4 flex gap-2">
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="작품, 작가 등을 검색"
+          placeholder="작품명을 검색"
           className="flex-1 rounded-full border border-ink-100 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-300"
         />
         <button
@@ -99,14 +141,14 @@ export default function WebtoonListPage() {
       </form>
 
       <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-ink-100 bg-white p-4">
-        <FilterRow label="플랫폼" options={PLATFORM_NAMES} active={platform} onChange={setPlatform} />
-        <FilterRow label="장르" options={GENRES} active={genre} onChange={setGenre} />
+        <FilterRow label="플랫폼" options={platformOptions} active={platform} onChange={changePlatform} />
+        <FilterRow label="장르" options={genreOptions} active={genre} onChange={changeGenre} />
       </div>
 
       <div className="mb-4 flex justify-end">
         <select
           value={sort}
-          onChange={(e) => setSort(e.target.value)}
+          onChange={(e) => changeSort(e.target.value)}
           className="rounded-full border border-ink-100 bg-white px-4 py-2 text-xs font-semibold text-ink-700 outline-none"
         >
           {SORT_OPTIONS.map((opt) => (
@@ -117,14 +159,50 @@ export default function WebtoonListPage() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <p className="py-20 text-center text-sm text-ink-500">불러오는 중…</p>
+      ) : error ? (
+        <p className="py-20 text-center text-sm text-red-500">{error}</p>
+      ) : items.length === 0 ? (
         <p className="py-20 text-center text-sm text-ink-500">조건에 맞는 웹툰이 없어요.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {filtered.map((webtoon) => (
-            <WebtoonCard key={webtoon.id} webtoon={webtoon} className="w-full" />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {items.map((webtoon) => (
+              <WebtoonCard key={webtoon.id} webtoon={webtoon} className="w-full" />
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="mt-10 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={page === 0}
+                onClick={() => {
+                  setPage((p) => Math.max(0, p - 1))
+                  window.scrollTo({ top: 0 })
+                }}
+                className="rounded-full border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-50 disabled:opacity-40"
+              >
+                ← 이전
+              </button>
+              <span className="text-sm text-ink-500">
+                {page + 1} / {totalPages.toLocaleString()}
+              </span>
+              <button
+                type="button"
+                disabled={page + 1 >= totalPages}
+                onClick={() => {
+                  setPage((p) => p + 1)
+                  window.scrollTo({ top: 0 })
+                }}
+                className="rounded-full border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-50 disabled:opacity-40"
+              >
+                다음 →
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

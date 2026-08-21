@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getWebtoonById, getWebtoonsByAuthor } from '../data/webtoons'
-import { getSimilarWebtoons } from '../api/recommend'
+import { getWebtoon, searchWebtoons } from '../api/webtoon'
+import { toDetailModel, toCardModel } from '../lib/webtoon'
 import { useAuth } from '../hooks/useAuth'
 import { useAppData } from '../hooks/useAppData'
 import { useScrollSpy } from '../hooks/useScrollSpy'
@@ -46,11 +46,18 @@ function HorizontalRow({ items, emptyText }) {
 
 export default function WebtoonDetailPage() {
   const { id } = useParams()
-  const webtoon = getWebtoonById(id)
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
   const { favorites, lifeWorks, toggleFavorite, toggleLifeWork, setAlarm } = useAppData()
   const { notifyExperience } = useExperienceNotification()
+
+  const [webtoon, setWebtoon] = useState(null)
+  const [webtoonLoading, setWebtoonLoading] = useState(true)
+  const [webtoonError, setWebtoonError] = useState(false)
+  const [heroImgOk, setHeroImgOk] = useState(true)
+
+  const [otherWorks, setOtherWorks] = useState([])
+  const [similarWorks, setSimilarWorks] = useState([])
 
   const [showAllReviews, setShowAllReviews] = useState(false)
   const [showAlarm, setShowAlarm] = useState(false)
@@ -60,26 +67,77 @@ export default function WebtoonDetailPage() {
   const [reviewsLoading, setReviewsLoading] = useState(true)
   const [reviewError, setReviewError] = useState('')
 
-  // 다른 작품 상세로 이동하면(id 변경) 화면 전용 로컬 상태를 초기화한다 (렌더 중 상태 조정 패턴).
-  const [renderedId, setRenderedId] = useState(webtoon?.id)
-  if (webtoon && webtoon.id !== renderedId) {
-    setRenderedId(webtoon.id)
-    setShowAllReviews(false)
-    setDraftRating(0)
-    setDraftText('')
-    setReviews([])
-    setReviewsLoading(true)
-    setReviewError('')
-  }
-
+  // 상세 로드 (id 변경 시 화면 전용 상태 초기화)
   useEffect(() => {
-    window.scrollTo({ top: 0 })
-  }, [webtoon?.id])
+    let cancelled = false
+    async function load() {
+      setWebtoon(null)
+      setWebtoonLoading(true)
+      setWebtoonError(false)
+      setHeroImgOk(true)
+      setOtherWorks([])
+      setSimilarWorks([])
+      setReviews([])
+      setReviewsLoading(true)
+      setReviewError('')
+      setShowAllReviews(false)
+      setDraftRating(0)
+      setDraftText('')
+      window.scrollTo({ top: 0 })
+      try {
+        const data = await getWebtoon(id)
+        if (!cancelled) setWebtoon(toDetailModel(data))
+      } catch {
+        if (!cancelled) setWebtoonError(true)
+      } finally {
+        if (!cancelled) setWebtoonLoading(false)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [id])
 
+  // 추천: 같은 작가의 다른 작품 / 같은 장르(비슷한 작품)
   useEffect(() => {
     if (!webtoon) return
     let cancelled = false
-    reviewApi.listReviews(webtoon)
+    const selfId = webtoon.id
+    if (webtoon.authors.writer && webtoon.authors.writer !== '미상') {
+      searchWebtoons({ author: webtoon.authors.writer, size: 12 })
+        .then((data) => {
+          if (!cancelled) {
+            setOtherWorks(
+              (data?.content ?? []).map(toCardModel).filter((w) => w.id !== selfId).slice(0, 8),
+            )
+          }
+        })
+        .catch(() => {})
+    }
+    const genreForSimilar = webtoon.genres?.[0] ?? webtoon.genre
+    if (genreForSimilar) {
+      searchWebtoons({ genre: genreForSimilar, size: 14 })
+        .then((data) => {
+          if (!cancelled) {
+            setSimilarWorks(
+              (data?.content ?? []).map(toCardModel).filter((w) => w.id !== selfId).slice(0, 8),
+            )
+          }
+        })
+        .catch(() => {})
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [webtoon])
+
+  // 리뷰 로드
+  useEffect(() => {
+    if (!webtoon) return
+    let cancelled = false
+    reviewApi
+      .listReviews(webtoon)
       .then((data) => {
         if (!cancelled) {
           setReviews(data)
@@ -99,16 +157,18 @@ export default function WebtoonDetailPage() {
       .finally(() => {
         if (!cancelled) setReviewsLoading(false)
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [webtoon])
 
   const sectionIds = useMemo(() => SECTIONS.map((s) => s.id), [])
   const activeId = useScrollSpy(sectionIds)
 
-  const otherWorks = useMemo(() => (webtoon ? getWebtoonsByAuthor(webtoon) : []), [webtoon])
-  const similarWorks = useMemo(() => (webtoon ? getSimilarWebtoons(webtoon, 5) : []), [webtoon])
-
-  if (!webtoon) {
+  if (webtoonLoading) {
+    return <p className="py-24 text-center text-sm text-ink-500">불러오는 중…</p>
+  }
+  if (webtoonError || !webtoon) {
     return <PlaceholderPage title="작품을 찾을 수 없어요" description="주소를 다시 확인해주세요." />
   }
 
@@ -120,6 +180,7 @@ export default function WebtoonDetailPage() {
   const popularReviews = [...reviews].sort((a, b) => b.likes - a.likes)
   const visibleReviews = showAllReviews ? popularReviews : popularReviews.slice(0, 2)
   const myReview = reviews.find((review) => review.mine)
+  const showHeroImage = webtoon.thumbnailUrl && heroImgOk && !webtoon.isAdult
 
   function requireLogin(action) {
     if (!isLoggedIn) {
@@ -196,9 +257,26 @@ export default function WebtoonDetailPage() {
       {/* 히어로 */}
       <div className="flex flex-col gap-6 md:flex-row">
         <div
-          className="h-72 w-full shrink-0 rounded-2xl border border-ink-100 md:h-96 md:w-72"
+          className="relative h-72 w-full shrink-0 overflow-hidden rounded-2xl border border-ink-100 md:h-96 md:w-72"
           style={{ background: webtoon.coverGradient }}
-        />
+        >
+          {showHeroImage && (
+            <img
+              src={webtoon.thumbnailUrl}
+              alt={webtoon.title}
+              onError={() => setHeroImgOk(false)}
+              className="h-full w-full object-cover"
+            />
+          )}
+          {webtoon.isAdult && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-ink-900/80 text-white backdrop-blur-sm">
+              <span className="text-4xl" aria-hidden>
+                🐿
+              </span>
+              <span className="text-sm font-medium">19금 가림</span>
+            </div>
+          )}
+        </div>
         <div className="flex-1">
           <div className="mb-1 flex items-center justify-between">
             <h1 className="text-3xl font-extrabold text-ink-900">{webtoon.title}</h1>
@@ -229,6 +307,7 @@ export default function WebtoonDetailPage() {
               {webtoon.genre}
             </span>
             <span className="text-ink-500">{webtoon.ageRating}</span>
+            <span className="text-ink-500">· {webtoon.serialStatus}</span>
             <a href="#info" className="text-ink-500 hover:text-brand-500">
               작품정보 ›
             </a>
@@ -238,8 +317,8 @@ export default function WebtoonDetailPage() {
           </div>
 
           <p className="mb-3 text-sm text-ink-500">
-            매주 {webtoon.stats.weeklyDay}요일 연재 · 👁 {(webtoon.stats.views / 10000).toFixed(1)}만 · ★
-            리뷰 평균 {webtoon.stats.ratingAvg}
+            {webtoon.stats.weeklyDay !== '미정' && `매주 ${webtoon.stats.weeklyDay}요일 연재 · `}
+            👁 {(webtoon.stats.views / 10000).toFixed(1)}만 · ★ 리뷰 평균 {webtoon.stats.ratingAvg}
           </p>
 
           <p className="mb-3 text-sm text-ink-700">
@@ -309,19 +388,24 @@ export default function WebtoonDetailPage() {
             <p className="mb-1 text-sm font-bold text-ink-900">줄거리</p>
             <p className="mb-5 text-sm leading-relaxed text-ink-700">{webtoon.synopsis}</p>
 
-            <p className="mb-2 text-sm font-bold text-ink-900">태그</p>
-            <div className="mb-5 flex flex-wrap gap-1.5">
-              {webtoon.tags.map((tag) => (
-                <Tag key={tag.name} name={tag.name} size="sm" />
-              ))}
-            </div>
+            {webtoon.tags.length > 0 && (
+              <>
+                <p className="mb-2 text-sm font-bold text-ink-900">태그</p>
+                <div className="mb-5 flex flex-wrap gap-1.5">
+                  {webtoon.tags.map((tag) => (
+                    <Tag key={tag.name} name={tag.name} size="sm" />
+                  ))}
+                </div>
+              </>
+            )}
 
             <div className="rounded-xl border border-mint-500 bg-mint-100 p-4">
               <p className="mb-1 flex items-center gap-1 text-sm font-bold text-mint-500">
                 ✨ AI 요약
               </p>
               <p className="text-sm text-ink-700">
-                "{webtoon.catchphrase}" — {webtoon.genre} 장르 팬이라면 놓치기 아까운 작품으로, {webtoon.tags[0]?.name} 요소가 특히 두드러져요.
+                "{webtoon.catchphrase}" — {webtoon.genre} 장르 팬이라면 놓치기 아까운 작품이에요.
+                {webtoon.tags[0] && ` ${webtoon.tags[0].name} 요소가 특히 두드러져요.`}
               </p>
             </div>
           </SectionCard>

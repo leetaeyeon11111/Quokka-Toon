@@ -1,15 +1,69 @@
-import { useState } from 'react'
-import { WEBTOONS, getWebtoonById } from '../../data/webtoons'
+import { useEffect, useState } from 'react'
+import { searchWebtoons } from '../../api/webtoon'
+import { fetchWebtoonModelsByIds, toCardModel } from '../../lib/webtoon'
 import Modal from '../common/Modal'
+
+function MiniThumb({ webtoon, className = '' }) {
+  const [imgOk, setImgOk] = useState(true)
+  const showImage = webtoon.thumbnailUrl && imgOk && !webtoon.isAdult
+  return (
+    <div
+      className={`relative overflow-hidden ${className}`}
+      style={{ background: webtoon.coverGradient }}
+    >
+      {showImage && (
+        <img
+          src={webtoon.thumbnailUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setImgOk(false)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+    </div>
+  )
+}
 
 export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
   const [picking, setPicking] = useState(false)
   const [keyword, setKeyword] = useState('')
+  const [works, setWorks] = useState([])
+  const [candidates, setCandidates] = useState([])
 
-  const works = lifeWorks.map(getWebtoonById).filter(Boolean)
-  const candidates = WEBTOONS.filter(
-    (w) => w.title.includes(keyword) || w.authors.writer.includes(keyword),
-  )
+  // 담은 인생작 실제 웹툰 로드
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const models = await fetchWebtoonModelsByIds(lifeWorks)
+      if (!cancelled) setWorks(models)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [lifeWorks])
+
+  // 인생작 고르기: 제목 검색 (실 DB)
+  useEffect(() => {
+    let cancelled = false
+    async function search() {
+      if (!picking || !keyword.trim()) {
+        if (!cancelled) setCandidates([])
+        return
+      }
+      try {
+        const data = await searchWebtoons({ q: keyword.trim(), size: 20 })
+        if (!cancelled) setCandidates((data?.content ?? []).map(toCardModel))
+      } catch {
+        if (!cancelled) setCandidates([])
+      }
+    }
+    const timer = setTimeout(search, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [picking, keyword])
 
   return (
     <Modal title={`내 인생작 (${works.length})`} icon="🗂" onClose={onClose} maxWidth="max-w-lg">
@@ -26,9 +80,9 @@ export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
                   onClick={() => onToggle(w.id)}
                   title="탭하면 제거돼요"
                   className="group relative aspect-[3/4] overflow-hidden rounded-lg border border-ink-100"
-                  style={{ background: w.coverGradient }}
                 >
-                  <span className="absolute inset-0 hidden items-center justify-center bg-ink-900/60 text-xs font-semibold text-white group-hover:flex">
+                  <MiniThumb webtoon={w} className="absolute inset-0 h-full w-full" />
+                  <span className="absolute inset-0 z-10 hidden items-center justify-center bg-ink-900/60 text-xs font-semibold text-white group-hover:flex">
                     제거
                   </span>
                 </button>
@@ -50,12 +104,15 @@ export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
             autoFocus
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="작품명, 작가 검색"
+            placeholder="작품명 검색"
             className="mb-3 w-full rounded-full border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none"
           />
           <div className="max-h-72 overflow-y-auto">
+            {keyword.trim() && candidates.length === 0 && (
+              <p className="py-4 text-center text-xs text-ink-400">검색 결과가 없어요.</p>
+            )}
             {candidates.map((w) => {
-              const active = lifeWorks.includes(w.id)
+              const active = lifeWorks.includes(w.id) || lifeWorks.includes(String(w.id))
               return (
                 <button
                   key={w.id}
@@ -63,10 +120,7 @@ export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
                   onClick={() => onToggle(w.id)}
                   className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-ink-50"
                 >
-                  <div
-                    className="h-10 w-8 shrink-0 rounded"
-                    style={{ background: w.coverGradient }}
-                  />
+                  <MiniThumb webtoon={w} className="h-10 w-8 shrink-0 rounded" />
                   <span className="flex-1 truncate text-sm text-ink-900">{w.title}</span>
                   <span className={active ? 'text-brand-500' : 'text-ink-200'}>{active ? '★' : '☆'}</span>
                 </button>

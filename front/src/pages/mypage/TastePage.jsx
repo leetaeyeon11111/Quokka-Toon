@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
-import { getWebtoonById } from '../../data/webtoons'
-import { getRecommendationsByTaste } from '../../api/recommend'
+import { useEffect, useMemo, useState } from 'react'
+import { searchWebtoons } from '../../api/webtoon'
+import { fetchWebtoonModelsByIds, toCardModel } from '../../lib/webtoon'
 import { useAppData } from '../../hooks/useAppData'
 import MyPageShell from '../../components/mypage/MyPageShell'
 import WebtoonCard from '../../components/webtoon/WebtoonCard'
@@ -12,15 +12,40 @@ const RANK_ICONS = ['💗', '💜', '👑']
 export default function TastePage() {
   const { favorites, lifeWorks, toggleLifeWork } = useAppData()
   const [showLifeWorks, setShowLifeWorks] = useState(false)
+  const [sourceWebtoons, setSourceWebtoons] = useState([])
+  const [lifeWorkCount, setLifeWorkCount] = useState(0)
+  const [recommendations, setRecommendations] = useState([])
 
   const sourceIds = useMemo(
-    () => [...new Set([...Object.keys(favorites), ...lifeWorks])],
+    () => [...new Set([...Object.keys(favorites), ...lifeWorks.map(String)])],
     [favorites, lifeWorks],
   )
-  const sourceWebtoons = useMemo(
-    () => sourceIds.map(getWebtoonById).filter(Boolean),
-    [sourceIds],
-  )
+
+  // 즐겨찾기+인생작 실제 웹툰 로드
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const models = await fetchWebtoonModelsByIds(sourceIds)
+      if (!cancelled) setSourceWebtoons(models)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [sourceIds])
+
+  // 인생작 실제 조회 수 (버튼 표시용 — 저장 id 중 실제 존재하는 것만)
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      const models = await fetchWebtoonModelsByIds(lifeWorks.map(String))
+      if (!cancelled) setLifeWorkCount(models.length)
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [lifeWorks])
 
   const topGenres = useMemo(() => {
     const counts = new Map()
@@ -36,10 +61,34 @@ export default function TastePage() {
     return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
   }, [sourceWebtoons])
 
-  const tasteRecommendations = useMemo(
-    () => getRecommendationsByTaste(topTags.map(([name]) => name), { excludeIds: sourceIds, limit: 10 }),
-    [topTags, sourceIds],
-  )
+  // 최애 장르 기반 추천 (실 DB)
+  useEffect(() => {
+    let cancelled = false
+    async function run() {
+      const topGenre = sourceWebtoons[0]?.genres?.[0] ?? topGenres[0]?.[0]
+      if (!topGenre) {
+        if (!cancelled) setRecommendations([])
+        return
+      }
+      try {
+        const data = await searchWebtoons({ genre: topGenre, size: 14 })
+        if (cancelled) return
+        const excluded = new Set(sourceIds.map(String))
+        setRecommendations(
+          (data?.content ?? [])
+            .map(toCardModel)
+            .filter((w) => !excluded.has(String(w.id)))
+            .slice(0, 10),
+        )
+      } catch {
+        /* 추천 실패 무시 */
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [sourceWebtoons, topGenres, sourceIds])
 
   const maxTagCount = topTags[0]?.[1] ?? 1
 
@@ -55,7 +104,7 @@ export default function TastePage() {
             🗂
           </span>
           <span className="flex-1">
-            <span className="block text-sm font-bold text-ink-900">내 인생작 ({lifeWorks.length})</span>
+            <span className="block text-sm font-bold text-ink-900">내 인생작 ({lifeWorkCount})</span>
             <span className="block text-xs text-ink-500">클릭하면 인생작 목록 팝업이 열려요</span>
           </span>
           <span className="text-ink-300">›</span>
@@ -85,29 +134,33 @@ export default function TastePage() {
           <div className="rounded-2xl border border-ink-100 bg-white p-5">
             <p className="mb-1 text-sm font-bold text-ink-900">최애 태그</p>
             <p className="mb-4 text-xs text-ink-500">즐겨찾기·인생작의 공통 태그예요.</p>
-            <div className="flex flex-col gap-2">
-              {topTags.map(([name, count]) => (
-                <div key={name} className="flex items-center gap-2">
-                  <span className="w-24 shrink-0 truncate text-xs font-semibold text-ink-700">#{name}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink-100">
-                    <div
-                      className="h-full rounded-full bg-[#8b5cf6]"
-                      style={{ width: `${(count / maxTagCount) * 100}%` }}
-                    />
+            {topTags.length === 0 ? (
+              <p className="py-2 text-xs text-ink-300">담은 작품에 태그 정보가 아직 없어요.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {topTags.map(([name, count]) => (
+                  <div key={name} className="flex items-center gap-2">
+                    <span className="w-24 shrink-0 truncate text-xs font-semibold text-ink-700">#{name}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink-100">
+                      <div
+                        className="h-full rounded-full bg-[#8b5cf6]"
+                        style={{ width: `${(count / maxTagCount) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-8 shrink-0 text-right text-xs text-ink-500">{count}개</span>
                   </div>
-                  <span className="w-8 shrink-0 text-right text-xs text-ink-500">{count}개</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {tasteRecommendations.length > 0 && (
+      {recommendations.length > 0 && (
         <div className="mt-8">
-          <p className="mb-3 text-sm font-bold text-ink-900">최애 태그 기반 추천</p>
+          <p className="mb-3 text-sm font-bold text-ink-900">최애 장르 기반 추천</p>
           <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1">
-            {tasteRecommendations.map((w) => (
+            {recommendations.map((w) => (
               <WebtoonCard key={w.id} webtoon={w} />
             ))}
           </div>
