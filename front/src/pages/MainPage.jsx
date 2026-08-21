@@ -5,6 +5,7 @@ import { TEAM_PICK_IDS } from '../data/teamPicks'
 import { getSheetSnapDestination } from '../lib/homeSheet'
 import WebtoonCard from '../components/webtoon/WebtoonCard'
 import FeaturePromoCarousel from '../components/home/ContinuousFeaturePromoCarousel'
+import FloatingQuokkas from '../components/home/FloatingQuokkas'
 
 const PLACEHOLDER_QUERIES = [
   '비 오는 날 읽기 좋은 힐링 만화…',
@@ -578,6 +579,7 @@ export default function MainPage() {
       ref={pageRef}
       className="relative [--ambient-reverse-shift:0px] [--ambient-shift:0px] [--content-opacity:0.45] [--content-shift:18px] [--hero-opacity:1] [--hero-scale:1] [--hero-shift:0px]"
     >
+      <FloatingQuokkas />
       <section
         ref={heroRef}
         className="sticky top-[var(--site-header-height)] isolate flex h-[calc(100svh-var(--site-header-height))] flex-col justify-center overflow-hidden px-6 py-10 [@media(max-height:720px)]:py-4 sm:px-8 lg:px-12"

@@ -175,10 +175,11 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
   }
 
   function handleSlideClick(slide, renderIndex) {
+    // 가운데가 아닌 사진을 눌러도 먼저 가운데로 옮긴 뒤,
+    // 어떤 사진이든 클릭하면 해당 기능 경로로 바로 이동한다.
     if (renderIndex !== activeRenderIndexRef.current) {
       setUserControlled(true)
       scrollToRenderIndex(renderIndex)
-      return
     }
     openSlide(slide)
   }
@@ -191,10 +192,11 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
       startScrollLeft: trackRef.current?.scrollLeft ?? 0,
       moved: false,
     }
-    setIsDragging(true)
     setPaused(true)
     setUserControlled(true)
-    event.currentTarget.setPointerCapture(event.pointerId)
+    // 포인터 캡처는 실제 드래그가 시작될 때만 잡는다.
+    // pointerdown에서 캡처하면 단순 클릭의 click 이벤트가 트랙으로 리타겟팅되어
+    // 카드의 onClick(이동)이 호출되지 않는다.
   }
 
   function handlePointerMove(event) {
@@ -202,12 +204,21 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
     if (!track || dragState.current.pointerId !== event.pointerId) return
 
     const distance = event.clientX - dragState.current.startX
-    if (Math.abs(distance) > 8) dragState.current.moved = true
+    if (Math.abs(distance) > 8 && !dragState.current.moved) {
+      dragState.current.moved = true
+      setIsDragging(true)
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      } catch {
+        /* 캡처 불가 환경 무시 */
+      }
+    }
     track.scrollLeft = dragState.current.startScrollLeft - distance
   }
 
   function finishDragging(event) {
     if (dragState.current.pointerId !== event.pointerId) return
+    const wasDrag = dragState.current.moved
     dragState.current.pointerId = null
     setIsDragging(false)
     setPaused(false)
@@ -215,12 +226,23 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
 
-    // 드래그가 끝난 위치에서 가장 가까운 카드를 중앙에 맞춘다.
-    // 자유롭게 끌어보는 동안에는 스크롤을 그대로 따라가고,
-    // 손을 놓았을 때만 한 콘텐츠가 메인에 오도록 스냅한다.
-    const nearestIndex = findNearestRenderIndex()
-    setActiveSlide(nearestIndex)
-    scrollToRenderIndex(nearestIndex, reducedMotion ? 'auto' : 'smooth')
+    if (wasDrag) {
+      // 실제로 끌었으면 끝난 위치에서 가장 가까운 카드를 중앙에 스냅한다.
+      const nearestIndex = findNearestRenderIndex()
+      setActiveSlide(nearestIndex)
+      scrollToRenderIndex(nearestIndex, reducedMotion ? 'auto' : 'smooth')
+    } else if (event.type === 'pointerup') {
+      // 단순 탭이면 손을 뗀 지점의 카드를 찾아 해당 기능으로 이동한다.
+      // click 이벤트는 포인터 캡처 등으로 카드에 도달하지 않을 수 있어
+      // 항상 발생하는 pointerup 에서 직접 처리한다. (pointercancel 은 제외)
+      const tapped = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest('[data-render-index]')
+      if (tapped) {
+        const renderIndex = Number(tapped.dataset.renderIndex)
+        handleSlideClick(slides[normalizeIndex(renderIndex)], renderIndex)
+      }
+    }
 
     window.setTimeout(() => {
       dragState.current.moved = false
@@ -269,7 +291,6 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
                 tabIndex={isCurrent ? 0 : -1}
                 aria-hidden={!isCurrent}
                 aria-label={`${slideIndex + 1} / ${slides.length}: ${slide.eyebrow}`}
-                onClick={() => handleSlideClick(slide, renderIndex)}
                 onKeyDown={(event) => {
                   if (!isCurrent || (event.key !== 'Enter' && event.key !== ' ')) return
                   event.preventDefault()

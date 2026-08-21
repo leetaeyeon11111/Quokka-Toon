@@ -9,7 +9,7 @@ import java.time.LocalDate;
 public record SignupRequest(
         @Email @NotBlank String email,
         @NotBlank @Size(min = 8, max = 64) String password,
-        @NotBlank @Size(max = 30) String nickname,
+        @NotBlank @Size(max = 6) String nickname,
         Gender gender,
         LocalDate birthDate
 ) {}

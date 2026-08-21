@@ -58,3 +58,39 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* 메인페이지에서 자유롭게 돌아다니는 쿼카 */
+.floating-quokka {
+  position: fixed;
+  pointer-events: none;
+  will-change: transform;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.12));
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+@keyframes quokka-roam-a {
+  0%   { transform: translate(0, 0) rotate(-8deg); }
+  20%  { transform: translate(46vw, 14vh) rotate(6deg); }
+  45%  { transform: translate(74vw, -6vh) rotate(-5deg); }
+  70%  { transform: translate(28vw, 22vh) rotate(8deg); }
+  100% { transform: translate(0, 0) rotate(-8deg); }
+}
+@keyframes quokka-roam-b {
+  0%   { transform: translate(0, 0) rotate(6deg); }
+  25%  { transform: translate(-40vw, 18vh) rotate(-7deg); }
+  55%  { transform: translate(-64vw, -10vh) rotate(5deg); }
+  80%  { transform: translate(-22vw, 12vh) rotate(-6deg); }
+  100% { transform: translate(0, 0) rotate(6deg); }
+}
+@keyframes quokka-roam-c {
+  0%   { transform: translate(0, 0) rotate(-4deg); }
+  30%  { transform: translate(30vw, -18vh) rotate(7deg); }
+  60%  { transform: translate(-24vw, -30vh) rotate(-8deg); }
+  85%  { transform: translate(18vw, -10vh) rotate(4deg); }
+  100% { transform: translate(0, 0) rotate(-4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .floating-quokka {
+    animation: none !important;
+  }
+}

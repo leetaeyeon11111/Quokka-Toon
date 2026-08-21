@@ -86,11 +86,11 @@ export default function BoardWritePage() {
         </div>
 
         {board === 'webtoon' && (
-          <div className="flex items-center gap-3 rounded-xl border border-ink-100 bg-ink-50 p-3">
+          <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-ink-50 p-3">
             <select
               value={webtoonId}
               onChange={(e) => setWebtoonId(e.target.value)}
-              className="flex-1 rounded-full border border-ink-100 bg-white px-3 py-2 text-sm outline-none"
+              className="w-full min-w-0 rounded-full border border-ink-100 bg-white px-3 py-2 text-sm outline-none"
             >
               <option value="">웹툰 선택</option>
               {webtoons.map((w) => (
@@ -99,7 +99,10 @@ export default function BoardWritePage() {
                 </option>
               ))}
             </select>
-            <StarsInput value={rating} onChange={setRating} />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-ink-500">평점</span>
+              <StarsInput value={rating} onChange={setRating} />
+            </div>
           </div>
         )}
 

@@ -8,13 +8,14 @@ import PlaceholderPage from '../components/common/PlaceholderPage'
 import ReportModal from '../components/board/ReportModal'
 import { useExperienceNotification } from '../hooks/useExperienceNotification'
 import { nicknameLevelClass } from '../lib/level'
+import { LevelBadge } from '../components/common/LevelBadge'
 
 function CommentRow({ comment, onReplyClick, onReact, onReport, onDelete, children }) {
   return (
     <div>
       <div className="rounded-xl border border-ink-100 bg-white p-3">
         <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink-900">
-          🙂 <span className={nicknameLevelClass(comment.authorLevel)}>{comment.author}</span>{' '}
+          🙂 <LevelBadge level={comment.authorLevel} /> <span className={nicknameLevelClass(comment.authorLevel)}>{comment.author}</span>{' '}
           <span className="text-xs font-normal text-ink-300">{comment.date}</span>
         </p>
         <p className="mb-2 text-sm text-ink-700">{comment.text}</p>
@@ -203,7 +204,7 @@ export default function BoardPostPage() {
       </span>
       <h1 className="mb-2 text-xl font-bold text-ink-900">{post.title}</h1>
       <div className="mb-5 flex items-center gap-3 text-xs text-ink-500">
-        <span>👤 <span className={nicknameLevelClass(post.authorLevel)}>{post.author}</span></span>
+        <span className="inline-flex items-center gap-1">👤 <LevelBadge level={post.authorLevel} /> <span className={nicknameLevelClass(post.authorLevel)}>{post.author}</span></span>
         <span>🗓 {post.date}</span>
         {post.rating && <StarsDisplay rating={post.rating} size="text-xs" />}
         {post.mine && (
@@ -276,7 +277,7 @@ export default function BoardPostPage() {
                 <div key={reply.id} className="ml-8 border-l border-ink-100 pl-4">
                   <div className="rounded-xl bg-ink-50 p-3">
                     <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink-900">
-                      ↳ 🙂 <span className={nicknameLevelClass(reply.authorLevel)}>{reply.author}</span>{' '}
+                      ↳ 🙂 <LevelBadge level={reply.authorLevel} /> <span className={nicknameLevelClass(reply.authorLevel)}>{reply.author}</span>{' '}
                       <span className="text-xs font-normal text-ink-300">{reply.date}</span>
                     </p>
                     <p className="mb-1 text-sm text-ink-700">{reply.text}</p>
@@ -286,6 +287,13 @@ export default function BoardPostPage() {
                       className="text-xs text-ink-500 hover:text-brand-500"
                     >
                       👍 {reply.likes}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReport('COMMENT', reply.id)}
+                      className="ml-3 text-xs text-ink-500 hover:text-red-500"
+                    >
+                      🚩 신고
                     </button>
                     {reply.mine && (
                       <button

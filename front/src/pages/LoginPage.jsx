@@ -63,15 +63,17 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={goKakaoAuthorize}
-              className="flex-1 rounded-full bg-[#fee500] py-3 text-sm font-semibold text-ink-900"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#fee500] py-3 text-sm font-semibold text-ink-900 transition hover:opacity-90"
             >
+              <img src="/kakao_login.png" alt="" className="h-5 w-5 rounded-full" />
               카카오
             </button>
             <button
               type="button"
               onClick={goNaverAuthorize}
-              className="flex-1 rounded-full bg-[#03c75a] py-3 text-sm font-semibold text-white"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#03c75a] py-3 text-sm font-semibold text-white transition hover:opacity-90"
             >
+              <img src="/naver_login.png" alt="" className="h-5 w-5 rounded-full" />
               네이버
             </button>
           </div>

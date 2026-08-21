@@ -36,10 +36,10 @@ export default function Header() {
         <Link
           to="/"
           onClick={() => window.scrollTo({ top: 0, behavior: 'auto' })}
-          className="flex items-center gap-1.5 text-lg font-extrabold text-ink-900"
+          className="flex items-center"
+          aria-label="쿼카툰 홈"
         >
-          <span aria-hidden>🐿</span>
-          쿼카툰
+          <img src="/quokka_logo.png" alt="쿼카툰" className="h-9 w-auto object-contain" />
         </Link>
 
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm font-semibold text-ink-700 md:flex">
