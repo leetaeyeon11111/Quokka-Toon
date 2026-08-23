@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { searchWebtoons, getGenreOptions, getPlatformOptions } from '../api/webtoon'
 import { toCardModel } from '../lib/webtoon'
 import WebtoonCard from '../components/webtoon/WebtoonCard'
+import { ResultGridSkeleton, ResultMessage } from '../components/common/ResultState'
 
 const SORT_OPTIONS = [
   { key: 'latest', label: '최신순' },
@@ -18,6 +20,7 @@ function FilterRow({ label, options, active, onChange }) {
       <span className="w-12 shrink-0 text-sm font-semibold text-ink-500">{label}</span>
       <button
         type="button"
+        aria-pressed={active === '전체'}
         onClick={() => onChange('전체')}
         className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
           active === '전체' ? 'bg-brand-500 text-white' : 'border border-ink-100 text-ink-500'
@@ -29,6 +32,7 @@ function FilterRow({ label, options, active, onChange }) {
         <button
           key={opt}
           type="button"
+          aria-pressed={active === opt}
           onClick={() => onChange(opt)}
           className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
             active === opt ? 'bg-brand-500 text-white' : 'border border-ink-100 text-ink-500'
@@ -41,13 +45,13 @@ function FilterRow({ label, options, active, onChange }) {
   )
 }
 
-export default function WebtoonListPage() {
-  const [keyword, setKeyword] = useState('')
-  const [submittedKeyword, setSubmittedKeyword] = useState('')
-  const [platform, setPlatform] = useState('전체')
-  const [genre, setGenre] = useState('전체')
-  const [sort, setSort] = useState('latest')
-  const [page, setPage] = useState(0)
+function WebtoonListContent({ initialFilters, setSearchParams }) {
+  const [keyword, setKeyword] = useState(initialFilters.q)
+  const submittedKeyword = initialFilters.q
+  const platform = initialFilters.platform
+  const genre = initialFilters.genre
+  const sort = initialFilters.sort
+  const page = initialFilters.page
 
   const [genreOptions, setGenreOptions] = useState([])
   const [platformOptions, setPlatformOptions] = useState([])
@@ -57,6 +61,7 @@ export default function WebtoonListPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
   // 필터 옵션 1회 로드
   useEffect(() => {
@@ -64,23 +69,25 @@ export default function WebtoonListPage() {
     getPlatformOptions().then((data) => setPlatformOptions((data ?? []).slice(0, 16))).catch(() => {})
   }, [])
 
-  // 필터/정렬/검색은 항상 첫 페이지부터 다시 조회
-  function changePlatform(v) {
-    setPlatform(v)
-    setPage(0)
+  function updateFilters(overrides) {
+    const next = { q: submittedKeyword, platform, genre, sort, page, ...overrides }
+    const params = new URLSearchParams()
+    if (next.q) params.set('q', next.q)
+    if (next.platform !== '전체') params.set('platform', next.platform)
+    if (next.genre !== '전체') params.set('genre', next.genre)
+    if (next.sort !== 'latest') params.set('sort', next.sort)
+    if (next.page > 0) params.set('page', String(next.page + 1))
+    setSearchParams(params)
   }
-  function changeGenre(v) {
-    setGenre(v)
-    setPage(0)
-  }
-  function changeSort(v) {
-    setSort(v)
-    setPage(0)
-  }
+
+  const changePlatform = (value) => updateFilters({ platform: value, page: 0 })
+  const changeGenre = (value) => updateFilters({ genre: value, page: 0 })
+  const changeSort = (value) => updateFilters({ sort: value, page: 0 })
+
   function submitSearch(e) {
     e.preventDefault()
-    setSubmittedKeyword(keyword)
-    setPage(0)
+    const trimmedKeyword = keyword.trim()
+    updateFilters({ q: trimmedKeyword, page: 0 })
   }
 
   // 목록 로드
@@ -112,13 +119,13 @@ export default function WebtoonListPage() {
     return () => {
       cancelled = true
     }
-  }, [page, sort, submittedKeyword, platform, genre])
+  }, [page, sort, submittedKeyword, platform, genre, reloadKey])
 
   return (
     <div className="px-6 py-10">
       <div className="mb-5">
         <h1 className="text-xl font-bold text-ink-900">
-          일반웹툰{' '}
+          전체 웹툰{' '}
           <span className="text-sm font-normal text-ink-500">
             {SORT_OPTIONS.find((s) => s.key === sort)?.label} · 총 {totalElements.toLocaleString()}개
           </span>
@@ -160,11 +167,20 @@ export default function WebtoonListPage() {
       </div>
 
       {loading ? (
-        <p className="py-20 text-center text-sm text-ink-500">불러오는 중…</p>
+        <ResultGridSkeleton />
       ) : error ? (
-        <p className="py-20 text-center text-sm text-red-500">{error}</p>
+        <ResultMessage
+          icon="⚠️"
+          title="웹툰 목록을 불러오지 못했어요"
+          description={error}
+          actionLabel="다시 시도"
+          onAction={() => setReloadKey((key) => key + 1)}
+        />
       ) : items.length === 0 ? (
-        <p className="py-20 text-center text-sm text-ink-500">조건에 맞는 웹툰이 없어요.</p>
+        <ResultMessage
+          title="조건에 맞는 웹툰이 없어요"
+          description="검색어나 필터를 조금 바꿔서 다시 찾아보세요."
+        />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -179,7 +195,7 @@ export default function WebtoonListPage() {
                 type="button"
                 disabled={page === 0}
                 onClick={() => {
-                  setPage((p) => Math.max(0, p - 1))
+                  updateFilters({ page: Math.max(0, page - 1) })
                   window.scrollTo({ top: 0 })
                 }}
                 className="rounded-full border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-50 disabled:opacity-40"
@@ -193,7 +209,7 @@ export default function WebtoonListPage() {
                 type="button"
                 disabled={page + 1 >= totalPages}
                 onClick={() => {
-                  setPage((p) => p + 1)
+                  updateFilters({ page: page + 1 })
                   window.scrollTo({ top: 0 })
                 }}
                 className="rounded-full border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-50 disabled:opacity-40"
@@ -205,5 +221,26 @@ export default function WebtoonListPage() {
         </>
       )}
     </div>
+  )
+}
+
+export default function WebtoonListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const pageParam = Number(searchParams.get('page'))
+  const sortParam = searchParams.get('sort') ?? 'latest'
+  const initialFilters = {
+    q: searchParams.get('q') ?? '',
+    platform: searchParams.get('platform') ?? '전체',
+    genre: searchParams.get('genre') ?? '전체',
+    sort: SORT_OPTIONS.some((option) => option.key === sortParam) ? sortParam : 'latest',
+    page: Number.isInteger(pageParam) && pageParam > 0 ? pageParam - 1 : 0,
+  }
+
+  return (
+    <WebtoonListContent
+      key={searchParams.toString()}
+      initialFilters={initialFilters}
+      setSearchParams={setSearchParams}
+    />
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import RadarChart from './RadarChart'
+import { webtoonHref } from '../../lib/navigation'
 
 const TABS = [
   { key: 'reason', label: '추천 이유' },
@@ -27,12 +28,13 @@ function ScoreBar({ label, value, icon }) {
 export default function RecommendCard({ result }) {
   const { webtoon, queryScore, tasteScore, total, axisTags } = result
   const [tab, setTab] = useState('reason')
-  const strength = total >= 85 ? 2 : total >= 55 ? 1 : 0
+  const strength = total >= 70 ? 2 : total > 0 ? 1 : 0
+  const href = webtoonHref(webtoon)
 
   return (
     <div className="rounded-2xl border border-ink-100 bg-white p-5 shadow-sm">
       <div className="flex gap-4">
-        <Link to={`/webtoons/${webtoon.id}`} className="shrink-0">
+        <Link to={href} aria-label={`${webtoon.title} 보기`} className="shrink-0">
           <div
             className="h-24 w-20 rounded-xl border border-ink-100"
             style={{ background: webtoon.coverGradient }}
@@ -40,7 +42,7 @@ export default function RecommendCard({ result }) {
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <Link to={`/webtoons/${webtoon.id}`} className="min-w-0">
+            <Link to={href} className="min-w-0">
               <h3 className="truncate text-base font-bold text-ink-900 hover:underline">
                 {webtoon.title}
               </h3>

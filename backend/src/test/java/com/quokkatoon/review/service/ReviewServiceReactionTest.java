@@ -4,6 +4,7 @@ import com.quokkatoon.level.service.ExperienceService;
 import com.quokkatoon.global.exception.BusinessException;
 import com.quokkatoon.review.dto.ReviewRequest;
 import com.quokkatoon.review.entity.Review;
+import com.quokkatoon.review.entity.ReviewLike;
 import com.quokkatoon.review.repository.ReviewLikeRepository;
 import com.quokkatoon.review.repository.ReviewRepository;
 import com.quokkatoon.user.entity.User;
@@ -71,5 +72,50 @@ class ReviewServiceReactionTest {
         when(reviews.findByIdForUpdate(30L)).thenReturn(Optional.of(created));
         service.update(30L, 3L, new ReviewRequest(4, "This updated review is still long enough."));
         verify(experience, times(1)).award(anyLong(), any(), anyInt(), any(), anyLong(), anyLong(), any());
+    }
+
+    @Test
+    void anotherUsersReviewLikeAwardsAndCancellationReversesExperience() {
+        ReviewRepository reviews = mock(ReviewRepository.class);
+        ReviewLikeRepository likes = mock(ReviewLikeRepository.class);
+        ExperienceService experience = mock(ExperienceService.class);
+        User author = User.builder().email("author2@test.com").passwordHash("x").nickname("author2").build();
+        ReflectionTestUtils.setField(author, "id", 11L);
+        Review review = Review.builder().user(author).rating(5)
+                .content("a sufficiently long review content").build();
+        ReflectionTestUtils.setField(review, "id", 19L);
+        ReviewLike existing = ReviewLike.builder().reviewId(19L).userId(12L).build();
+        when(reviews.findByIdForUpdate(19L)).thenReturn(Optional.of(review));
+        when(likes.findByReviewIdAndUserId(19L, 12L))
+                .thenReturn(Optional.empty(), Optional.of(existing));
+        ReviewService service = new ReviewService(reviews, likes, mock(UserRepository.class),
+                mock(WebtoonRepository.class), experience);
+
+        assertThat(service.toggleLike(19L, 12L).result().likes()).isEqualTo(1);
+        assertThat(service.toggleLike(19L, 12L).result().likes()).isZero();
+
+        verify(experience).awardRecommendation(11L, "REVIEW", 19L, 12L);
+        verify(experience).reverseRecommendation(11L, "REVIEW", 19L, 12L);
+    }
+
+    @Test
+    void deletingReviewReversesCreationAndReceivedRecommendationAwards() {
+        ReviewRepository reviews = mock(ReviewRepository.class);
+        ReviewLikeRepository likes = mock(ReviewLikeRepository.class);
+        ExperienceService experience = mock(ExperienceService.class);
+        User author = User.builder().email("delete@test.com").passwordHash("x").nickname("delete").build();
+        ReflectionTestUtils.setField(author, "id", 21L);
+        Review review = Review.builder().user(author).rating(4)
+                .content("a sufficiently long review to delete").build();
+        ReflectionTestUtils.setField(review, "id", 29L);
+        when(reviews.findByIdForUpdate(29L)).thenReturn(Optional.of(review));
+        ReviewService service = new ReviewService(reviews, likes, mock(UserRepository.class),
+                mock(WebtoonRepository.class), experience);
+
+        service.delete(29L, 21L);
+
+        assertThat(review.isDeleted()).isTrue();
+        verify(likes).deleteAllByReviewId(29L);
+        verify(experience).reverseAllForReference("REVIEW", 29L);
     }
 }

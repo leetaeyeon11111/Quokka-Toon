@@ -2,6 +2,8 @@ package com.quokkatoon.board.service;
 
 import com.quokkatoon.board.entity.Comment;
 import com.quokkatoon.board.entity.Post;
+import com.quokkatoon.board.entity.PostReaction;
+import com.quokkatoon.board.entity.ReactionType;
 import com.quokkatoon.board.repository.*;
 import com.quokkatoon.level.service.ExperienceService;
 import com.quokkatoon.user.entity.User;
@@ -61,6 +63,24 @@ class BoardServiceReactionTest {
 
         assertThat(service.reactComment(22L, 2L).likes()).isEqualTo(1);
         verifyNoInteractions(experience);
+    }
+
+    @Test
+    void anotherUsersPostLikeAwardsAndCancellationReversesExperience() {
+        User author = user(1L, "author");
+        Post post = Post.builder().user(author).title("title").content("content").build();
+        ReflectionTestUtils.setField(post, "id", 10L);
+        PostReaction existing = PostReaction.builder()
+                .postId(10L).userId(2L).type(ReactionType.LIKE).build();
+        when(posts.findByIdForUpdate(10L)).thenReturn(Optional.of(post));
+        when(postReactions.findByPostIdAndUserId(10L, 2L))
+                .thenReturn(Optional.empty(), Optional.of(existing));
+
+        assertThat(service.reactPost(10L, 2L, "like").result().likes()).isEqualTo(1);
+        assertThat(service.reactPost(10L, 2L, "like").result().likes()).isZero();
+
+        verify(experience).awardRecommendation(1L, "POST", 10L, 2L);
+        verify(experience).reverseRecommendation(1L, "POST", 10L, 2L);
     }
 
     private User user(Long id, String nickname) {

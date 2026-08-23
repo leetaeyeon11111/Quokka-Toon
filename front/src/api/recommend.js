@@ -19,6 +19,7 @@ export function getRecommendations(query, { tasteTags = [], limit = 10 } = {}) {
     webtoon,
     ...scoreWebtoon(query, webtoon, tasteTags),
   }))
+    .filter((result) => result.total > 0)
     .sort((a, b) => b.total - a.total)
     .slice(0, limit)
 }

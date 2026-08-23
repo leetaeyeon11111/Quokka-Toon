@@ -1,0 +1,13 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local database exports may contain production/user data
+database/backup/
+
+# Build output and dependencies
+front/node_modules/
+front/dist/
+backend/.gradle/
+backend/build/

@@ -9,6 +9,7 @@ import ReportModal from '../components/board/ReportModal'
 import { useExperienceNotification } from '../hooks/useExperienceNotification'
 import { nicknameLevelClass } from '../lib/level'
 import { LevelBadge } from '../components/common/LevelBadge'
+import { loginHref } from '../lib/navigation'
 
 function CommentRow({ comment, onReplyClick, onReact, onReport, onDelete, children }) {
   return (
@@ -80,7 +81,7 @@ export default function BoardPostPage() {
 
   function requireLogin() {
     if (!isLoggedIn) {
-      alert('로그인 후 이용할 수 있어요.')
+      navigate(loginHref(`/board/post/${id}`))
       return false
     }
     return true
@@ -198,6 +199,13 @@ export default function BoardPostPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10">
+      <button
+        type="button"
+        onClick={() => navigate(post.board === 'free' ? '/board/free' : '/board/webtoon')}
+        className="mb-4 text-sm font-semibold text-ink-500 hover:text-brand-500"
+      >
+        ← 게시판으로 돌아가기
+      </button>
       <span className="mb-3 inline-block rounded-full bg-ink-50 px-3 py-1 text-xs font-semibold text-ink-500">
         #{post.board === 'free' ? '자유게시판' : post.board === 'webtoon' ? '웹툰게시판' : '전체게시판'}
         {post.webtoonTag && ` · ${post.webtoonTag}`}
@@ -222,25 +230,29 @@ export default function BoardPostPage() {
         <button
           type="button"
           onClick={() => handleReactPost('like')}
-          className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
+          aria-label={isLoggedIn ? `추천 ${post.likes}` : '로그인 후 추천 가능'}
+          className={`rounded-full px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-ink-100 text-ink-500'}`}
         >
           👍 추천 {post.likes}
         </button>
         <button
           type="button"
           onClick={() => handleReactPost('dislike')}
-          className="rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:bg-ink-50"
+          className={`rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'text-ink-700 hover:bg-ink-50' : 'bg-ink-50 text-ink-300'}`}
         >
           👎 비추천 {post.dislikes}
         </button>
         <button
           type="button"
           onClick={() => handleReport('POST', post.id)}
-          className="rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50"
+          className={`rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'text-red-500 hover:bg-red-50' : 'bg-ink-50 text-ink-300'}`}
         >
           🚩 신고
         </button>
       </div>
+      {!isLoggedIn && (
+        <p className="-mt-5 mb-8 text-xs text-ink-500">추천·비추천·신고는 로그인 후 이용할 수 있어요.</p>
+      )}
 
       <p className="mb-3 text-sm font-bold text-ink-900">💬 댓글 {comments.length}</p>
 

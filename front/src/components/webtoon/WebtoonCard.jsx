@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { coverGradientFor } from '../../lib/webtoon'
+import { webtoonHref } from '../../lib/navigation'
 
 export default function WebtoonCard({ webtoon, showPlatform = true, rank, className = '' }) {
   const { id, title } = webtoon
@@ -15,7 +16,7 @@ export default function WebtoonCard({ webtoon, showPlatform = true, rank, classN
   const showImage = thumbnailUrl && imgOk && !isAdult
 
   return (
-    <Link to={`/webtoons/${id}`} className={`group block w-40 shrink-0 text-left ${className}`}>
+    <Link to={webtoonHref(webtoon)} className={`group block w-40 shrink-0 text-left ${className}`}>
       <div
         className="relative aspect-[3/4] w-full overflow-hidden rounded-xl border border-ink-100 shadow-sm transition group-hover:shadow-md"
         style={{ background: gradient }}

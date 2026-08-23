@@ -1,25 +1,40 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { goKakaoAuthorize, goNaverAuthorize } from '../api/social'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { login, isLoggedIn, user } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [justLoggedIn, setJustLoggedIn] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const returnTo = searchParams.get('returnTo')
+  const safeReturnTo = returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : ''
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!email.trim() || !password) return
+    if (!email.trim()) {
+      setError('이메일을 입력해주세요.')
+      return
+    }
+    if (!password) {
+      setError('비밀번호를 입력해주세요.')
+      return
+    }
     setError('')
     setSubmitting(true)
     try {
       await login(email.trim(), password)
-      setJustLoggedIn(true)
+      if (safeReturnTo) {
+        navigate(safeReturnTo, { replace: true })
+      } else {
+        setJustLoggedIn(true)
+      }
     } catch (err) {
       setError(err.message ?? '로그인에 실패했어요.')
     } finally {
@@ -37,19 +52,31 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input
               type="email"
+              aria-invalid={Boolean(error && !email.trim())}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="이메일"
               className="rounded-full border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
             />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호"
-              className="rounded-full border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
-            />
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="비밀번호"
+                aria-invalid={Boolean(error && !password)}
+                className="w-full rounded-full border border-ink-100 bg-ink-50 px-4 py-3 pr-16 text-sm outline-none focus:border-brand-300"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink-500 hover:text-ink-900"
+                aria-label={showPassword ? '비밀번호 숨기기' : '비밀번호 보기'}
+              >
+                {showPassword ? '숨기기' : '보기'}
+              </button>
+            </div>
+            {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
             <button
               type="submit"
               disabled={submitting}

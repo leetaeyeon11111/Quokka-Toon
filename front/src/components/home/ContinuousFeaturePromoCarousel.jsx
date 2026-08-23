@@ -17,7 +17,7 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
   })
   const [activeRenderIndex, setActiveRenderIndex] = useState(() => slides.length + index)
   const [paused, setPaused] = useState(false)
-  const [userControlled, setUserControlled] = useState(false)
+  const [autoPlaying, setAutoPlaying] = useState(true)
   const [reducedMotion, setReducedMotion] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const trackRef = useRef(null)
@@ -60,7 +60,7 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
   }, [renderedSlides.length])
 
   useEffect(() => {
-    if (paused || userControlled || reducedMotion || slides.length < 2) return undefined
+    if (paused || !autoPlaying || reducedMotion || slides.length < 2) return undefined
     const timer = window.setTimeout(() => {
       const track = trackRef.current
       const targetIndex = activeRenderIndexRef.current + 1
@@ -72,7 +72,7 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
       })
     }, 5000)
     return () => window.clearTimeout(timer)
-  }, [index, paused, userControlled, reducedMotion, slides.length])
+  }, [autoPlaying, index, paused, reducedMotion, slides.length])
 
   useEffect(() => {
     window.sessionStorage.setItem(LAST_PROMO_SLIDE_KEY, slides[index].id)
@@ -154,7 +154,7 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
   }
 
   function move(direction) {
-    setUserControlled(true)
+    setAutoPlaying(false)
     scrollToRenderIndex(activeRenderIndexRef.current + direction)
   }
 
@@ -178,7 +178,7 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
     // 가운데가 아닌 사진을 눌러도 먼저 가운데로 옮긴 뒤,
     // 어떤 사진이든 클릭하면 해당 기능 경로로 바로 이동한다.
     if (renderIndex !== activeRenderIndexRef.current) {
-      setUserControlled(true)
+      setAutoPlaying(false)
       scrollToRenderIndex(renderIndex)
     }
     openSlide(slide)
@@ -193,7 +193,7 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
       moved: false,
     }
     setPaused(true)
-    setUserControlled(true)
+    setAutoPlaying(false)
     // 포인터 캡처는 실제 드래그가 시작될 때만 잡는다.
     // pointerdown에서 캡처하면 단순 클릭의 click 이벤트가 트랙으로 리타겟팅되어
     // 카드의 onClick(이동)이 호출되지 않는다.
@@ -292,7 +292,13 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
                 aria-hidden={!isCurrent}
                 aria-label={`${slideIndex + 1} / ${slides.length}: ${slide.eyebrow}`}
                 onKeyDown={(event) => {
-                  if (!isCurrent || (event.key !== 'Enter' && event.key !== ' ')) return
+                  if (!isCurrent) return
+                  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+                    event.preventDefault()
+                    move(event.key === 'ArrowLeft' ? -1 : 1)
+                    return
+                  }
+                  if (event.key !== 'Enter' && event.key !== ' ') return
                   event.preventDefault()
                   openSlide(slide)
                 }}
@@ -363,32 +369,46 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
         </button>
       </div>
 
-      <div
-        className="mx-auto mt-1 flex w-fit items-center justify-center gap-0.5 rounded-full bg-white/80 px-1.5 py-1 shadow-sm ring-1 ring-ink-100"
-        aria-label="기능 슬라이드 선택"
-      >
-        {slides.map((slide, slideIndex) => (
+      <div className="mx-auto mt-1 flex w-fit items-center justify-center gap-2">
+        <div
+          className="flex items-center justify-center gap-0.5 rounded-full bg-white/80 px-1.5 py-1 shadow-sm ring-1 ring-ink-100"
+          aria-label="기능 슬라이드 선택"
+        >
+          {slides.map((slide, slideIndex) => (
+            <button
+              key={slide.id}
+              type="button"
+              aria-label={`${slideIndex + 1}번째 기능 보기`}
+              aria-current={slideIndex === index ? 'true' : undefined}
+              onClick={() => {
+                setAutoPlaying(false)
+                scrollToRenderIndex(slides.length + slideIndex)
+              }}
+              className="group flex h-7 w-7 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              <span
+                aria-hidden="true"
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  slideIndex === index
+                    ? 'w-5 bg-ink-700'
+                    : 'w-2 bg-ink-300 group-hover:bg-ink-500'
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+
+        {!reducedMotion && (
           <button
-            key={slide.id}
             type="button"
-            aria-label={`${slideIndex + 1}번째 기능 보기`}
-            aria-current={slideIndex === index ? 'true' : undefined}
-            onClick={() => {
-              setUserControlled(true)
-              scrollToRenderIndex(slides.length + slideIndex)
-            }}
-            className="group flex h-7 w-7 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            onClick={() => setAutoPlaying((playing) => !playing)}
+            aria-label={autoPlaying ? '기능 소개 자동 넘김 일시정지' : '기능 소개 자동 넘김 재생'}
+            aria-pressed={!autoPlaying}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-xs font-bold text-ink-700 shadow-sm ring-1 ring-ink-100 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
-            <span
-              aria-hidden="true"
-              className={`h-2 rounded-full transition-all duration-300 ${
-                slideIndex === index
-                  ? 'w-5 bg-ink-700'
-                  : 'w-2 bg-ink-300 group-hover:bg-ink-500'
-              }`}
-            />
+            <span aria-hidden>{autoPlaying ? '❚❚' : '▶'}</span>
           </button>
-        ))}
+        )}
       </div>
       <p className="sr-only" aria-live="polite">
         {slides[index].eyebrow}: {slides[index].title.replace('\n', ' ')}

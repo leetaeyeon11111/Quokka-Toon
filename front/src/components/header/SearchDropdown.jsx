@@ -1,119 +1,108 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 
-const POPULAR_TAGS = [
-  '러브코미디',
-  'BL',
-  '배틀연애',
-  '강공',
-  '오메가버스',
-  '다각관계',
-  '나쁜남자',
-  '드라마',
-  '집착남',
-]
+const RECENT_SEARCH_KEY = 'quokkatoon:recent-keyword-searches'
 
-const AI_SENTENCES = [
-  '소꿉친구랑 꽁냥꽁냥 대는 로맨스',
-  '빌런을 참교육하는 사이다 복수극',
-  '비 오는 날 읽기 좋은 힐링 만화',
-  '두뇌싸움이 짜릿한 다크 판타지',
-]
-
-const INITIAL_KEYWORD_RECENT = ['애늙은이', '코믹 무협']
-const INITIAL_AI_RECENT = [
-  '견습기사 트루디아는 넘치는 재능을 숨긴다',
-  '정통 판타지 액션 모험',
-  '죽지 않는 남자와 견습기사',
-  '죽지않는 주인공, 성장하는 이야기',
-  '잔불의 기사',
-]
+function readRecentSearches() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(RECENT_SEARCH_KEY) ?? '[]')
+    return Array.isArray(saved) ? saved.filter((item) => typeof item === 'string').slice(0, 8) : []
+  } catch {
+    return []
+  }
+}
 
 export default function SearchDropdown({ onClose }) {
   const navigate = useNavigate()
-  const [mode, setMode] = useState('keyword') // 'keyword' | 'ai'
+  const inputRef = useRef(null)
   const [value, setValue] = useState('')
-  const [keywordRecent, setKeywordRecent] = useState(INITIAL_KEYWORD_RECENT)
-  const [aiRecent, setAiRecent] = useState(INITIAL_AI_RECENT)
+  const [recent, setRecent] = useState(readRecentSearches)
+  const [error, setError] = useState('')
 
-  // 모드가 바뀌면 입력값을 비운다 (렌더 중 상태 조정 패턴).
-  const [lastMode, setLastMode] = useState(mode)
-  if (mode !== lastMode) {
-    setLastMode(mode)
-    setValue('')
-  }
-
-  const recent = mode === 'keyword' ? keywordRecent : aiRecent
-  const setRecent = mode === 'keyword' ? setKeywordRecent : setAiRecent
+  useEffect(() => {
+    window.localStorage.setItem(RECENT_SEARCH_KEY, JSON.stringify(recent))
+  }, [recent])
 
   function submit(query) {
-    const q = query ?? value
-    if (!q.trim()) return
-    setRecent((prev) => [q, ...prev.filter((item) => item !== q)].slice(0, 8))
-    navigate(`/recommend?q=${encodeURIComponent(q)}${mode === 'ai' ? '&mode=ai' : ''}`)
+    const trimmedQuery = (query ?? value).trim()
+    if (!trimmedQuery) {
+      setError('검색어를 입력해주세요.')
+      inputRef.current?.focus()
+      return
+    }
+
+    const nextRecent = [
+      trimmedQuery,
+      ...recent.filter((item) => item !== trimmedQuery),
+    ].slice(0, 8)
+    // 경로 이동으로 드롭다운이 즉시 언마운트되어도 검색 기록은 먼저 확정한다.
+    window.localStorage.setItem(RECENT_SEARCH_KEY, JSON.stringify(nextRecent))
+    setRecent(nextRecent)
+    setError('')
+    navigate(`/webtoons?q=${encodeURIComponent(trimmedQuery)}`)
     onClose()
   }
 
   return (
-    <div className="absolute inset-x-0 top-full z-40 border-b border-ink-100 bg-white shadow-lg">
+    <div
+      id="header-search-panel"
+      role="dialog"
+      aria-label="웹툰 검색"
+      className="absolute inset-x-0 top-full z-40 border-b border-ink-100 bg-white shadow-lg"
+    >
       <div className="mx-auto w-full max-w-3xl px-6 py-6">
-        <div className="flex items-center gap-3 rounded-full border border-ink-100 bg-ink-50 px-2 py-2">
-          <button
-            type="button"
-            onClick={() => setMode((m) => (m === 'keyword' ? 'ai' : 'keyword'))}
-            className={`flex h-9 items-center gap-1 rounded-full px-3 text-xs font-bold transition ${
-              mode === 'ai' ? 'bg-mint-500 text-white' : 'bg-ink-200 text-ink-500'
-            }`}
-            aria-pressed={mode === 'ai'}
-          >
-            AI
-            <span
-              className={`ml-1 h-4 w-7 rounded-full bg-white/40 transition after:block after:h-3 after:w-3 after:translate-y-0.5 after:rounded-full after:bg-white after:transition ${
-                mode === 'ai' ? 'after:translate-x-3.5' : 'after:translate-x-0.5'
-              }`}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault()
+            submit()
+          }}
+        >
+          <label htmlFor="header-webtoon-search" className="mb-2 block text-sm font-bold text-ink-900">
+            웹툰 검색
+          </label>
+          <div className="flex items-center gap-2 rounded-full border border-ink-100 bg-ink-50 px-2 py-2 focus-within:border-brand-300 focus-within:ring-4 focus-within:ring-brand-100/70">
+            <input
+              id="header-webtoon-search"
+              ref={inputRef}
+              autoFocus
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value)
+                if (event.target.value.trim()) setError('')
+              }}
+              placeholder="작품명을 입력하세요"
+              aria-invalid={error ? 'true' : undefined}
+              aria-describedby={error ? 'header-search-error' : undefined}
+              className="min-w-0 flex-1 bg-transparent px-3 text-sm text-ink-900 outline-none placeholder:text-ink-300"
             />
-          </button>
-          <input
-            autoFocus
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-            placeholder={mode === 'keyword' ? '작품, 작가, 출판사, 태그 검색' : '문장으로 검색해보세요'}
-            className="flex-1 bg-transparent text-sm text-ink-900 outline-none placeholder:text-ink-300"
-          />
-          <button
-            type="button"
-            onClick={() => submit()}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-white"
-            aria-label="검색"
-          >
-            🔍
-          </button>
-        </div>
-
-        {mode === 'ai' && (
-          <p className="mt-3 text-xs text-ink-500">
-            ⓘ 해당 AI는 이미지 생성형이 아니며, 작가님의 소중한 그림은 학습되지 않습니다.
-          </p>
-        )}
-
-        {mode === 'ai' && (
-          <div className="mt-5">
-            <h3 className="mb-2 text-sm font-bold text-ink-900">AI 추천 문장</h3>
-            <div className="flex flex-wrap gap-2">
-              {AI_SENTENCES.map((sentence) => (
-                <button
-                  key={sentence}
-                  type="button"
-                  onClick={() => submit(sentence)}
-                  className="rounded-full border border-mint-500 px-3 py-1.5 text-left text-xs text-mint-500 transition hover:bg-mint-100"
-                >
-                  {sentence}
-                </button>
-              ))}
-            </div>
+            {value && (
+              <button
+                type="button"
+                aria-label="검색어 지우기"
+                onClick={() => {
+                  setValue('')
+                  setError('')
+                  inputRef.current?.focus()
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-ink-300 transition hover:bg-white hover:text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              >
+                <span aria-hidden>✕</span>
+              </button>
+            )}
+            <button
+              type="submit"
+              className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-ink-900 px-4 text-xs font-bold text-white transition hover:bg-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
+            >
+              <span aria-hidden>🔍</span>
+              검색
+            </button>
           </div>
-        )}
+          {error && (
+            <p id="header-search-error" role="alert" className="mt-2 px-3 text-xs font-medium text-brand-600">
+              {error}
+            </p>
+          )}
+        </form>
 
         <div className="mt-5">
           <div className="mb-2 flex items-center justify-between">
@@ -122,29 +111,32 @@ export default function SearchDropdown({ onClose }) {
               <button
                 type="button"
                 onClick={() => setRecent([])}
-                className="text-xs text-ink-300 underline"
+                className="text-xs text-ink-500 underline decoration-ink-300 underline-offset-2 hover:text-ink-900"
               >
                 전체 삭제
               </button>
             )}
           </div>
+
           {recent.length === 0 ? (
-            <p className="text-xs text-ink-300">최근 검색 내역이 없어요.</p>
+            <p className="rounded-2xl bg-ink-50 px-4 py-5 text-center text-xs text-ink-500">
+              아직 검색 기록이 없어요.
+            </p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {recent.map((item) => (
                 <span
                   key={item}
-                  className="flex max-w-[220px] items-center gap-1 rounded-full bg-ink-50 px-3 py-1.5 text-xs text-ink-700"
+                  className="flex max-w-64 items-center gap-1 rounded-full bg-ink-50 px-3 py-1.5 text-xs text-ink-700"
                 >
-                  <button type="button" className="truncate" onClick={() => submit(item)}>
+                  <button type="button" className="truncate hover:text-brand-600" onClick={() => submit(item)}>
                     {item}
                   </button>
                   <button
                     type="button"
-                    aria-label="삭제"
+                    aria-label={`${item} 검색 기록 삭제`}
                     className="text-ink-300 hover:text-ink-700"
-                    onClick={() => setRecent((prev) => prev.filter((r) => r !== item))}
+                    onClick={() => setRecent((previous) => previous.filter((entry) => entry !== item))}
                   >
                     ✕
                   </button>
@@ -154,35 +146,10 @@ export default function SearchDropdown({ onClose }) {
           )}
         </div>
 
-        {mode === 'keyword' && (
-          <>
-            <div className="my-5 flex justify-center">
-              <button
-                type="button"
-                className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-500 text-lg font-bold text-white shadow-md transition hover:bg-brand-600"
-              >
-                #
-              </button>
-            </div>
-            <p className="mb-3 text-center text-sm font-bold text-brand-600"># 태그로 작품 찾기</p>
-
-            <h3 className="mb-2 text-sm font-bold text-ink-900">인기 태그</h3>
-            <div className="flex flex-wrap gap-2">
-              {POPULAR_TAGS.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => submit(`#${tag}`)}
-                  className="rounded-full border border-ink-100 px-3 py-1.5 text-xs text-ink-700 transition hover:border-brand-300 hover:text-brand-600"
-                >
-                  #{tag}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        <div className="mt-6 text-right">
+        <div className="mt-6 flex items-center justify-between border-t border-ink-100 pt-4">
+          <Link to="/webtoons" onClick={onClose} className="text-sm font-semibold text-brand-600 hover:underline">
+            전체 웹툰 둘러보기 →
+          </Link>
           <button type="button" onClick={onClose} className="text-sm text-ink-500 hover:text-ink-900">
             닫기 ✕
           </button>

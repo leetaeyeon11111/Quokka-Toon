@@ -125,14 +125,24 @@ export default function SignupPage() {
       setError('비밀번호는 8자 이상이어야 해요.')
       return
     }
-    if (password !== passwordConfirm) return
+    if (password !== passwordConfirm) {
+      setError('비밀번호가 일치하지 않아요.')
+      return
+    }
     setStep(2)
   }
 
   function goNextFromStep2(e) {
     e.preventDefault()
     setError('')
-    if (!birth.trim() || !gender) return
+    if (!birth.trim()) {
+      setError('생년월일을 모두 선택해주세요.')
+      return
+    }
+    if (!gender) {
+      setError('성별을 선택해주세요.')
+      return
+    }
     setStep(3)
   }
 
@@ -242,6 +252,8 @@ export default function SignupPage() {
                 <form onSubmit={goNextFromStep2} className="flex flex-col gap-3">
                   <div className="flex gap-2">
                     <select
+                      required
+                      aria-label="출생 연도"
                       value={birthYear}
                       onChange={(e) => setBirthYear(e.target.value)}
                       className="flex-1 min-w-0 rounded-full border border-ink-100 bg-ink-50 px-3 py-3 text-sm outline-none focus:border-brand-300"
@@ -254,6 +266,8 @@ export default function SignupPage() {
                       ))}
                     </select>
                     <select
+                      required
+                      aria-label="출생 월"
                       value={birthMonth}
                       onChange={(e) => setBirthMonth(e.target.value)}
                       className="flex-1 min-w-0 rounded-full border border-ink-100 bg-ink-50 px-3 py-3 text-sm outline-none focus:border-brand-300"
@@ -266,6 +280,8 @@ export default function SignupPage() {
                       ))}
                     </select>
                     <select
+                      required
+                      aria-label="출생 일"
                       value={birthDay}
                       onChange={(e) => setBirthDay(e.target.value)}
                       className="flex-1 min-w-0 rounded-full border border-ink-100 bg-ink-50 px-3 py-3 text-sm outline-none focus:border-brand-300"
@@ -283,6 +299,7 @@ export default function SignupPage() {
                       <button
                         key={g}
                         type="button"
+                        aria-pressed={gender === g}
                         onClick={() => setGender(g)}
                         className={`flex-1 rounded-full border py-3 text-sm font-semibold transition ${
                           gender === g
@@ -294,7 +311,7 @@ export default function SignupPage() {
                       </button>
                     ))}
                   </div>
-                  {error && <p className="text-xs text-red-500">{error}</p>}
+                  {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
                   <button
                     type="submit"
                     className="mt-1 rounded-full bg-ink-900 py-3 text-sm font-semibold text-white transition hover:bg-ink-700"

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
@@ -26,9 +27,20 @@ function MenuLink({ to, onClose, children }) {
 
 export default function HamburgerMenu({ onClose }) {
   const { isLoggedIn, logout } = useAuth()
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    menuRef.current?.querySelector('a, button')?.focus()
+  }, [])
 
   return (
-    <div className="absolute right-0 top-full z-40 w-72 rounded-2xl border border-ink-100 bg-white py-2 shadow-xl">
+    <div
+      id="header-menu-panel"
+      ref={menuRef}
+      role="dialog"
+      aria-label="전체 메뉴"
+      className="absolute right-0 top-full z-40 w-72 rounded-2xl border border-ink-100 bg-white py-2 shadow-xl"
+    >
       {!isLoggedIn && (
         <div className="px-3 pb-1">
           <Link

@@ -10,6 +10,17 @@ export default function Header() {
   const [open, setOpen] = useState(null) // 'search' | 'menu' | null
   const location = useLocation()
   const rootRef = useRef(null)
+  const searchButtonRef = useRef(null)
+  const menuButtonRef = useRef(null)
+
+  function closePanel(panel = open, restoreFocus = true) {
+    setOpen(null)
+    if (!restoreFocus) return
+    window.requestAnimationFrame(() => {
+      if (panel === 'search') searchButtonRef.current?.focus()
+      if (panel === 'menu') menuButtonRef.current?.focus()
+    })
+  }
 
   // 경로가 바뀌면 열려있던 드롭다운을 닫는다 (렌더 중 상태 조정 패턴).
   const [lastPath, setLastPath] = useState(location.pathname)
@@ -25,6 +36,22 @@ export default function Header() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  useEffect(() => {
+    if (!open) return undefined
+    function handleKeyDown(event) {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      const panel = open
+      setOpen(null)
+      window.requestAnimationFrame(() => {
+        if (panel === 'search') searchButtonRef.current?.focus()
+        if (panel === 'menu') menuButtonRef.current?.focus()
+      })
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open])
 
   return (
     <header
@@ -58,9 +85,11 @@ export default function Header() {
 
         <div className="flex items-center gap-2">
           <button
+            ref={searchButtonRef}
             type="button"
             aria-label="검색"
             aria-expanded={open === 'search'}
+            aria-controls="header-search-panel"
             onClick={() => setOpen((o) => (o === 'search' ? null : 'search'))}
             className={`flex h-9 w-9 items-center justify-center rounded-full border border-ink-100 text-ink-700 transition hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 ${
               open === 'search' ? 'bg-ink-50' : ''
@@ -94,9 +123,11 @@ export default function Header() {
           )}
 
           <button
+            ref={menuButtonRef}
             type="button"
             aria-label="메뉴"
             aria-expanded={open === 'menu'}
+            aria-controls="header-menu-panel"
             onClick={() => setOpen((o) => (o === 'menu' ? null : 'menu'))}
             className={`flex h-9 w-9 items-center justify-center rounded-full border border-ink-100 text-ink-700 transition hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 ${
               open === 'menu' ? 'bg-ink-50' : ''
@@ -115,10 +146,10 @@ export default function Header() {
             </svg>
           </button>
 
-          {open === 'menu' && <HamburgerMenu onClose={() => setOpen(null)} />}
+          {open === 'menu' && <HamburgerMenu onClose={() => closePanel('menu')} />}
         </div>
 
-        {open === 'search' && <SearchDropdown onClose={() => setOpen(null)} />}
+        {open === 'search' && <SearchDropdown onClose={() => closePanel('search')} />}
       </div>
     </header>
   )

@@ -9,7 +9,7 @@ const QUOKKAS = [
 
 export default function FloatingQuokkas() {
   return (
-    <div className="pointer-events-none fixed inset-0 z-20 overflow-hidden" aria-hidden>
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
       {QUOKKAS.map((q, i) => (
         <img
           key={i}
@@ -21,7 +21,7 @@ export default function FloatingQuokkas() {
             top: q.top,
             width: q.size,
             height: 'auto',
-            opacity: 0.9,
+            opacity: 0.72,
             animationName: q.anim,
             animationDuration: `${q.duration}s`,
             animationDelay: `${q.delay}s`,

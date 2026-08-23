@@ -44,6 +44,7 @@ public interface UserLevelLogRepository extends JpaRepository<UserLevelLog, Long
 
     @Query("select l from UserLevelLog l where l.refType = :refType and l.refId = :refId " +
             "and l.entryType = com.quokkatoon.level.entity.LevelEntryType.EARN " +
+            "and l.expDelta > 0 " +
             "and not exists (select r.id from UserLevelLog r where r.originalLog = l) order by l.id")
     List<UserLevelLog> findUnreversedAwardsForReference(
             @Param("refType") String refType, @Param("refId") Long refId);

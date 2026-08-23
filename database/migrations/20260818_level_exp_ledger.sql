@@ -1,6 +1,11 @@
 -- Quokka-Toon level/EXP ledger migration (MySQL 8, safely re-runnable).
 -- Apply to the existing quokkatoon schema before starting the updated backend.
 
+ALTER TABLE `report`
+  MODIFY COLUMN `target_type`
+    enum('POST','COMMENT','REVIEW')
+    COLLATE utf8mb4_unicode_ci NOT NULL;
+
 ALTER TABLE `user_level_log`
   MODIFY COLUMN `action_type`
     enum('POST','COMMENT','REVIEW','VISIT','VISIT_STREAK','RECOMMEND','NOT_RECOMMEND','REPORTED')
@@ -69,6 +74,7 @@ CALL add_level_index('idx_levellog_user_date', 'KEY `idx_levellog_user_date` (`u
 CALL add_level_index('idx_levellog_user_action_date',
   'KEY `idx_levellog_user_action_date` (`user_id`,`action_type`,`activity_date`)');
 CALL add_level_index('idx_levellog_actor', 'KEY `idx_levellog_actor` (`actor_user_id`)');
+CALL add_level_index('idx_levellog_ref', 'KEY `idx_levellog_ref` (`ref_type`,`ref_id`)');
 
 DROP PROCEDURE IF EXISTS add_level_constraint;
 DELIMITER $$

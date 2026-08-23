@@ -16,6 +16,7 @@ import GenderPieChart from '../components/webtoon/GenderPieChart'
 import AlarmModal from '../components/mypage/AlarmModal'
 import { StarsDisplay, StarsInput } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
+import { loginHref } from '../lib/navigation'
 
 const SECTIONS = [
   { id: 'info', label: '정보' },
@@ -162,7 +163,11 @@ export default function WebtoonDetailPage() {
     }
   }, [webtoon])
 
-  const sectionIds = useMemo(() => SECTIONS.map((s) => s.id), [])
+  const sections = useMemo(
+    () => (webtoon?.demographics ? SECTIONS : SECTIONS.filter((section) => section.id !== 'stats')),
+    [webtoon?.demographics],
+  )
+  const sectionIds = useMemo(() => sections.map((section) => section.id), [sections])
   const activeId = useScrollSpy(sectionIds)
 
   if (webtoonLoading) {
@@ -184,7 +189,7 @@ export default function WebtoonDetailPage() {
 
   function requireLogin(action) {
     if (!isLoggedIn) {
-      navigate('/login')
+      navigate(loginHref(`/webtoons/${webtoon.id}`))
       return
     }
     action()
@@ -201,7 +206,7 @@ export default function WebtoonDetailPage() {
   async function submitReview(e) {
     e.preventDefault()
     if (!isLoggedIn) {
-      navigate('/login')
+      navigate(loginHref(`/webtoons/${webtoon.id}#reviews`))
       return
     }
     const content = draftText.trim()
@@ -228,7 +233,7 @@ export default function WebtoonDetailPage() {
 
   async function handleReviewLike(reviewId) {
     if (!isLoggedIn) {
-      navigate('/login')
+      navigate(loginHref(`/webtoons/${webtoon.id}#reviews`))
       return
     }
     try {
@@ -312,13 +317,16 @@ export default function WebtoonDetailPage() {
               작품정보 ›
             </a>
             <Link to="/board/webtoon" className="text-ink-500 hover:text-brand-500">
-              💬 {webtoon.stats.commentCount} ›
+              💬 웹툰 게시판 ›
             </Link>
           </div>
 
           <p className="mb-3 text-sm text-ink-500">
             {webtoon.stats.weeklyDay !== '미정' && `매주 ${webtoon.stats.weeklyDay}요일 연재 · `}
-            👁 {(webtoon.stats.views / 10000).toFixed(1)}만 · ★ 리뷰 평균 {webtoon.stats.ratingAvg}
+            👁 {webtoon.stats.views.toLocaleString()} ·{' '}
+            {webtoon.stats.ratingCount > 0
+              ? `★ 리뷰 평균 ${webtoon.stats.ratingAvg.toFixed(1)}`
+              : '아직 등록된 평점이 없어요'}
           </p>
 
           <p className="mb-3 text-sm text-ink-700">
@@ -399,15 +407,14 @@ export default function WebtoonDetailPage() {
               </>
             )}
 
-            <div className="rounded-xl border border-mint-500 bg-mint-100 p-4">
-              <p className="mb-1 flex items-center gap-1 text-sm font-bold text-mint-500">
-                ✨ AI 요약
-              </p>
-              <p className="text-sm text-ink-700">
-                "{webtoon.catchphrase}" — {webtoon.genre} 장르 팬이라면 놓치기 아까운 작품이에요.
-                {webtoon.tags[0] && ` ${webtoon.tags[0].name} 요소가 특히 두드러져요.`}
-              </p>
-            </div>
+            {webtoon.aiSummary && (
+              <div className="rounded-xl border border-mint-500 bg-mint-100 p-4">
+                <p className="mb-1 flex items-center gap-1 text-sm font-bold text-mint-500">
+                  ✨ AI 요약
+                </p>
+                <p className="text-sm text-ink-700">{webtoon.aiSummary}</p>
+              </div>
+            )}
           </SectionCard>
 
           <SectionCard id="recommend" title="추천">
@@ -419,7 +426,7 @@ export default function WebtoonDetailPage() {
             <HorizontalRow items={similarWorks} emptyText="비슷한 작품을 찾지 못했어요." />
           </SectionCard>
 
-          <SectionCard id="stats" title="성별 통계">
+          {webtoon.demographics && <SectionCard id="stats" title="성별 통계">
             <div className="mb-6 flex flex-wrap items-center justify-between gap-6">
               <GenderPieChart male={webtoon.demographics.genderRatio.male} female={webtoon.demographics.genderRatio.female} />
               <div className="flex gap-8">
@@ -453,12 +460,16 @@ export default function WebtoonDetailPage() {
                 </div>
               ))}
             </div>
-          </SectionCard>
+          </SectionCard>}
 
           <SectionCard id="reviews" title="리뷰 평점">
             <div className="mb-4 flex items-center justify-between">
               <p className="text-sm font-bold text-ink-900">
-                평균 <span className="text-brand-500">★ {avgRating}</span> · 인기순 대표 리뷰
+                {reviews.length > 0 ? (
+                  <>평균 <span className="text-brand-500">★ {avgRating}</span> · 인기순 대표 리뷰</>
+                ) : (
+                  '아직 등록된 리뷰가 없어요'
+                )}
               </p>
               {popularReviews.length > 2 && (
                 <button
@@ -516,7 +527,7 @@ export default function WebtoonDetailPage() {
               ))}
             </div>
 
-            <form onSubmit={submitReview} className="rounded-xl border border-dashed border-ink-100 p-4">
+            {isLoggedIn ? <form onSubmit={submitReview} className="rounded-xl border border-dashed border-ink-100 p-4">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-bold text-ink-900">{myReview ? '내 정식 리뷰 수정' : '정식 리뷰 작성'}</p>
                 <StarsInput value={draftRating} onChange={setDraftRating} />
@@ -539,11 +550,21 @@ export default function WebtoonDetailPage() {
                 </button>
               </div>
               {reviewError && <p className="mt-2 text-xs text-red-500">{reviewError}</p>}
-            </form>
+            </form> : (
+              <div className="rounded-xl border border-dashed border-ink-100 p-6 text-center">
+                <p className="mb-3 text-sm text-ink-500">로그인하고 이 작품의 첫 리뷰를 남겨보세요.</p>
+                <Link
+                  to={loginHref(`/webtoons/${webtoon.id}#reviews`)}
+                  className="inline-flex rounded-full bg-ink-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-ink-700"
+                >
+                  로그인 후 리뷰 작성
+                </Link>
+              </div>
+            )}
           </SectionCard>
         </div>
 
-        <ScrollSpyNav sections={SECTIONS} activeId={activeId} />
+        <ScrollSpyNav sections={sections} activeId={activeId} />
       </div>
     </div>
   )
