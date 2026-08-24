@@ -38,7 +38,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // 현재 회원 조회는 로그인 필요 (permitAll 보다 먼저 선언)
-                .requestMatchers("/api/auth/me").authenticated()
+                .requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated()
                 // 인증 없이 접근 가능
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/webtoons/**").permitAll()

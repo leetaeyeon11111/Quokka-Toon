@@ -2,6 +2,7 @@ package com.quokkatoon.user.dto;
 
 import com.quokkatoon.user.entity.Gender;
 import com.quokkatoon.user.entity.User;
+import com.quokkatoon.user.profile.DefaultProfileIcon;
 import com.quokkatoon.level.dto.LevelProgressResponse;
 
 import java.time.LocalDate;
@@ -12,6 +13,7 @@ public record UserResponse(
         String email,
         String nickname,
         String profileImageUrl,
+        String profileIconId,
         Gender gender,
         LocalDate birthDate,
         int level,
@@ -33,6 +35,9 @@ public record UserResponse(
                 user.getEmail(),
                 user.getNickname(),
                 user.getProfileImageUrl(),
+                DefaultProfileIcon.fromImageUrl(user.getProfileImageUrl())
+                        .map(DefaultProfileIcon::id)
+                        .orElse(null),
                 user.getGender(),
                 user.getBirthDate(),
                 user.getLevel(),
