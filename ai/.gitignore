@@ -1,0 +1,13 @@
+# 대용량 모델 산출물 (팀에서 공유받거나 빌드 스크립트로 생성)
+models/
+
+# 비밀키·환경변수
+.env
+secret.properties
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/

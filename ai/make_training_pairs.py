@@ -29,9 +29,10 @@ import random
 from filter_meta import radar_token
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-AXIS_PATH = os.path.join(HERE, "..", "data", "axis_map.json")
-OUT_TRIPLES = os.path.join(HERE, "..", "data", "train_triples.jsonl")
-OUT_EVAL = os.path.join(HERE, "..", "data", "eval_queries.jsonl")
+DATA_DIR = os.environ.get("QUOKKA_DATA_DIR", os.path.join(HERE, "data"))
+AXIS_PATH = os.path.join(DATA_DIR, "axis_map.json")
+OUT_TRIPLES = os.path.join(DATA_DIR, "train_triples.jsonl")
+OUT_EVAL = os.path.join(DATA_DIR, "eval_queries.jsonl")
 
 # 파라미터
 MIN_TAGS = 3               # 학습에 쓸 최소 태그 수

@@ -24,8 +24,9 @@ from make_radar_llm import load_cache as load_llm_cache
 from llm_client import get_client
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FILTER_META = os.path.join(HERE, "..", "models", "webtoon_filter_meta.pkl")
-RADAR = os.path.join(HERE, "..", "models", "webtoon_radar.pkl")
+MODELS_DIR = os.environ.get("QUOKKA_MODELS_DIR", os.path.join(HERE, "..", "models"))
+FILTER_META = os.path.join(MODELS_DIR, "webtoon_filter_meta.pkl")
+RADAR = os.path.join(MODELS_DIR, "webtoon_radar.pkl")
 
 
 def _load(path):
@@ -46,8 +47,14 @@ class Pipeline:
         m = self.searcher.meta
         ids = m["webtoon_ids"]
         self.full_summary = dict(zip(ids, m["summaries"]))
-        self.full_tags = {ids[i]: [t.strip() for t in str(m["tags"][i] or "").split(",") if t.strip()]
-                          for i in range(len(ids))}
+        self.full_tags = {
+            ids[i]: [
+                tag.strip()
+                for tag in str(m["tags"][i] or "").split(",")
+                if tag.strip() and tag.strip().lower() != "nan"
+            ]
+            for i in range(len(ids))
+        }
         self.genre = dict(zip(ids, m.get("genre_ids", [None] * len(ids))))
         print(f"필터메타 {len(self.fmeta):,} / radar {len(self.radar):,} 로드")
 

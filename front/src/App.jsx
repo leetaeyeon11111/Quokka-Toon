@@ -21,6 +21,7 @@ import BoardPostPage from './pages/BoardPostPage'
 import BoardWritePage from './pages/BoardWritePage'
 
 import AdminConsolePage from './pages/admin/AdminConsolePage'
+import ProtectedRoute from './components/common/ProtectedRoute'
 
 function App() {
   return (
@@ -37,10 +38,10 @@ function App() {
         <Route path="/oauth/naver/callback" element={<OAuthCallback provider="naver" />} />
         <Route path="/inquiry" element={<InquiryPage />} />
 
-        <Route path="/mypage/favorites" element={<FavoritesPage />} />
-        <Route path="/mypage/taste" element={<TastePage />} />
-        <Route path="/mypage/posts" element={<PostsPage />} />
-        <Route path="/mypage/info" element={<InfoPage />} />
+        <Route path="/mypage/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />
+        <Route path="/mypage/taste" element={<ProtectedRoute><TastePage /></ProtectedRoute>} />
+        <Route path="/mypage/posts" element={<ProtectedRoute><PostsPage /></ProtectedRoute>} />
+        <Route path="/mypage/info" element={<ProtectedRoute><InfoPage /></ProtectedRoute>} />
 
         <Route path="/board" element={<BoardListPage boardType="all" />} />
         <Route path="/board/free" element={<BoardListPage boardType="free" />} />
@@ -50,7 +51,16 @@ function App() {
 
         <Route path="/admin" element={<AdminConsolePage />} />
 
-        <Route path="*" element={<PlaceholderPage title="페이지를 찾을 수 없어요" />} />
+        <Route
+          path="*"
+          element={
+            <PlaceholderPage
+              title="페이지를 찾을 수 없어요"
+              description="주소가 잘못되었거나 이동한 페이지예요."
+              showBack
+            />
+          }
+        />
       </Route>
     </Routes>
   )

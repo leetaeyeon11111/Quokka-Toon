@@ -14,9 +14,13 @@ import os
 
 MODEL_NAME = 'BM-K/KoSimCSE-roberta-multitask'
 EMB_DIM = 768
+HERE = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(HERE)
+DATA_DIR = os.environ.get('QUOKKA_DATA_DIR', os.path.join(HERE, 'data'))
+MODELS_DIR = os.environ.get('QUOKKA_MODELS_DIR', os.path.join(PROJECT_ROOT, 'models'))
 
 try:
-    with open('../data/slang_dict.json', encoding='utf-8') as f:
+    with open(os.path.join(DATA_DIR, 'slang_dict.json'), encoding='utf-8') as f:
         SLANG = json.load(f)
 except FileNotFoundError:
     SLANG = {}
@@ -24,10 +28,16 @@ except FileNotFoundError:
 
 
 def get_connection():
-    pw = getpass.getpass('DB 비밀번호 입력: ')
+    pw = os.environ.get('QUOKKA_DB_PASSWORD')
+    if pw is None:
+        pw = getpass.getpass('DB 비밀번호 입력: ')
     return pymysql.connect(
-        host='3.35.156.61', port=3306, user='quokka',
-        password=pw, database='quokkatoon', charset='utf8mb4',
+        host=os.environ.get('QUOKKA_DB_HOST', '127.0.0.1'),
+        port=int(os.environ.get('QUOKKA_DB_PORT', '3306')),
+        user=os.environ.get('QUOKKA_DB_USER', 'quokka'),
+        password=pw,
+        database=os.environ.get('QUOKKA_DB_NAME', 'quokkatoon'),
+        charset='utf8mb4',
     )
 
 
@@ -65,7 +75,7 @@ def build_embed_text(row):
 
 
 def main():
-    os.makedirs('../models', exist_ok=True)
+    os.makedirs(MODELS_DIR, exist_ok=True)
 
     print('[1/5] 팀 DB 접속 + 데이터 로드')
     conn = get_connection()
@@ -91,7 +101,7 @@ def main():
     print('[4/5] FAISS 인덱스 구축')
     index = faiss.IndexFlatIP(EMB_DIM)
     index.add(embeddings)
-    faiss.write_index(index, '../models/webtoon_index.faiss')
+    faiss.write_index(index, os.path.join(MODELS_DIR, 'webtoon_index.faiss'))
     print(f'      저장: {index.ntotal:,}개')
 
     print('[5/5] 메타데이터 저장')
@@ -103,7 +113,7 @@ def main():
         'tags': df['tags'].tolist(),
         'genre_ids': df['main_genre_id'].tolist(),
     }
-    with open('../models/webtoon_meta.pkl', 'wb') as f:
+    with open(os.path.join(MODELS_DIR, 'webtoon_meta.pkl'), 'wb') as f:
         pickle.dump(meta, f)
 
     print()

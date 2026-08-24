@@ -60,6 +60,23 @@ class ExperienceServiceIntegrationTest {
     }
 
     @Test
+    void zeroGrantRemainsAnIdempotencyRecordButIsNeverReversed() {
+        User user = saveUser("zero-grant");
+        assertThat(awards(user, LevelActionType.POST, 4, 3, "ZERO_POST"))
+                .containsExactly(4, 4, 0);
+
+        assertThat(experienceService.reverseAllForReference("ZERO_POST", 2L)).isNull();
+        List<UserLevelLog> referenceLogs = logRepository.findAll().stream()
+                .filter(log -> "ZERO_POST".equals(log.getRefType()) && Long.valueOf(2L).equals(log.getRefId()))
+                .toList();
+        assertThat(referenceLogs).singleElement()
+                .satisfies(log -> {
+                    assertThat(log.getEntryType()).isEqualTo(LevelEntryType.EARN);
+                    assertThat(log.getExpDelta()).isZero();
+                });
+    }
+
+    @Test
     void recommendationAndOverallCapsIncludePartialGrant() {
         User recommended = saveUser("recommended");
         assertThat(awards(recommended, LevelActionType.RECOMMEND, 1, 12, "REC").stream()
@@ -185,6 +202,23 @@ class ExperienceServiceIntegrationTest {
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    void recentEarningsReturnsNewestPositiveLogsWithinLimit() {
+        User user = saveUser("recent-logs");
+        experienceService.award(user.getId(), LevelActionType.POST, 4,
+                "POST", 1L, user.getId(), "RECENT_POST");
+        experienceService.award(user.getId(), LevelActionType.COMMENT, 3,
+                "COMMENT", 2L, user.getId(), "RECENT_COMMENT");
+
+        var logs = experienceService.getRecentEarnings(user.getId(), 1);
+
+        assertThat(logs).singleElement().satisfies(log -> {
+            assertThat(log.actionType()).isEqualTo(LevelActionType.COMMENT);
+            assertThat(log.expDelta()).isEqualTo(3);
+            assertThat(log.createdAt()).isNotNull();
+        });
     }
 
     private List<Integer> awards(User user, LevelActionType action, int amount, int count, String prefix) {

@@ -16,7 +16,8 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
             SELECT w.* FROM webtoon w
             WHERE w.thumbnail_url <> ''
               AND (:q IS NULL OR w.title LIKE CONCAT('%', :q, '%'))
-              AND (:platform IS NULL OR w.platform_name = :platform)
+              AND (:platform IS NULL OR EXISTS (
+                    SELECT 1 FROM platform p WHERE p.platform_id = w.platform_id AND p.name = :platform))
               AND (:genre IS NULL OR EXISTS (
                     SELECT 1 FROM webtoon_genre wg JOIN genre g ON g.genre_id = wg.genre_id
                     WHERE wg.webtoon_id = w.webtoon_id AND g.name = :genre))
@@ -28,7 +29,8 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
             SELECT COUNT(*) FROM webtoon w
             WHERE w.thumbnail_url <> ''
               AND (:q IS NULL OR w.title LIKE CONCAT('%', :q, '%'))
-              AND (:platform IS NULL OR w.platform_name = :platform)
+              AND (:platform IS NULL OR EXISTS (
+                    SELECT 1 FROM platform p WHERE p.platform_id = w.platform_id AND p.name = :platform))
               AND (:genre IS NULL OR EXISTS (
                     SELECT 1 FROM webtoon_genre wg JOIN genre g ON g.genre_id = wg.genre_id
                     WHERE wg.webtoon_id = w.webtoon_id AND g.name = :genre))
@@ -75,9 +77,10 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
     List<String> findAllGenreNames();
 
     @Query(value = """
-            SELECT platform_name FROM webtoon
-            WHERE platform_name IS NOT NULL AND platform_name <> '' AND thumbnail_url <> ''
-            GROUP BY platform_name ORDER BY COUNT(*) DESC
+            SELECT p.name FROM webtoon w
+            JOIN platform p ON p.platform_id = w.platform_id
+            WHERE w.thumbnail_url <> ''
+            GROUP BY p.name ORDER BY COUNT(*) DESC
             """, nativeQuery = true)
     List<String> findAllPlatformNames();
 }

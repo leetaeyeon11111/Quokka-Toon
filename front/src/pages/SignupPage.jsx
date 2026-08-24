@@ -125,14 +125,24 @@ export default function SignupPage() {
       setError('비밀번호는 8자 이상이어야 해요.')
       return
     }
-    if (password !== passwordConfirm) return
+    if (password !== passwordConfirm) {
+      setError('비밀번호가 일치하지 않아요.')
+      return
+    }
     setStep(2)
   }
 
   function goNextFromStep2(e) {
     e.preventDefault()
     setError('')
-    if (!birth.trim() || !gender) return
+    if (!birth.trim()) {
+      setError('생년월일을 모두 선택해주세요.')
+      return
+    }
+    if (!gender) {
+      setError('성별을 선택해주세요.')
+      return
+    }
     setStep(3)
   }
 
@@ -165,16 +175,26 @@ export default function SignupPage() {
       {step < 4 ? (
         <div className="flex gap-5">
           <div className="hidden shrink-0 sm:block">
-            <div className="flex h-28 w-28 flex-col items-center justify-center rounded-2xl border border-ink-100 bg-brand-50 text-4xl">
-              🐿
+            <div className="flex h-28 w-28 items-center justify-center">
+              <img
+                src="/quokka_wave.png"
+                alt="쿼카 마스코트"
+                className="h-full w-full object-contain"
+              />
             </div>
-            <p className="mt-2 max-w-28 text-center text-xs text-ink-500">"{STEP_MESSAGES[step - 1]}"</p>
+            {/* 마스코트가 건네는 말풍선 (위쪽 꼬리로 쿼카를 가리킴) */}
+            <div className="relative mt-3 max-w-28 rounded-2xl border border-ink-100 bg-white px-3 py-2 text-center text-xs leading-relaxed text-ink-600 shadow-sm">
+              <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-l border-t border-ink-100 bg-white" />
+              {STEP_MESSAGES[step - 1]}
+            </div>
           </div>
 
           <div className="flex-1">
             <StepDots step={step} />
             <p className="mb-4 text-xs font-semibold text-ink-300">STEP {step} / 4</p>
 
+            {/* 스텝 콘텐츠 영역: 최소 높이를 고정해 STEP 전환 시 위치가 흔들리지 않게 함 */}
+            <div className="min-h-[18rem]">
             {step === 1 && (
               <>
                 <h1 className="mb-4 text-lg font-bold text-ink-900">계정 정보</h1>
@@ -242,6 +262,8 @@ export default function SignupPage() {
                 <form onSubmit={goNextFromStep2} className="flex flex-col gap-3">
                   <div className="flex gap-2">
                     <select
+                      required
+                      aria-label="출생 연도"
                       value={birthYear}
                       onChange={(e) => setBirthYear(e.target.value)}
                       className="flex-1 min-w-0 rounded-full border border-ink-100 bg-ink-50 px-3 py-3 text-sm outline-none focus:border-brand-300"
@@ -254,6 +276,8 @@ export default function SignupPage() {
                       ))}
                     </select>
                     <select
+                      required
+                      aria-label="출생 월"
                       value={birthMonth}
                       onChange={(e) => setBirthMonth(e.target.value)}
                       className="flex-1 min-w-0 rounded-full border border-ink-100 bg-ink-50 px-3 py-3 text-sm outline-none focus:border-brand-300"
@@ -266,6 +290,8 @@ export default function SignupPage() {
                       ))}
                     </select>
                     <select
+                      required
+                      aria-label="출생 일"
                       value={birthDay}
                       onChange={(e) => setBirthDay(e.target.value)}
                       className="flex-1 min-w-0 rounded-full border border-ink-100 bg-ink-50 px-3 py-3 text-sm outline-none focus:border-brand-300"
@@ -283,6 +309,7 @@ export default function SignupPage() {
                       <button
                         key={g}
                         type="button"
+                        aria-pressed={gender === g}
                         onClick={() => setGender(g)}
                         className={`flex-1 rounded-full border py-3 text-sm font-semibold transition ${
                           gender === g
@@ -294,7 +321,7 @@ export default function SignupPage() {
                       </button>
                     ))}
                   </div>
-                  {error && <p className="text-xs text-red-500">{error}</p>}
+                  {error && <p role="alert" className="text-xs text-red-500">{error}</p>}
                   <button
                     type="submit"
                     className="mt-1 rounded-full bg-ink-900 py-3 text-sm font-semibold text-white transition hover:bg-ink-700"
@@ -344,6 +371,7 @@ export default function SignupPage() {
                 </form>
               </>
             )}
+            </div>
 
             <SocialButtons />
           </div>

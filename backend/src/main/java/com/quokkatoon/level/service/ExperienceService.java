@@ -4,6 +4,7 @@ import com.quokkatoon.global.exception.BusinessException;
 import com.quokkatoon.global.exception.ErrorCode;
 import com.quokkatoon.level.config.LevelTimeConfig;
 import com.quokkatoon.level.dto.ExpChangeResponse;
+import com.quokkatoon.level.dto.ExperienceLogResponse;
 import com.quokkatoon.level.dto.LevelProgressResponse;
 import com.quokkatoon.level.entity.LevelActionType;
 import com.quokkatoon.level.entity.LevelEntryType;
@@ -14,6 +15,7 @@ import com.quokkatoon.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -154,6 +156,17 @@ public class ExperienceService {
     @Transactional(readOnly = true)
     public int todayExp(Long userId) {
         return logRepository.sumPositiveExp(userId, today());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExperienceLogResponse> getRecentEarnings(Long userId, int requestedLimit) {
+        if (!userRepository.existsById(userId)) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        int limit = Math.max(1, Math.min(20, requestedLimit));
+        return logRepository.findRecentPositiveEarnings(userId, PageRequest.of(0, limit)).stream()
+                .map(ExperienceLogResponse::from)
+                .toList();
     }
 
     public LocalDate today() {

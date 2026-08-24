@@ -3,25 +3,13 @@ import assert from 'node:assert/strict'
 import { getSheetSnapDestination } from '../src/lib/homeSheet.js'
 
 test('collapsed sheet opens after crossing one quarter and otherwise returns to hero', () => {
-  assert.equal(
-    getSheetSnapDestination({ startedExpanded: false, progress: 0.24 }),
-    'hero',
-  )
-  assert.equal(
-    getSheetSnapDestination({ startedExpanded: false, progress: 0.25 }),
-    'content',
-  )
+  assert.equal(getSheetSnapDestination({ startedExpanded: false, progress: 0.24 }), 'hero')
+  assert.equal(getSheetSnapDestination({ startedExpanded: false, progress: 0.25 }), 'content')
 })
 
 test('expanded sheet closes after being pulled down one quarter', () => {
-  assert.equal(
-    getSheetSnapDestination({ startedExpanded: true, progress: 0.76 }),
-    'content',
-  )
-  assert.equal(
-    getSheetSnapDestination({ startedExpanded: true, progress: 0.75 }),
-    'hero',
-  )
+  assert.equal(getSheetSnapDestination({ startedExpanded: true, progress: 0.76 }), 'content')
+  assert.equal(getSheetSnapDestination({ startedExpanded: true, progress: 0.75 }), 'hero')
 })
 
 test('a fresh flick can complete the gesture before the distance threshold', () => {

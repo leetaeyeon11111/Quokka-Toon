@@ -1,5 +1,5 @@
 // 백엔드 웹툰 응답 → 프론트 페이지가 기대하는 형태로 매핑.
-// DB에 없는 값(성별 통계·평점/조회수 등)은 id 기반 결정론적 mock 으로 채운다.
+// 서버에 없는 통계는 임의로 만들지 않고 null로 유지한다.
 
 import { getWebtoon } from '../api/webtoon'
 import { mediaMixByTitle, normalizeMediaMix } from '../data/mediaMix'
@@ -10,17 +10,6 @@ const COVER_PALETTES = [
   ['#4facfe', '#00f2fe'], ['#fbc2eb', '#a6c1ee'], ['#c471f5', '#fa71cd'],
   ['#30cfd0', '#330867'],
 ]
-
-// id 기반 시드 난수 (mulberry32) — 같은 웹툰은 항상 같은 mock 값
-function seededRandom(seed) {
-  let t = (Number(seed) || 1) >>> 0
-  return function next() {
-    t += 0x6d2b79f5
-    let x = Math.imul(t ^ (t >>> 15), 1 | t)
-    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x)
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296
-  }
-}
 
 export function coverGradientFor(id) {
   const [from, to] = COVER_PALETTES[(Number(id) || 0) % COVER_PALETTES.length]
@@ -38,38 +27,9 @@ export function serialStatusLabel(v) {
   return STATUS_KO[v] ?? v
 }
 
-// DB에 rating/view 가 0 이라 화면 표시는 id 기반 mock 으로 채운다.
-function synthStats(id) {
-  const rnd = seededRandom(id)
-  return {
-    views: 5000 + Math.round(rnd() * 995000),
-    ratingAvg: Number((3.6 + rnd() * 1.3).toFixed(1)),
-    commentCount: Math.round(rnd() * 400),
-  }
-}
-
-function synthDemographics(id, base) {
-  const rnd = seededRandom(id + 7)
-  const female = 20 + Math.round(rnd() * 60)
-  return {
-    genderRatio: { male: 100 - female, female },
-    genderRating: {
-      male: Number((base - 0.4 + rnd() * 0.4).toFixed(2)),
-      female: Number((base + 0.1 + rnd() * 0.3).toFixed(2)),
-    },
-    ageRatings: [
-      { age: '10대', avg: Number((base + 0.3).toFixed(2)), count: 60 + Math.round(rnd() * 60) },
-      { age: '20대', avg: Number((base - 0.1).toFixed(2)), count: 400 + Math.round(rnd() * 500) },
-      { age: '30대', avg: Number((base - 0.3).toFixed(2)), count: 300 + Math.round(rnd() * 500) },
-      { age: '40대', avg: Number((base - 0.4).toFixed(2)), count: 80 + Math.round(rnd() * 120) },
-      { age: '50대 이상', avg: Number((base - 0.6).toFixed(2)), count: 10 + Math.round(rnd() * 30) },
-    ],
-  }
-}
-
-// 목록 카드용: 백엔드 WebtoonListItem 을 그대로 쓰되 표시용 rating 을 보정
+// 목록 카드용: 백엔드 WebtoonListItem을 표시 형태로 정리한다.
 export function toCardModel(item) {
-  const rating = item.ratingAvg > 0 ? Number(item.ratingAvg) : synthStats(item.id).ratingAvg
+  const rating = Number(item.ratingAvg)
   return {
     id: item.id,
     title: item.title,
@@ -78,7 +38,7 @@ export function toCardModel(item) {
     mainGenre: item.mainGenre,
     ageRating: item.ageRating,
     isAdult: item.ageRating === '19',
-    ratingAvg: rating,
+    ratingAvg: rating > 0 ? rating : null,
   }
 }
 
@@ -90,12 +50,11 @@ export async function fetchWebtoonModelsByIds(ids) {
   return list.filter(Boolean)
 }
 
-// 상세용: WebtoonDetailResponse → 상세페이지가 기대하는 mock 형태
+// 상세용: WebtoonDetailResponse → 상세페이지 표시 모델
 export function toDetailModel(d) {
   const authors = d.authors ?? []
   const writer = authors.find((a) => a.role === 'WRITER')?.name ?? authors[0]?.name ?? '미상'
   const artist = authors.find((a) => a.role === 'ARTIST')?.name ?? writer
-  const stats = synthStats(d.id)
   const genre = d.mainGenre ?? d.genres?.[0] ?? '기타'
   return {
     id: d.id,
@@ -113,18 +72,20 @@ export function toDetailModel(d) {
     authors: { writer, artist },
     tags: (d.tags ?? []).map((name) => ({ name })),
     synopsis: d.summary?.trim() || '등록된 줄거리가 아직 없어요.',
-    catchphrase: (d.summary?.trim() || d.title).slice(0, 40),
+    aiSummary: d.aiSummary?.trim() || null,
     externalUrl: d.externalUrl,
-    platforms: [{ name: d.platformName ?? '플랫폼', url: d.externalUrl || '#' }],
+    platforms: d.externalUrl
+      ? [{ name: d.platformName ?? '플랫폼', url: d.externalUrl }]
+      : [],
     episodeCount: d.episodeCount,
     stats: {
-      views: stats.views,
-      ratingAvg: stats.ratingAvg,
-      ratingCount: d.ratingCount,
-      commentCount: stats.commentCount,
+      views: Number(d.viewCount) || 0,
+      ratingAvg: Number(d.ratingAvg) || 0,
+      ratingCount: Number(d.ratingCount) || 0,
+      bookmarkCount: Number(d.bookmarkCount) || 0,
       weeklyDay: DAY_KO[d.publishDay] ?? '미정',
     },
-    demographics: synthDemographics(d.id, stats.ratingAvg),
+    demographics: null,
     mediaMix: normalizeMediaMix(d.mediaMix?.length ? d.mediaMix : mediaMixByTitle(d.title)),
   }
 }

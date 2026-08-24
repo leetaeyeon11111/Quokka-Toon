@@ -178,7 +178,8 @@ function AdminApprovalSection() {
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-ink-900">
-                  {r.nickname} <span className="text-xs font-normal text-ink-300">Lv.{r.level}</span>
+                  <span className={nicknameLevelClass(r.level)}>{r.nickname}</span>{' '}
+                  <span className="text-xs font-normal text-ink-300">Lv.{r.level}</span>
                 </p>
                 <p className="truncate text-xs text-ink-500">{r.email}</p>
               </div>
@@ -251,7 +252,7 @@ function AdminListSection() {
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-ink-900">
-                    {a.nickname}
+                    <span className={nicknameLevelClass(a.level)}>{a.nickname}</span>
                     {isMe && <span className="ml-1 text-xs font-normal text-brand-500">(나)</span>}
                     <span className="ml-1 text-xs font-normal text-ink-300">Lv.{a.level}</span>
                   </p>
@@ -301,7 +302,14 @@ export default function InfoPage() {
           <p className="text-xs text-ink-500">
             {levelLabel(user)} · 누적 {user.exp} EXP · 오늘 EXP {user.todayExp ?? 0}/{user.dailyExpCap ?? 20}
           </p>
-          <div className="mt-2 h-1.5 max-w-xs overflow-hidden rounded-full bg-ink-100">
+          <div
+            className="mt-2 h-1.5 max-w-xs overflow-hidden rounded-full bg-ink-100"
+            role="progressbar"
+            aria-label={`${levelLabel(user)} 진행률`}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={user.progressPercent ?? 0}
+          >
             <div className="h-full rounded-full bg-brand-500" style={{ width: `${user.progressPercent ?? 0}%` }} />
           </div>
         </div>

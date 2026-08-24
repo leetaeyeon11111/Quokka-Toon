@@ -19,7 +19,15 @@ set GEMINI_API_KEY=<Gemini 키>          # LLM 생성 기능에 필요 (없으�
 # DB 접속은 스크립트 실행 시 getpass로 비밀번호 입력 (저장 안 함)
 ```
 
+로컬 개발에서는 `ai/.env.example`을 참고해 `ai/.env`에 키를 넣어도 된다.
+`ai/.env`는 Git에서 제외되며, 프로세스 환경변수가 있으면 그 값을 우선 사용한다.
+
 선택적 환경변수: `QUOKKA_REASON_MODEL`(기본 gemini-3.5-flash-lite), `QUOKKA_LLM_SLEEP`(rate limit 대비 간격), `QUOKKA_DB_HOST/USER/NAME`.
+
+추천 API는 검색 결과 12개 가운데 캐시에 없는 작품의 추천 이유와 동적 radar를
+Gemini로 생성한 뒤 `models/webtoon_llm_meta.pkl`에 저장한다. 같은 작품은 다음
+검색부터 캐시를 재사용하므로 다시 호출하지 않는다. 기본 동시 호출 수는 4이며
+`QUOKKA_LLM_WORKERS`로 조절할 수 있다.
 
 ---
 
@@ -61,6 +69,20 @@ python search_demo.py --reason "환생 복수 무협"   # 추천이유+동적rad
 ```
 
 `--reason`을 켜면 검색 상위 결과에 **한줄훅 + 추천이유 + 동적 radar**가 붙는다(LLM 호출, 웹툰 단위 캐싱). 끄면 기존 고정 radar만 표시(LLM 미사용).
+
+### Spring 연동용 API 실행
+
+필수 모델 파일 `models/webtoon_index.faiss`, `models/webtoon_meta.pkl`을 준비한 뒤
+프로젝트 루트에서 실행한다.
+
+```bash
+pip install -r ai/requirements.txt
+uvicorn ai.api:app --host 0.0.0.0 --port 8000
+```
+
+- 상태 확인: `GET http://localhost:8000/health`
+- 추천 호출: `POST http://localhost:8000/recommend`
+- 모델 경로 변경: `QUOKKA_MODELS_DIR` 환경변수 사용
 
 ---
 

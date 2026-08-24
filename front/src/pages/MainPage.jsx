@@ -1,11 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useNavigationType } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { WEBTOONS } from '../data/webtoons'
 import { TEAM_PICK_IDS } from '../data/teamPicks'
-import { getSheetSnapDestination } from '../lib/homeSheet'
 import WebtoonCard from '../components/webtoon/WebtoonCard'
 import FeaturePromoCarousel from '../components/home/ContinuousFeaturePromoCarousel'
 import FloatingQuokkas from '../components/home/FloatingQuokkas'
+import { getSheetSnapDestination } from '../lib/homeSheet'
+import { webtoonHref } from '../lib/navigation'
 
 const PLACEHOLDER_QUERIES = [
   '비 오는 날 읽기 좋은 힐링 만화…',
@@ -37,9 +38,6 @@ const RANDOM_SEARCH_QUERIES = [
   '세계관이 탄탄하고 모험이 흥미진진한 판타지',
   '소꿉친구와 천천히 사랑에 빠지는 이야기',
 ]
-
-const HOME_SCROLL_POSITION_KEY = 'quokkatoon:home-scroll-position'
-const AI_SEARCH_FOCUS_EVENT = 'quokkatoon:focus-ai-search'
 
 function getSiteHeaderHeight() {
   return document.querySelector('[data-site-header]')?.getBoundingClientRect().height ?? 0
@@ -192,17 +190,17 @@ function Top10Slider({ items }) {
 
 export default function MainPage() {
   const navigate = useNavigate()
-  const navigationType = useNavigationType()
   const [query, setQuery] = useState('')
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [diceRolling, setDiceRolling] = useState(false)
+  const [searchError, setSearchError] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
+  const [reduceMotion, setReduceMotion] = useState(false)
   const pageRef = useRef(null)
   const heroRef = useRef(null)
   const searchInputRef = useRef(null)
   const top10Ref = useRef(null)
   const sectionTransitionApiRef = useRef(null)
-  const searchFocusTimerRef = useRef(null)
-  const sheetDragActiveRef = useRef(false)
   const sheetDragStateRef = useRef({
     pointerId: null,
     startY: 0,
@@ -214,74 +212,22 @@ export default function MainPage() {
     suppressClick: false,
   })
 
-  useLayoutEffect(() => {
-    const storedPosition = window.sessionStorage.getItem(HOME_SCROLL_POSITION_KEY)
-    const savedPosition = Number(storedPosition)
-    const shouldRestore =
-      navigationType === 'POP' && storedPosition !== null && Number.isFinite(savedPosition)
-    window.scrollTo({ top: shouldRestore ? savedPosition : 0, behavior: 'auto' })
-  }, [navigationType])
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const syncPreference = () => setReduceMotion(media.matches)
+    syncPreference()
+    media.addEventListener('change', syncPreference)
+    return () => media.removeEventListener('change', syncPreference)
+  }, [])
 
   useEffect(() => {
+    if (searchFocused || reduceMotion) return undefined
     const timer = setInterval(
       () => setPlaceholderIndex((i) => (i + 1) % PLACEHOLDER_QUERIES.length),
       3000,
     )
     return () => clearInterval(timer)
-  }, [])
-
-  useEffect(() => {
-    const page = pageRef.current
-    const hero = heroRef.current
-    if (!page || !hero) return undefined
-
-    const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    let animationFrame = null
-
-    const updateScrollMotion = () => {
-      animationFrame = null
-
-      const pageTop = page.getBoundingClientRect().top + window.scrollY
-      const heroHeight = Math.max(1, window.innerHeight - getSiteHeaderHeight())
-      const rawProgress = (window.scrollY - pageTop) / (heroHeight * 0.72)
-      const progress = Math.min(1, Math.max(0, rawProgress))
-      const reduceMotion = reduceMotionQuery.matches
-
-      window.sessionStorage.setItem(HOME_SCROLL_POSITION_KEY, String(window.scrollY))
-
-      page.style.setProperty('--hero-scale', reduceMotion ? '1' : String(1 - progress * 0.045))
-      page.style.setProperty('--hero-shift', reduceMotion ? '0px' : `${progress * -22}px`)
-      page.style.setProperty('--hero-opacity', reduceMotion ? '1' : String(1 - progress * 0.58))
-      page.style.setProperty('--ambient-shift', reduceMotion ? '0px' : `${progress * -34}px`)
-      page.style.setProperty('--ambient-reverse-shift', reduceMotion ? '0px' : `${progress * 19}px`)
-      page.style.setProperty('--content-opacity', reduceMotion ? '1' : String(0.45 + progress * 0.55))
-      page.style.setProperty('--content-shift', reduceMotion ? '0px' : `${(1 - progress) * 18}px`)
-
-      const heroCovered = progress >= 0.98
-      if (hero.inert !== heroCovered) {
-        hero.inert = heroCovered
-        hero.toggleAttribute('aria-hidden', heroCovered)
-        hero.style.pointerEvents = heroCovered ? 'none' : ''
-      }
-    }
-
-    const requestMotionUpdate = () => {
-      if (animationFrame !== null) return
-      animationFrame = window.requestAnimationFrame(updateScrollMotion)
-    }
-
-    updateScrollMotion()
-    window.addEventListener('scroll', requestMotionUpdate, { passive: true })
-    window.addEventListener('resize', requestMotionUpdate)
-    reduceMotionQuery.addEventListener('change', requestMotionUpdate)
-
-    return () => {
-      if (animationFrame !== null) window.cancelAnimationFrame(animationFrame)
-      window.removeEventListener('scroll', requestMotionUpdate)
-      window.removeEventListener('resize', requestMotionUpdate)
-      reduceMotionQuery.removeEventListener('change', requestMotionUpdate)
-    }
-  }, [])
+  }, [reduceMotion, searchFocused])
 
   useEffect(() => {
     const page = pageRef.current
@@ -289,9 +235,13 @@ export default function MainPage() {
     const content = top10Ref.current
     if (!page || !hero || !content) return undefined
 
-    const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const transition = { active: false, direction: 0, frame: null, targetSection: null }
-    const scrollState = { lastY: window.scrollY, direction: 0, settleTimer: null }
+    const root = document.documentElement
+    const previousOverflowY = root.style.overflowY
+    const transition = { active: false, frame: null, targetSection: null }
+
+    const setScrollLocked = (locked) => {
+      root.style.overflowY = locked ? 'hidden' : 'auto'
+    }
 
     const getSectionTops = () => ({
       hero: Math.max(
@@ -304,17 +254,18 @@ export default function MainPage() {
       ),
     })
 
-    const clearSettleTimer = () => {
-      if (scrollState.settleTimer) window.clearTimeout(scrollState.settleTimer)
-      scrollState.settleTimer = null
-    }
-
     const cancelTransition = () => {
       if (transition.frame !== null) window.cancelAnimationFrame(transition.frame)
       transition.active = false
-      transition.direction = 0
       transition.frame = null
       transition.targetSection = null
+    }
+
+    const finishAt = (section) => {
+      const target = getSectionTops()[section]
+      window.scrollTo({ top: target, behavior: 'auto' })
+      setScrollLocked(section === 'hero')
+      cancelTransition()
     }
 
     const animateToSection = (section) => {
@@ -323,134 +274,66 @@ export default function MainPage() {
         cancelTransition()
       }
 
+      setScrollLocked(false)
       const target = getSectionTops()[section]
       const start = window.scrollY
       const distance = target - start
-      const reduceMotion = reduceMotionQuery.matches
 
-      clearSettleTimer()
       if (reduceMotion || Math.abs(distance) < 2) {
-        window.scrollTo({ top: target, behavior: 'auto' })
+        finishAt(section)
         return
       }
 
       transition.active = true
-      transition.direction = Math.sign(distance)
       transition.targetSection = section
       const startedAt = performance.now()
-      const duration = 390
+      const duration = 420
 
       const step = (now) => {
         const elapsed = Math.min(1, (now - startedAt) / duration)
         const eased = 1 - Math.pow(1 - elapsed, 4)
-
         window.scrollTo({ top: start + distance * eased, behavior: 'auto' })
 
         if (elapsed < 1) {
           transition.frame = window.requestAnimationFrame(step)
           return
         }
-
-        window.scrollTo({ top: target, behavior: 'auto' })
-        cancelTransition()
-        scrollState.lastY = target
+        finishAt(section)
       }
 
       transition.frame = window.requestAnimationFrame(step)
     }
 
-    const settleBetweenSections = () => {
-      scrollState.settleTimer = null
-      if (transition.active) return
-
-      const tops = getSectionTops()
-      const range = tops.content - tops.hero
-      if (range <= 0) return
-
-      const progress = (window.scrollY - tops.hero) / range
-      if (progress <= 0 || progress >= 1) return
-
-      let destination
-      if (scrollState.direction > 0) destination = progress >= 0.22 ? 'content' : 'hero'
-      else if (scrollState.direction < 0) destination = progress <= 0.78 ? 'hero' : 'content'
-      else destination = progress >= 0.5 ? 'content' : 'hero'
-
-      animateToSection(destination)
-    }
-
-    const scheduleBoundarySettle = () => {
-      if (sheetDragActiveRef.current) {
-        clearSettleTimer()
-        return
-      }
-
-      const tops = getSectionTops()
-      const current = window.scrollY
-      const isBetweenSections = current > tops.hero + 1 && current < tops.content - 1
-
-      if (!isBetweenSections || transition.active) {
-        clearSettleTimer()
-        return
-      }
-
-      clearSettleTimer()
-      scrollState.settleTimer = window.setTimeout(settleBetweenSections, 120)
-    }
-
-    const handleScroll = () => {
-      const current = window.scrollY
-      if (!transition.active && Math.abs(current - scrollState.lastY) > 0.5) {
-        scrollState.direction = Math.sign(current - scrollState.lastY)
-      }
-      scrollState.lastY = current
-      scheduleBoundarySettle()
-    }
-
     const handleWheel = (event) => {
-      if (!transition.active || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
+      const { hero: heroTop, content: contentTop } = getSectionTops()
+      const current = window.scrollY
+      const inSheetTransitionZone = current > heroTop + 2 && current < contentTop - 2
+      const leavingHeroByWheel = current <= heroTop + 2
+      const closingContentByWheel = current <= contentTop + 2 && event.deltaY < 0
 
-      const inputDirection = Math.sign(event.deltaY)
-      if (inputDirection !== 0 && inputDirection !== transition.direction) {
-        cancelTransition()
-        scrollState.direction = inputDirection
-        return
+      if (transition.active || inSheetTransitionZone || leavingHeroByWheel || closingContentByWheel) {
+        event.preventDefault()
       }
-
-      event.preventDefault()
     }
 
-    const handleFocusAiRequest = () => {
-      const waitForHero = hero.inert
-      animateToSection('hero')
-      if (searchFocusTimerRef.current) window.clearTimeout(searchFocusTimerRef.current)
-      searchFocusTimerRef.current = window.setTimeout(
-        () => {
-          searchInputRef.current?.focus({ preventScroll: true })
-          searchFocusTimerRef.current = null
-        },
-        waitForHero && !reduceMotionQuery.matches ? 420 : 0,
-      )
-    }
-
+    window.scrollTo({ top: getSectionTops().hero, behavior: 'auto' })
+    setScrollLocked(true)
     sectionTransitionApiRef.current = {
       animateTo: animateToSection,
       cancel: cancelTransition,
       getTops: getSectionTops,
+      beginDrag: () => setScrollLocked(false),
+      lockAtHero: () => setScrollLocked(true),
     }
-    window.addEventListener('scroll', handleScroll, { passive: true })
     window.addEventListener('wheel', handleWheel, { passive: false })
-    window.addEventListener(AI_SEARCH_FOCUS_EVENT, handleFocusAiRequest)
 
     return () => {
-      window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('wheel', handleWheel)
-      window.removeEventListener(AI_SEARCH_FOCUS_EVENT, handleFocusAiRequest)
-      clearSettleTimer()
       cancelTransition()
       sectionTransitionApiRef.current = null
-      if (searchFocusTimerRef.current) window.clearTimeout(searchFocusTimerRef.current)
+      root.style.overflowY = previousOverflowY
     }
-  }, [])
+  }, [reduceMotion])
 
   const top10 = useMemo(
     () => [...WEBTOONS].sort((a, b) => b.stats.views - a.stats.views).slice(0, 10),
@@ -459,23 +342,34 @@ export default function MainPage() {
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!query.trim()) return
-    navigate(`/recommend?q=${encodeURIComponent(query)}&mode=ai`)
+    const trimmedQuery = query.trim()
+    if (!trimmedQuery) {
+      setSearchError('보고 싶은 분위기나 이야기를 한 문장으로 입력해주세요.')
+      searchInputRef.current?.focus()
+      return
+    }
+    setSearchError('')
+    navigate(`/recommend?q=${encodeURIComponent(trimmedQuery)}&mode=ai`)
   }
 
   // Math.random()은 순수하지 않으므로 렌더 중이 아닌 클릭(이벤트 핸들러) 시점에 고른다.
   function goToTeamPick() {
     if (TEAM_PICKS.length === 0) return
     const featured = TEAM_PICKS[Math.floor(Math.random() * TEAM_PICKS.length)]
-    navigate(`/webtoons/${featured.id}`)
+    navigate(webtoonHref(featured))
   }
 
   function focusAiSearch() {
-    window.dispatchEvent(new Event(AI_SEARCH_FOCUS_EVENT))
+    sectionTransitionApiRef.current?.animateTo('hero')
+    window.setTimeout(
+      () => searchInputRef.current?.focus({ preventScroll: true }),
+      reduceMotion ? 0 : 440,
+    )
   }
 
   function chooseQuickPrompt(prompt) {
     setQuery(prompt)
+    setSearchError('')
     searchInputRef.current?.focus()
   }
 
@@ -483,6 +377,7 @@ export default function MainPage() {
     const candidates = RANDOM_SEARCH_QUERIES.filter((candidate) => candidate !== query)
     const nextQuery = candidates[Math.floor(Math.random() * candidates.length)]
     setQuery(nextQuery)
+    setSearchError('')
     setDiceRolling(true)
     window.setTimeout(() => setDiceRolling(false), 350)
     searchInputRef.current?.focus()
@@ -492,6 +387,7 @@ export default function MainPage() {
     if (event.pointerType === 'mouse' && event.button !== 0) return
 
     sectionTransitionApiRef.current?.cancel()
+    sectionTransitionApiRef.current?.beginDrag()
     const now = performance.now()
     sheetDragStateRef.current = {
       pointerId: event.pointerId,
@@ -503,7 +399,6 @@ export default function MainPage() {
       moved: false,
       suppressClick: false,
     }
-    sheetDragActiveRef.current = true
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
@@ -534,11 +429,9 @@ export default function MainPage() {
     if (state.pointerId !== event.pointerId) return
 
     state.pointerId = null
-    sheetDragActiveRef.current = false
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
-
     if (!state.moved) return
 
     const positions = sectionTransitionApiRef.current?.getTops()
@@ -575,31 +468,19 @@ export default function MainPage() {
   }
 
   return (
-    <div
-      ref={pageRef}
-      className="relative [--ambient-reverse-shift:0px] [--ambient-shift:0px] [--content-opacity:0.45] [--content-shift:18px] [--hero-opacity:1] [--hero-scale:1] [--hero-shift:0px]"
-    >
+    <div ref={pageRef} className="relative isolate overflow-hidden">
+      {/* 화면 전체 너비를 덮는 배경 앰비언트 레이어 (가장자리까지 배경색이 이어지도록 fixed) */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
+        <div className="absolute -left-24 top-16 h-72 w-72 rounded-full bg-brand-100/70 blur-3xl sm:h-96 sm:w-96" />
+        <div className="absolute -right-20 bottom-16 h-80 w-80 rounded-full bg-[#dff4e8]/80 blur-3xl sm:h-96 sm:w-96" />
+      </div>
       <FloatingQuokkas />
       <section
         ref={heroRef}
-        className="sticky top-[var(--site-header-height)] isolate flex h-[calc(100svh-var(--site-header-height))] flex-col justify-center overflow-hidden px-6 py-10 [@media(max-height:720px)]:py-4 sm:px-8 lg:px-12"
+        className="relative z-10 flex min-h-[calc(100svh-var(--site-header-height))] scroll-mt-[var(--site-header-height)] flex-col justify-center overflow-hidden px-6 py-10 [@media(max-height:720px)]:py-4 sm:px-8 lg:px-12"
       >
-        <div
-          className="absolute -left-24 top-8 -z-10 h-72 w-72 rounded-full bg-brand-100/70 blur-3xl"
-          style={{ transform: 'translate3d(0, var(--ambient-shift), 0)' }}
-        />
-        <div
-          className="absolute -right-20 bottom-6 -z-10 h-80 w-80 rounded-full bg-[#dff4e8]/80 blur-3xl"
-          style={{ transform: 'translate3d(0, var(--ambient-reverse-shift), 0)' }}
-        />
 
-        <div
-          className="mx-auto w-full max-w-3xl text-center"
-          style={{
-            opacity: 'var(--hero-opacity)',
-            transform: 'translate3d(0, var(--hero-shift), 0) scale(var(--hero-scale))',
-          }}
-        >
+        <div className="mx-auto w-full max-w-3xl rounded-[2rem] border border-white/70 bg-white/70 px-6 py-8 text-center shadow-[0_22px_70px_rgba(28,26,31,0.08)] backdrop-blur-md sm:px-10 sm:py-10">
           <div>
             <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-300/60 bg-white/75 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm backdrop-blur [@media(max-height:720px)]:mb-2 [@media(max-height:720px)]:py-1">
               <span aria-hidden>✨</span> AI 자연어 추천
@@ -648,10 +529,32 @@ export default function MainPage() {
                 id="home-ai-search"
                 ref={searchInputRef}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value)
+                  if (e.target.value.trim()) setSearchError('')
+                }}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
                 placeholder={`"${PLACEHOLDER_QUERIES[placeholderIndex]}"`}
+                aria-invalid={searchError ? 'true' : undefined}
+                aria-describedby={searchError ? 'home-ai-search-error' : 'home-ai-search-hint'}
+                maxLength={200}
                 className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-sm text-ink-900 outline-none placeholder:text-ink-300 sm:text-base"
               />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery('')
+                    setSearchError('')
+                    searchInputRef.current?.focus()
+                  }}
+                  aria-label="검색어 지우기"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-300 transition hover:bg-ink-50 hover:text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                >
+                  <span aria-hidden>✕</span>
+                </button>
+              )}
               <button
                 type="submit"
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink-900 text-white shadow-sm transition hover:bg-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2"
@@ -672,6 +575,12 @@ export default function MainPage() {
               </button>
             </form>
 
+            {searchError && (
+              <p id="home-ai-search-error" role="alert" className="mt-2 text-left text-xs font-medium text-brand-600">
+                {searchError}
+              </p>
+            )}
+
             <div
               className="mt-4 flex flex-wrap justify-center gap-2 [@media(max-height:720px)]:mt-2 [@media(max-height:600px)]:hidden"
               aria-label="추천 검색어 예시"
@@ -681,14 +590,19 @@ export default function MainPage() {
                   key={prompt.label}
                   type="button"
                   onClick={() => chooseQuickPrompt(prompt.query)}
-                  className="rounded-full border border-ink-100 bg-white/80 px-3 py-1.5 text-xs font-medium text-ink-700 shadow-sm transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+                  aria-pressed={query === prompt.query}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+                    query === prompt.query
+                      ? 'border-brand-300 bg-brand-50 text-brand-700'
+                      : 'border-ink-100 bg-white/80 text-ink-700 hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700'
+                  }`}
                 >
                   {prompt.label}
                 </button>
               ))}
             </div>
 
-            <p className="mt-4 text-xs text-ink-400 [@media(max-height:720px)]:mt-2 [@media(max-height:600px)]:hidden">
+            <p id="home-ai-search-hint" className="mt-4 text-xs text-ink-400 [@media(max-height:720px)]:mt-2 [@media(max-height:600px)]:hidden">
               무엇을 검색할지 모르겠다면 검색창의 주사위를 눌러보세요.
             </p>
           </div>
@@ -706,7 +620,7 @@ export default function MainPage() {
           aria-controls="home-top10"
           aria-label="인기 작품 둘러보기. 위로 드래그하거나 클릭하세요."
           title="위로 드래그하거나 클릭해서 인기 작품 둘러보기"
-          className="group absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-none cursor-grab select-none flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/70 px-4 py-2 whitespace-nowrap text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white/90 hover:text-brand-600 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:bottom-4"
+          className="group absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-none cursor-grab select-none flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/85 px-4 py-2 whitespace-nowrap text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-brand-600 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:bottom-4"
         >
           <span
             aria-hidden="true"
@@ -733,7 +647,7 @@ export default function MainPage() {
       <div
         id="home-top10"
         ref={top10Ref}
-        className="relative z-20 min-h-[calc(100svh-var(--site-header-height))] scroll-mt-[var(--site-header-height)] rounded-t-[2rem] border-t border-white/80 bg-ink-50 shadow-[0_-18px_55px_rgba(28,26,31,0.12)] sm:rounded-t-[2.5rem]"
+        className="relative z-10 min-h-[calc(100svh-var(--site-header-height))] scroll-mt-[var(--site-header-height)] rounded-t-[2rem] border-t border-white/80 bg-ink-50 shadow-[0_-18px_55px_rgba(28,26,31,0.12)] sm:rounded-t-[2.5rem]"
       >
         <div className="flex justify-center px-4 pb-1 pt-3">
           <button
@@ -747,7 +661,7 @@ export default function MainPage() {
             onDragStart={(event) => event.preventDefault()}
             aria-label="검색 화면으로 내리기. 아래로 드래그하거나 클릭하세요."
             title="아래로 드래그하거나 클릭해서 검색으로 돌아가기"
-            className="group flex touch-none cursor-grab select-none flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/70 px-4 py-2 text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white/90 hover:text-brand-600 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            className="group flex touch-none cursor-grab select-none flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/80 px-4 py-2 text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-brand-600 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
             <span aria-hidden="true" className="h-1 w-10 rounded-full bg-ink-300/75 transition group-hover:bg-brand-300" />
             <span className="flex items-center gap-1">
@@ -769,11 +683,7 @@ export default function MainPage() {
         </div>
 
         <section
-          className="px-6 pb-8 pt-5 sm:px-8 lg:px-12"
-          style={{
-            opacity: 'var(--content-opacity)',
-            transform: 'translate3d(0, var(--content-shift), 0)',
-          }}
+          className="mx-auto w-full max-w-6xl px-6 pb-8 pt-5 sm:px-8 lg:px-12"
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-1.5 text-lg font-bold text-ink-900">
@@ -786,7 +696,7 @@ export default function MainPage() {
           <Top10Slider items={top10} />
         </section>
 
-        <section className="px-6 pb-16 pt-8 sm:px-8 lg:px-12">
+        <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-8 sm:px-8 lg:px-12">
           <h2 className="mb-2 text-lg font-bold text-ink-900">쿼카툰 이렇게 즐겨보세요</h2>
           <FeaturePromoCarousel onStartAi={focusAiSearch} onOpenTeamPick={goToTeamPick} />
         </section>
