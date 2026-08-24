@@ -1,6 +1,8 @@
 // mock 웹툰 데이터셋 (백엔드 연동 전까지 프론트 단독 구동용)
 // 실제 서비스에서는 이 파일 대신 API 응답을 사용하게 된다.
 
+import { mediaMixByTitle } from './mediaMix'
+
 const PLATFORMS = {
   네이버: 'https://comic.naver.com',
   카카오: 'https://webtoon.kakao.com',
@@ -665,6 +667,7 @@ export const WEBTOONS = RAW_WEBTOONS.map((raw, index) => {
     },
     demographics: makeDemographics(raw.femaleRatio, ratingAvg),
     reviews,
+    mediaMix: mediaMixByTitle(raw.title),
   }
 })
 
