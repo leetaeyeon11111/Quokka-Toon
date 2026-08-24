@@ -131,4 +131,8 @@ public class User extends BaseTimeEntity {
         this.lastVisitAt = visitedAt;
         this.consecutiveVisitDays = Math.max(1, consecutiveVisitDays);
     }
+
+    public void updateProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
 }

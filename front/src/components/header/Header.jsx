@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import SearchDropdown from './SearchDropdown'
 import HamburgerMenu from './HamburgerMenu'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
+import ProfileAvatar from '../common/ProfileAvatar'
 
 export default function Header() {
   const { isLoggedIn, isAdmin, user } = useAuth()
@@ -86,6 +87,12 @@ export default function Header() {
               title={`${levelLabel(user)} · ${user.nickname}`}
               className="hidden max-w-52 min-w-0 items-center gap-1 rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 lg:flex"
             >
+              <ProfileAvatar
+                src={user.profileImageUrl}
+                alt=""
+                sizeClass="h-6 w-6"
+                emojiClass="text-xs"
+              />
               <span className="shrink-0">{levelLabel(user)} ·</span>
               <span className={`min-w-0 truncate ${nicknameLevelClass(user.level)}`}>
                 {user.nickname}

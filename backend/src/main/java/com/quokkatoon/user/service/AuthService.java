@@ -3,16 +3,19 @@ package com.quokkatoon.user.service;
 import com.quokkatoon.global.exception.BusinessException;
 import com.quokkatoon.global.exception.ErrorCode;
 import com.quokkatoon.global.jwt.JwtProvider;
-import com.quokkatoon.user.dto.*;
-import com.quokkatoon.user.entity.User;
-import com.quokkatoon.user.repository.UserRepository;
 import com.quokkatoon.level.dto.LevelProgressResponse;
 import com.quokkatoon.level.service.AttendanceService;
 import com.quokkatoon.level.service.ExperienceService;
+import com.quokkatoon.user.dto.*;
+import com.quokkatoon.user.entity.User;
+import com.quokkatoon.user.profile.DefaultProfileIcon;
+import com.quokkatoon.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +82,22 @@ public class AuthService {
         attendanceService.processFirstMeCallOfDay(userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        LevelProgressResponse progress = experienceService.getProgress(userId);
+        return UserResponse.from(user, progress);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProfileIconResponse> listProfileIcons() {
+        return DefaultProfileIcon.list();
+    }
+
+    @Transactional
+    public UserResponse updateProfileIcon(Long userId, String iconId) {
+        DefaultProfileIcon icon = DefaultProfileIcon.fromId(iconId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.updateProfileImageUrl(icon.imageUrl());
         LevelProgressResponse progress = experienceService.getProgress(userId);
         return UserResponse.from(user, progress);
     }

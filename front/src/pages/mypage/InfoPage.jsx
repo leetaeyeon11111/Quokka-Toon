@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import * as adminReqApi from '../../api/adminRequest'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
+import ProfileAvatar from '../../components/common/ProfileAvatar'
+import ProfileIconPickerModal from '../../components/mypage/ProfileIconPickerModal'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
 
 function EditableRow({ label, value, locked, onSave, mask }) {
@@ -281,7 +283,8 @@ function AdminListSection() {
 }
 
 export default function InfoPage() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, refresh } = useAuth()
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   if (!user) {
     return (
@@ -292,9 +295,7 @@ export default function InfoPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
       <div className="mb-6 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ink-50 text-2xl">
-          🐿
-        </div>
+        <ProfileAvatar src={user.profileImageUrl} alt={`${user.nickname} 프로필`} />
         <div className="flex-1">
           <p className={`text-base font-bold ${nicknameLevelClass(user.level)}`}>{user.nickname}</p>
           <p className="text-xs text-ink-500">
@@ -306,12 +307,20 @@ export default function InfoPage() {
         </div>
         <button
           type="button"
-          onClick={() => alert('프로필 사진 변경은 다음 업데이트에서 지원돼요.')}
+          onClick={() => setIconPickerOpen(true)}
           className="shrink-0 rounded-full border border-ink-100 px-4 py-2 text-xs font-semibold text-ink-700 hover:bg-ink-50"
         >
           프로필 사진 변경
         </button>
       </div>
+
+      {iconPickerOpen && (
+        <ProfileIconPickerModal
+          selectedId={user.profileIconId}
+          onClose={() => setIconPickerOpen(false)}
+          onSaved={() => refresh()}
+        />
+      )}
 
       <div className="rounded-2xl border border-ink-100 bg-white px-5">
         <p className="pt-4 text-sm font-bold text-ink-900">계정 관리</p>
