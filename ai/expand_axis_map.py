@@ -45,9 +45,10 @@ EMBED_MIN_MARGIN = 0.03   # 1위-2위 차 하한
 from filter_meta import radar_token
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SEED_PATH = os.path.join(HERE, "..", "data", "axis_map.json")
-OUT_PATH = os.path.join(HERE, "..", "data", "axis_map_expanded.json")
-REVIEW_PATH = os.path.join(HERE, "..", "data", "axis_map_review.csv")
+DATA_DIR = os.environ.get("QUOKKA_DATA_DIR", os.path.join(HERE, "data"))
+SEED_PATH = os.path.join(DATA_DIR, "axis_map.json")
+OUT_PATH = os.path.join(DATA_DIR, "axis_map_expanded.json")
+REVIEW_PATH = os.path.join(DATA_DIR, "axis_map_review.csv")
 
 # 임베딩 축 앵커: 각 축이 '무엇을 뜻하는지'를 문장으로 서술.
 # KoSimCSE가 태그를 이 문장들과 비교해 가장 가까운 축을 고른다.

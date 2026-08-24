@@ -17,6 +17,31 @@ import os
 import re
 import time
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _load_local_env():
+    """Load ai/.env without overriding values supplied by the process."""
+    env_path = os.path.join(HERE, ".env")
+    try:
+        with open(env_path, encoding="utf-8") as env_file:
+            for raw_line in env_file:
+                line = raw_line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip()
+                if value[:1] == value[-1:] and value[:1] in {"'", '"'}:
+                    value = value[1:-1]
+                if key and key not in os.environ:
+                    os.environ[key] = value
+    except FileNotFoundError:
+        pass
+
+
+_load_local_env()
+
 _MODEL = os.environ.get("QUOKKA_LLM_MODEL", "gemini-3.5-flash-lite")
 
 

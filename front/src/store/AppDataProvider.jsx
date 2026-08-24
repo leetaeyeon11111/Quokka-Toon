@@ -1,19 +1,30 @@
 import { useEffect, useMemo, useReducer } from 'react'
 import { AppDataContext } from './app-data-context'
+import { useAuth } from '../hooks/useAuth'
 import { BOARD_SEED } from '../data/boardPosts'
 import { INQUIRY_SEED } from '../data/inquiries'
 import { REPORT_SEED } from '../data/reports'
 
+// 공용 콘텐츠(게시판·문의·신고·리뷰)는 모든 사용자가 공유하므로 전역 키에 저장한다.
 const STORAGE_KEY = 'quakatoon:appdata'
+// 즐겨찾기·인생작은 사용자별 데이터이므로 userId 별로 분리해 저장한다.
+const USER_STORAGE_PREFIX = 'quakatoon:userdata:'
+
+const userStorageKey = (userId) => `${USER_STORAGE_PREFIX}${userId}`
 
 const INITIAL_STATE = {
-  favorites: {}, // { [webtoonId]: { alarmFreq: '2주' } }
-  lifeWorks: [], // webtoonId[]
   extraReviews: {}, // { [webtoonId]: Review[] }
   posts: BOARD_SEED,
   inquiries: INQUIRY_SEED,
   reports: REPORT_SEED,
   bannedUsers: {}, // { [username]: { days, reason } }
+}
+
+// 로그인한 사용자별로 유지되는 데이터 (로그아웃 시 비워짐)
+const INITIAL_USER_STATE = {
+  ownerId: null, // 현재 담긴 데이터의 소유자 userId (저장 경쟁 방지용)
+  favorites: {}, // { [webtoonId]: { alarmFreq: '2주' } }
+  lifeWorks: [], // webtoonId[]
 }
 
 function readStoredState() {
@@ -27,8 +38,28 @@ function readStoredState() {
   }
 }
 
-function reducer(state, action) {
+// 특정 사용자의 즐겨찾기·인생작을 불러온다. 비로그인(userId 없음)이면 빈 상태.
+function readUserState(userId) {
+  if (!userId) return { ...INITIAL_USER_STATE }
+  try {
+    const raw = localStorage.getItem(userStorageKey(userId))
+    const parsed = raw ? JSON.parse(raw) : {}
+    return {
+      ownerId: userId,
+      favorites: parsed.favorites ?? {},
+      lifeWorks: parsed.lifeWorks ?? [],
+    }
+  } catch {
+    return { ownerId: userId, favorites: {}, lifeWorks: [] }
+  }
+}
+
+// 사용자별 데이터(즐겨찾기·인생작) 전용 리듀서
+function userReducer(state, action) {
   switch (action.type) {
+    case 'HYDRATE_USER':
+      return action.payload
+
     case 'TOGGLE_FAVORITE': {
       const { webtoonId } = action
       const next = { ...state.favorites }
@@ -57,6 +88,13 @@ function reducer(state, action) {
       }
     }
 
+    default:
+      return state
+  }
+}
+
+function reducer(state, action) {
+  switch (action.type) {
     case 'ADD_REVIEW': {
       const { webtoonId, review } = action
       const list = state.extraReviews[webtoonId] ?? []
@@ -143,17 +181,38 @@ function reducer(state, action) {
 }
 
 export function AppDataProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, undefined, readStoredState)
+  const { user } = useAuth()
+  const userId = user?.userId ?? null
 
+  const [state, dispatch] = useReducer(reducer, undefined, readStoredState)
+  const [userState, userDispatch] = useReducer(userReducer, INITIAL_USER_STATE)
+
+  // 공용 콘텐츠 저장
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   }, [state])
 
+  // 로그인 사용자가 바뀌면 해당 사용자의 즐겨찾기·인생작을 다시 불러온다.
+  // (로그아웃 → userId=null → 빈 상태로 교체되어 화면에서도 사라진다)
+  useEffect(() => {
+    userDispatch({ type: 'HYDRATE_USER', payload: readUserState(userId) })
+  }, [userId])
+
+  // 사용자별 데이터 저장. 로그인 상태이고, 현재 상태가 그 사용자 소유일 때만 저장한다.
+  // (로그인 직후 hydrate 완료 전에 빈 상태로 덮어써 버리는 경쟁을 방지)
+  useEffect(() => {
+    if (!userId || userState.ownerId !== userId) return
+    localStorage.setItem(
+      userStorageKey(userId),
+      JSON.stringify({ favorites: userState.favorites, lifeWorks: userState.lifeWorks }),
+    )
+  }, [userId, userState])
+
   const actions = useMemo(
     () => ({
-      toggleFavorite: (webtoonId) => dispatch({ type: 'TOGGLE_FAVORITE', webtoonId }),
-      setAlarm: (webtoonId, freq) => dispatch({ type: 'SET_ALARM', webtoonId, freq }),
-      toggleLifeWork: (webtoonId) => dispatch({ type: 'TOGGLE_LIFEWORK', webtoonId }),
+      toggleFavorite: (webtoonId) => userDispatch({ type: 'TOGGLE_FAVORITE', webtoonId }),
+      setAlarm: (webtoonId, freq) => userDispatch({ type: 'SET_ALARM', webtoonId, freq }),
+      toggleLifeWork: (webtoonId) => userDispatch({ type: 'TOGGLE_LIFEWORK', webtoonId }),
       addReview: (webtoonId, review) => dispatch({ type: 'ADD_REVIEW', webtoonId, review }),
       addPost: (post) => dispatch({ type: 'ADD_POST', post }),
       deletePost: (postId) => dispatch({ type: 'DELETE_POST', postId }),
@@ -170,7 +229,15 @@ export function AppDataProvider({ children }) {
     [],
   )
 
-  const value = useMemo(() => ({ ...state, ...actions }), [state, actions])
+  const value = useMemo(
+    () => ({
+      ...state,
+      favorites: userState.favorites,
+      lifeWorks: userState.lifeWorks,
+      ...actions,
+    }),
+    [state, userState, actions],
+  )
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>
 }

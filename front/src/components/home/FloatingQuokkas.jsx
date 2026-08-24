@@ -1,10 +1,9 @@
-// 메인페이지 위를 자유롭게 돌아다니는 쿼카 마스코트들 (장식용, 클릭 방해 없음)
+// 메인페이지 가장자리를 돌아다니는 쿼카 마스코트들 (장식용, 클릭 방해 없음)
+// 상단 좌/우, 하단 좌 세 구역에 각각 배치해 동선이 겹치지 않고 가운데 문구도 가리지 않는다.
 const QUOKKAS = [
-  { left: '6%', top: '22%', size: 74, anim: 'quokka-roam-a', duration: 26, delay: 0, flip: false },
-  { left: '78%', top: '30%', size: 58, anim: 'quokka-roam-b', duration: 32, delay: -6, flip: true },
-  { left: '40%', top: '68%', size: 66, anim: 'quokka-roam-c', duration: 29, delay: -12, flip: false },
-  { left: '86%', top: '72%', size: 50, anim: 'quokka-roam-a', duration: 35, delay: -18, flip: true },
-  { left: '18%', top: '80%', size: 60, anim: 'quokka-roam-b', duration: 30, delay: -3, flip: false },
+  { left: '2%', top: '5%', size: 70, anim: 'quokka-roam-tl', duration: 30, delay: 0 },
+  { left: '70%', top: '8%', size: 58, anim: 'quokka-roam-tr', duration: 34, delay: -8 },
+  { left: '8%', top: '86%', size: 62, anim: 'quokka-roam-bottom', duration: 32, delay: -15 },
 ]
 
 export default function FloatingQuokkas() {
@@ -25,7 +24,6 @@ export default function FloatingQuokkas() {
             animationName: q.anim,
             animationDuration: `${q.duration}s`,
             animationDelay: `${q.delay}s`,
-            transform: q.flip ? 'scaleX(-1)' : undefined,
           }}
         />
       ))}

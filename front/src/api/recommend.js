@@ -1,26 +1,61 @@
 // 추천 API 진입점.
 //
-// 지금은 lib/similarity.js의 bigram 코사인 유사도로 프론트에서 직접 계산하지만,
-// 실제 NLP 추천 백엔드가 준비되면 이 파일 내부만 fetch() 호출로 교체하면 되도록
-// 화면 컴포넌트는 이 함수들의 시그니처에만 의존하게 한다.
+// 자연어 추천은 React → Spring → FastAPI 순서로 호출한다.
+// 상세/취향 추천의 기존 프론트 계산은 별도 화면 호환을 위해 유지한다.
 
 import { WEBTOONS } from '../data/webtoons'
-import { scoreWebtoon, getSimilarWebtoons as computeSimilar } from '../lib/similarity'
+import { getSimilarWebtoons as computeSimilar } from '../lib/similarity'
+import { api } from './client'
+import { getWebtoon } from './webtoon'
+import { toDetailModel } from '../lib/webtoon'
+
+function clampScore(value) {
+  const score = Math.round(Number(value) || 0)
+  return Math.max(0, Math.min(100, score))
+}
+
+function toAxisTags(radar) {
+  const axes = Array.isArray(radar?.axes) ? radar.axes : []
+  const values = Array.isArray(radar?.values) ? radar.values : []
+  return axes.slice(0, 5).map((name, index) => ({
+    name,
+    value: clampScore(values[index]),
+  }))
+}
 
 /**
  * 검색어 기반 웹툰 추천 목록을 반환한다.
  * @param {string} query
  * @param {{ tasteTags?: string[], limit?: number }} options
  */
-export function getRecommendations(query, { tasteTags = [], limit = 10 } = {}) {
+export async function getRecommendations(query, { limit = 10 } = {}) {
   if (!query?.trim()) return []
 
-  return WEBTOONS.map((webtoon) => ({
-    webtoon,
-    ...scoreWebtoon(query, webtoon, tasteTags),
-  }))
-    .sort((a, b) => b.total - a.total)
-    .slice(0, limit)
+  const response = await api.post('/api/recommend', { query: query.trim() })
+  const items = Array.isArray(response?.results) ? response.results.slice(0, limit) : []
+  const results = await Promise.all(
+    items.map(async (item) => {
+      try {
+        const detail = await getWebtoon(item.webtoonId)
+        const webtoon = toDetailModel(detail)
+        return {
+          webtoon: {
+            ...webtoon,
+            catchphrase: webtoon.aiSummary ?? item.reasonText,
+          },
+          reasonText: item.reasonText,
+          queryScore: clampScore(item.scoreQuery),
+          tasteScore: clampScore(item.scoreTaste),
+          total: clampScore(item.scoreTotal),
+          axisTags: toAxisTags(item.radar),
+        }
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  return results.filter(Boolean)
 }
 
 /**

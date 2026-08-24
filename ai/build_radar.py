@@ -18,6 +18,7 @@
 """
 import getpass
 import json
+import os
 import pickle
 import pandas as pd
 import pymysql
@@ -25,17 +26,26 @@ import pymysql
 from filter_meta import normalize_tags_for_radar   # [추가] 완결 정규화
 
 AXES = ["장르", "테마", "감성", "캐릭터", "배경"]
+HERE = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.environ.get("QUOKKA_DATA_DIR", os.path.join(HERE, "data"))
+MODELS_DIR = os.environ.get("QUOKKA_MODELS_DIR", os.path.join(HERE, "..", "models"))
 
-with open('../data/axis_map.json', encoding='utf-8') as f:
+with open(os.path.join(DATA_DIR, 'axis_map.json'), encoding='utf-8') as f:
     _m = json.load(f)
     AXIS_MAP = {ax: set(_m[ax]) for ax in AXES}
 
 
 def get_connection():
-    pw = getpass.getpass('DB 비밀번호 입력: ')
+    pw = os.environ.get('QUOKKA_DB_PASSWORD')
+    if pw is None:
+        pw = getpass.getpass('DB 비밀번호 입력: ')
     return pymysql.connect(
-        host='3.35.156.61', port=3306, user='quokka',
-        password=pw, database='quokkatoon', charset='utf8mb4',
+        host=os.environ.get('QUOKKA_DB_HOST', '127.0.0.1'),
+        port=int(os.environ.get('QUOKKA_DB_PORT', '3306')),
+        user=os.environ.get('QUOKKA_DB_USER', 'quokka'),
+        password=pw,
+        database=os.environ.get('QUOKKA_DB_NAME', 'quokkatoon'),
+        charset='utf8mb4',
     )
 
 
@@ -113,7 +123,8 @@ def main():
         row['webtoon_id']: row['radar']
         for _, row in df.iterrows() if row['radar']
     }
-    with open('../models/webtoon_radar.pkl', 'wb') as f:
+    os.makedirs(MODELS_DIR, exist_ok=True)
+    with open(os.path.join(MODELS_DIR, 'webtoon_radar.pkl'), 'wb') as f:
         pickle.dump(radar_data, f)
     print(f'      저장: models/webtoon_radar.pkl ({len(radar_data):,}개)')
 
