@@ -26,19 +26,39 @@ function ScoreBar({ label, value, icon }) {
 }
 
 export default function RecommendCard({ result }) {
-  const { webtoon, queryScore, tasteScore, total, axisTags } = result
+  const { webtoon, reasonText, queryScore, tasteScore, total, axisTags } = result
   const [tab, setTab] = useState('reason')
+  const [imgOk, setImgOk] = useState(true)
   const strength = total >= 70 ? 2 : total > 0 ? 1 : 0
   const href = webtoonHref(webtoon)
+  const showImage = webtoon.thumbnailUrl && imgOk && !webtoon.isAdult
 
   return (
     <div className="rounded-2xl border border-ink-100 bg-white p-5 shadow-sm">
       <div className="flex gap-4">
         <Link to={href} aria-label={`${webtoon.title} 보기`} className="shrink-0">
           <div
-            className="h-24 w-20 rounded-xl border border-ink-100"
+            className="relative h-24 w-20 overflow-hidden rounded-xl border border-ink-100"
             style={{ background: webtoon.coverGradient }}
-          />
+          >
+            {showImage && (
+              <img
+                src={webtoon.thumbnailUrl}
+                alt={`${webtoon.title} 표지`}
+                loading="lazy"
+                onError={() => setImgOk(false)}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            )}
+            {webtoon.isAdult && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-ink-900/80 text-white backdrop-blur-sm">
+                <span className="text-xl" aria-hidden>
+                  🐿
+                </span>
+                <span className="text-[10px] font-medium">19금 가림</span>
+              </div>
+            )}
+          </div>
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -90,6 +110,7 @@ export default function RecommendCard({ result }) {
         {tab === 'reason' && (
           <div>
             <p className="mb-3 text-sm font-bold text-ink-900">작품을 추천하는 이유</p>
+            {reasonText && <p className="mb-3 text-sm leading-relaxed text-ink-700">{reasonText}</p>}
             <ScoreBar label="검색어 기반" value={queryScore} icon="🔍" />
             <ScoreBar label="취향기반" value={tasteScore} icon="❤" />
             <p className="mt-3 text-sm font-bold text-ink-900">

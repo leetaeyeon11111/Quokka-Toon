@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getRecommendations } from '../api/recommend'
 import RecommendCard from '../components/webtoon/RecommendCard'
@@ -7,9 +7,35 @@ import { ResultMessage } from '../components/common/ResultState'
 export default function RecommendResultPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get('q')?.trim() ?? ''
-  const [draft, setDraft] = useState(query)
+  const [draftState, setDraftState] = useState({ query, value: query })
+  const [requestState, setRequestState] = useState({ query: '', results: [], error: '' })
+  const draft = draftState.query === query ? draftState.value : query
+  const results = requestState.query === query ? requestState.results : []
+  const error = requestState.query === query ? requestState.error : ''
+  const loading = Boolean(query && requestState.query !== query)
 
-  const results = useMemo(() => getRecommendations(query, { limit: 12 }), [query])
+  useEffect(() => {
+    if (!query) return undefined
+
+    let cancelled = false
+    getRecommendations(query, { limit: 12 })
+      .then((nextResults) => {
+        if (!cancelled) setRequestState({ query, results: nextResults, error: '' })
+      })
+      .catch((requestError) => {
+        if (!cancelled) {
+          setRequestState({
+            query,
+            results: [],
+            error: requestError.message ?? 'AI 추천을 불러오지 못했어요.',
+          })
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [query])
 
   function submitSearch(event) {
     event.preventDefault()
@@ -31,7 +57,7 @@ export default function RecommendResultPage() {
       <form onSubmit={submitSearch} className="mb-6 flex gap-2">
         <input
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => setDraftState({ query, value: event.target.value })}
           placeholder="예: 비 오는 날 읽기 좋은 힐링 웹툰"
           aria-label="AI 추천 검색어"
           className="flex-1 rounded-full border border-ink-100 bg-white px-4 py-3 text-sm outline-none focus:border-brand-300"
@@ -50,6 +76,13 @@ export default function RecommendResultPage() {
           title="보고 싶은 웹툰을 알려주세요"
           description="기분이나 좋아하는 관계, 원하는 전개를 한 문장으로 입력하면 돼요."
         />
+      ) : loading ? (
+        <ResultMessage
+          title="AI가 어울리는 작품을 찾고 있어요"
+          description="첫 검색은 모델을 불러오느라 조금 더 걸릴 수 있어요."
+        />
+      ) : error ? (
+        <ResultMessage title="AI 추천을 불러오지 못했어요" description={error} />
       ) : results.length === 0 ? (
         <ResultMessage
           title="어울리는 작품을 찾지 못했어요"

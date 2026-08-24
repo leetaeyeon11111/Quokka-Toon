@@ -5,6 +5,7 @@ import { TEAM_PICK_IDS } from '../data/teamPicks'
 import WebtoonCard from '../components/webtoon/WebtoonCard'
 import FeaturePromoCarousel from '../components/home/ContinuousFeaturePromoCarousel'
 import FloatingQuokkas from '../components/home/FloatingQuokkas'
+import { getSheetSnapDestination } from '../lib/homeSheet'
 import { webtoonHref } from '../lib/navigation'
 
 const PLACEHOLDER_QUERIES = [
@@ -37,6 +38,10 @@ const RANDOM_SEARCH_QUERIES = [
   '세계관이 탄탄하고 모험이 흥미진진한 판타지',
   '소꿉친구와 천천히 사랑에 빠지는 이야기',
 ]
+
+function getSiteHeaderHeight() {
+  return document.querySelector('[data-site-header]')?.getBoundingClientRect().height ?? 0
+}
 
 function Top10Slider({ items }) {
   const cardWidth = 176 // 160px card + 16px gap
@@ -191,9 +196,21 @@ export default function MainPage() {
   const [searchError, setSearchError] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const pageRef = useRef(null)
   const heroRef = useRef(null)
   const searchInputRef = useRef(null)
   const top10Ref = useRef(null)
+  const sectionTransitionApiRef = useRef(null)
+  const sheetDragStateRef = useRef({
+    pointerId: null,
+    startY: 0,
+    startScrollY: 0,
+    lastY: 0,
+    lastTime: 0,
+    velocity: 0,
+    moved: false,
+    suppressClick: false,
+  })
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -211,6 +228,112 @@ export default function MainPage() {
     )
     return () => clearInterval(timer)
   }, [reduceMotion, searchFocused])
+
+  useEffect(() => {
+    const page = pageRef.current
+    const hero = heroRef.current
+    const content = top10Ref.current
+    if (!page || !hero || !content) return undefined
+
+    const root = document.documentElement
+    const previousOverflowY = root.style.overflowY
+    const transition = { active: false, frame: null, targetSection: null }
+
+    const setScrollLocked = (locked) => {
+      root.style.overflowY = locked ? 'hidden' : 'auto'
+    }
+
+    const getSectionTops = () => ({
+      hero: Math.max(
+        0,
+        window.scrollY + page.getBoundingClientRect().top - getSiteHeaderHeight(),
+      ),
+      content: Math.max(
+        0,
+        window.scrollY + content.getBoundingClientRect().top - getSiteHeaderHeight(),
+      ),
+    })
+
+    const cancelTransition = () => {
+      if (transition.frame !== null) window.cancelAnimationFrame(transition.frame)
+      transition.active = false
+      transition.frame = null
+      transition.targetSection = null
+    }
+
+    const finishAt = (section) => {
+      const target = getSectionTops()[section]
+      window.scrollTo({ top: target, behavior: 'auto' })
+      setScrollLocked(section === 'hero')
+      cancelTransition()
+    }
+
+    const animateToSection = (section) => {
+      if (transition.active) {
+        if (transition.targetSection === section) return
+        cancelTransition()
+      }
+
+      setScrollLocked(false)
+      const target = getSectionTops()[section]
+      const start = window.scrollY
+      const distance = target - start
+
+      if (reduceMotion || Math.abs(distance) < 2) {
+        finishAt(section)
+        return
+      }
+
+      transition.active = true
+      transition.targetSection = section
+      const startedAt = performance.now()
+      const duration = 420
+
+      const step = (now) => {
+        const elapsed = Math.min(1, (now - startedAt) / duration)
+        const eased = 1 - Math.pow(1 - elapsed, 4)
+        window.scrollTo({ top: start + distance * eased, behavior: 'auto' })
+
+        if (elapsed < 1) {
+          transition.frame = window.requestAnimationFrame(step)
+          return
+        }
+        finishAt(section)
+      }
+
+      transition.frame = window.requestAnimationFrame(step)
+    }
+
+    const handleWheel = (event) => {
+      const { hero: heroTop, content: contentTop } = getSectionTops()
+      const current = window.scrollY
+      const inSheetTransitionZone = current > heroTop + 2 && current < contentTop - 2
+      const leavingHeroByWheel = current <= heroTop + 2
+      const closingContentByWheel = current <= contentTop + 2 && event.deltaY < 0
+
+      if (transition.active || inSheetTransitionZone || leavingHeroByWheel || closingContentByWheel) {
+        event.preventDefault()
+      }
+    }
+
+    window.scrollTo({ top: getSectionTops().hero, behavior: 'auto' })
+    setScrollLocked(true)
+    sectionTransitionApiRef.current = {
+      animateTo: animateToSection,
+      cancel: cancelTransition,
+      getTops: getSectionTops,
+      beginDrag: () => setScrollLocked(false),
+      lockAtHero: () => setScrollLocked(true),
+    }
+    window.addEventListener('wheel', handleWheel, { passive: false })
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      cancelTransition()
+      sectionTransitionApiRef.current = null
+      root.style.overflowY = previousOverflowY
+    }
+  }, [reduceMotion])
 
   const top10 = useMemo(
     () => [...WEBTOONS].sort((a, b) => b.stats.views - a.stats.views).slice(0, 10),
@@ -237,8 +360,11 @@ export default function MainPage() {
   }
 
   function focusAiSearch() {
-    heroRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
-    window.setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), reduceMotion ? 0 : 350)
+    sectionTransitionApiRef.current?.animateTo('hero')
+    window.setTimeout(
+      () => searchInputRef.current?.focus({ preventScroll: true }),
+      reduceMotion ? 0 : 440,
+    )
   }
 
   function chooseQuickPrompt(prompt) {
@@ -257,12 +383,92 @@ export default function MainPage() {
     searchInputRef.current?.focus()
   }
 
-  function scrollToSection(ref) {
-    ref.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  function handleSheetPointerDown(event) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+
+    sectionTransitionApiRef.current?.cancel()
+    sectionTransitionApiRef.current?.beginDrag()
+    const now = performance.now()
+    sheetDragStateRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startScrollY: window.scrollY,
+      lastY: event.clientY,
+      lastTime: now,
+      velocity: 0,
+      moved: false,
+      suppressClick: false,
+    }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function handleSheetPointerMove(event) {
+    const state = sheetDragStateRef.current
+    if (state.pointerId !== event.pointerId) return
+
+    const positions = sectionTransitionApiRef.current?.getTops()
+    if (!positions) return
+
+    const now = performance.now()
+    const elapsed = Math.max(1, now - state.lastTime)
+    const pointerDistance = state.startY - event.clientY
+    const target = Math.min(
+      positions.content,
+      Math.max(positions.hero, state.startScrollY + pointerDistance),
+    )
+
+    if (Math.abs(pointerDistance) > 5) state.moved = true
+    state.velocity = (state.lastY - event.clientY) / elapsed
+    state.lastY = event.clientY
+    state.lastTime = now
+    window.scrollTo({ top: target, behavior: 'auto' })
+  }
+
+  function finishSheetDragging(event) {
+    const state = sheetDragStateRef.current
+    if (state.pointerId !== event.pointerId) return
+
+    state.pointerId = null
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+    if (!state.moved) return
+
+    const positions = sectionTransitionApiRef.current?.getTops()
+    if (!positions) return
+
+    const range = Math.max(1, positions.content - positions.hero)
+    const progress = Math.min(1, Math.max(0, (window.scrollY - positions.hero) / range))
+    const startedExpanded = state.startScrollY > positions.hero + range / 2
+    const destination = getSheetSnapDestination({
+      startedExpanded,
+      progress,
+      velocity: state.velocity,
+      velocityAge: performance.now() - state.lastTime,
+    })
+
+    state.suppressClick = true
+    sectionTransitionApiRef.current?.animateTo(destination)
+    window.setTimeout(() => {
+      sheetDragStateRef.current.suppressClick = false
+    }, 0)
+  }
+
+  function handleSheetLostPointerCapture(event) {
+    if (sheetDragStateRef.current.pointerId !== event.pointerId) return
+    finishSheetDragging(event)
+  }
+
+  function handleSheetClick(event, destination) {
+    if (sheetDragStateRef.current.suppressClick) {
+      event.preventDefault()
+      return
+    }
+    sectionTransitionApiRef.current?.animateTo(destination)
   }
 
   return (
-    <div className="relative isolate overflow-hidden">
+    <div ref={pageRef} className="relative isolate overflow-hidden">
       <FloatingQuokkas />
       <section
         ref={heroRef}
@@ -401,10 +607,17 @@ export default function MainPage() {
 
         <button
           type="button"
-          onClick={() => scrollToSection(top10Ref)}
+          onClick={(event) => handleSheetClick(event, 'content')}
+          onPointerDown={handleSheetPointerDown}
+          onPointerMove={handleSheetPointerMove}
+          onPointerUp={finishSheetDragging}
+          onPointerCancel={finishSheetDragging}
+          onLostPointerCapture={handleSheetLostPointerCapture}
+          onDragStart={(event) => event.preventDefault()}
           aria-controls="home-top10"
-          aria-label="인기 작품으로 이동"
-          className="group absolute bottom-3 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/85 px-4 py-2 whitespace-nowrap text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:bottom-4"
+          aria-label="인기 작품 둘러보기. 위로 드래그하거나 클릭하세요."
+          title="위로 드래그하거나 클릭해서 인기 작품 둘러보기"
+          className="group absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-none cursor-grab select-none flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/85 px-4 py-2 whitespace-nowrap text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-brand-600 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:bottom-4"
         >
           <span
             aria-hidden="true"
@@ -436,9 +649,16 @@ export default function MainPage() {
         <div className="flex justify-center px-4 pb-1 pt-3">
           <button
             type="button"
-            onClick={() => scrollToSection(heroRef)}
-            aria-label="AI 추천 검색으로 이동"
-            className="group flex flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/80 px-4 py-2 text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            onClick={(event) => handleSheetClick(event, 'hero')}
+            onPointerDown={handleSheetPointerDown}
+            onPointerMove={handleSheetPointerMove}
+            onPointerUp={finishSheetDragging}
+            onPointerCancel={finishSheetDragging}
+            onLostPointerCapture={handleSheetLostPointerCapture}
+            onDragStart={(event) => event.preventDefault()}
+            aria-label="검색 화면으로 내리기. 아래로 드래그하거나 클릭하세요."
+            title="아래로 드래그하거나 클릭해서 검색으로 돌아가기"
+            className="group flex touch-none cursor-grab select-none flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/80 px-4 py-2 text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-brand-600 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
             <span aria-hidden="true" className="h-1 w-10 rounded-full bg-ink-300/75 transition group-hover:bg-brand-300" />
             <span className="flex items-center gap-1">

@@ -204,6 +204,23 @@ class ExperienceServiceIntegrationTest {
         }
     }
 
+    @Test
+    void recentEarningsReturnsNewestPositiveLogsWithinLimit() {
+        User user = saveUser("recent-logs");
+        experienceService.award(user.getId(), LevelActionType.POST, 4,
+                "POST", 1L, user.getId(), "RECENT_POST");
+        experienceService.award(user.getId(), LevelActionType.COMMENT, 3,
+                "COMMENT", 2L, user.getId(), "RECENT_COMMENT");
+
+        var logs = experienceService.getRecentEarnings(user.getId(), 1);
+
+        assertThat(logs).singleElement().satisfies(log -> {
+            assertThat(log.actionType()).isEqualTo(LevelActionType.COMMENT);
+            assertThat(log.expDelta()).isEqualTo(3);
+            assertThat(log.createdAt()).isNotNull();
+        });
+    }
+
     private List<Integer> awards(User user, LevelActionType action, int amount, int count, String prefix) {
         List<Integer> result = new ArrayList<>();
         for (int i = 0; i < count; i++) {

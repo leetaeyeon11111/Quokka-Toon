@@ -4,6 +4,8 @@ import { useAuth } from '../../hooks/useAuth'
 import SearchDropdown from './SearchDropdown'
 import HamburgerMenu from './HamburgerMenu'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
+import { useExperienceLogs } from '../../hooks/useExperienceLogs'
+import ExperienceLogList from '../level/ExperienceLogList'
 
 export default function Header() {
   const { isLoggedIn, isAdmin, user } = useAuth()
@@ -12,6 +14,7 @@ export default function Header() {
   const rootRef = useRef(null)
   const searchButtonRef = useRef(null)
   const menuButtonRef = useRef(null)
+  const recentExperience = useExperienceLogs(3, isLoggedIn ? user?.userId : null)
 
   function closePanel(panel = open, restoreFocus = true) {
     setOpen(null)
@@ -59,7 +62,7 @@ export default function Header() {
       data-site-header
       className="sticky top-0 z-30 border-b border-ink-100 bg-white"
     >
-      <div className="relative mx-auto flex h-[var(--site-header-height)] w-full max-w-300 items-center justify-between px-6">
+      <div className="relative mx-auto flex h-[var(--site-header-height)] w-full max-w-300 items-center justify-between px-3 sm:px-6">
         <Link
           to="/"
           onClick={() => window.scrollTo({ top: 0, behavior: 'auto' })}
@@ -83,7 +86,35 @@ export default function Header() {
           )}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {isLoggedIn && (
+            <div className="group relative min-w-0">
+              <Link
+                to="/mypage/favorites#experience-log"
+                title={`${levelLabel(user)} · ${user.nickname}`}
+                aria-describedby="header-experience-preview"
+                className="flex max-w-30 min-w-0 items-center gap-1 rounded-full border border-ink-100 px-2 py-1.5 text-[11px] font-semibold text-ink-700 transition hover:border-brand-200 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 sm:max-w-44 sm:px-3 sm:text-xs"
+              >
+                <span className="shrink-0">{levelLabel(user)} ·</span>
+                <span className={`min-w-0 truncate ${nicknameLevelClass(user.level)}`}>
+                  {user.nickname}
+                </span>
+              </Link>
+
+              <div
+                id="header-experience-preview"
+                role="tooltip"
+                className="pointer-events-none invisible absolute right-0 top-full z-50 mt-2 w-64 translate-y-1 rounded-2xl border border-ink-100 bg-white p-3 opacity-0 shadow-xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100"
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-bold text-ink-900">최근 EXP</p>
+                  <span className="text-[10px] text-ink-300">클릭하면 전체 보기</span>
+                </div>
+                <ExperienceLogList {...recentExperience} compact />
+              </div>
+            </div>
+          )}
+
           <button
             ref={searchButtonRef}
             type="button"
@@ -108,19 +139,6 @@ export default function Header() {
               <path d="m16 16 4 4" />
             </svg>
           </button>
-
-          {isLoggedIn && (
-            <Link
-              to="/mypage/favorites"
-              title={`${levelLabel(user)} · ${user.nickname}`}
-              className="hidden max-w-52 min-w-0 items-center gap-1 rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 transition hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 lg:flex"
-            >
-              <span className="shrink-0">{levelLabel(user)} ·</span>
-              <span className={`min-w-0 truncate ${nicknameLevelClass(user.level)}`}>
-                {user.nickname}
-              </span>
-            </Link>
-          )}
 
           <button
             ref={menuButtonRef}

@@ -11,3 +11,11 @@ front/node_modules/
 front/dist/
 backend/.gradle/
 backend/build/
+
+# Python AI runtime and generated search indexes
+ai/.venv/
+ai/*.pkl
+ai/*.faiss
+**/__pycache__/
+*.py[cod]
+models/

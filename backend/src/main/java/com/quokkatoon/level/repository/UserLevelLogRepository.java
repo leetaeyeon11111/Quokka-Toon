@@ -5,6 +5,7 @@ import com.quokkatoon.level.entity.LevelEntryType;
 import com.quokkatoon.level.entity.UserLevelLog;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
@@ -28,6 +29,12 @@ public interface UserLevelLogRepository extends JpaRepository<UserLevelLog, Long
             "and l.entryType = com.quokkatoon.level.entity.LevelEntryType.EARN " +
             "and l.activityDate = :activityDate and l.expDelta > 0")
     int sumRecommendationExp(@Param("userId") Long userId, @Param("activityDate") LocalDate activityDate);
+
+    @Query("select l from UserLevelLog l where l.user.id = :userId " +
+            "and l.entryType = com.quokkatoon.level.entity.LevelEntryType.EARN " +
+            "and l.expDelta > 0 order by l.id desc")
+    List<UserLevelLog> findRecentPositiveEarnings(
+            @Param("userId") Long userId, Pageable pageable);
 
     @Query("select l from UserLevelLog l where l.user.id = :userId " +
             "and l.actionType = com.quokkatoon.level.entity.LevelActionType.RECOMMEND " +
