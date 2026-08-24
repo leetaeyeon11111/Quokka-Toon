@@ -11,7 +11,7 @@ LLM이 줄거리+태그 근거로 '그 작품 대표 축 5개 + 원점수'를 �
 
 캐싱/폴백:
   결과를 캐시(models/webtoon_llm_meta.pkl)에 저장, 있으면 재사용(Lazy).
-  radar_json 컬럼에도 저장 가능(--save-db).
+  --save-db: radar_json, ai_summary(훅), ai_reason(추천이유) 컬럼에 저장.
   LLM 실패 시 → radar는 기존 고정5축(webtoon_radar.pkl), reason은 템플릿 폴백.
 
 핵심 함수:
@@ -225,9 +225,12 @@ def run_db(ids=None, limit=None, save_db=False):
             done += 1
             if save_db:
                 with conn.cursor() as cur:
-                    cur.execute("UPDATE webtoon SET radar_json=%s, ai_summary=%s WHERE webtoon_id=%s",
-                                (json.dumps(res["radar"], ensure_ascii=False),
-                                 res.get("summary", ""), wid))
+                    cur.execute(
+                        "UPDATE webtoon SET radar_json=%s, ai_summary=%s, ai_reason=%s WHERE webtoon_id=%s",
+                        (json.dumps(res["radar"], ensure_ascii=False),
+                         res.get("summary", ""),   # 한 줄 훅 → ai_summary
+                         res.get("reason", ""),     # 추천 이유 → ai_reason
+                         wid))
                 conn.commit()
         else:
             fail += 1
@@ -267,7 +270,7 @@ def main():
     ap.add_argument("ids", nargs="*", type=int)
     ap.add_argument("--batch", action="store_true")
     ap.add_argument("--limit", type=int)
-    ap.add_argument("--save-db", action="store_true", help="radar_json 컬럼에 저장")
+    ap.add_argument("--save-db", action="store_true", help="radar_json·ai_summary·ai_reason 컬럼에 저장")
     ap.add_argument("--demo", action="store_true")
     args = ap.parse_args()
     if args.demo:
