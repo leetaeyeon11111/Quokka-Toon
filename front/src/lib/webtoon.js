@@ -2,6 +2,7 @@
 // DB에 없는 값(성별 통계·평점/조회수 등)은 id 기반 결정론적 mock 으로 채운다.
 
 import { getWebtoon } from '../api/webtoon'
+import { mediaMixByTitle, normalizeMediaMix } from '../data/mediaMix'
 
 const COVER_PALETTES = [
   ['#ffb199', '#ff6b6b'], ['#a1c4fd', '#c2e9fb'], ['#f6d365', '#fda085'],
@@ -124,5 +125,6 @@ export function toDetailModel(d) {
       weeklyDay: DAY_KO[d.publishDay] ?? '미정',
     },
     demographics: synthDemographics(d.id, stats.ratingAvg),
+    mediaMix: normalizeMediaMix(d.mediaMix?.length ? d.mediaMix : mediaMixByTitle(d.title)),
   }
 }
