@@ -37,10 +37,7 @@ export const buildToptoonMappingTable = async (): Promise<ToptoonMapping[]> => {
   console.info('⌛️ [TOPTOON] Building title→slug mapping table...');
 
   // Toptoon lists to scrape
-  const listUrls = [
-    '/weekly',
-    '/complete'
-  ];
+  const listUrls = ['/weekly', '/complete'];
 
   const allMappings: ToptoonMapping[] = [];
 
@@ -84,25 +81,32 @@ export const findToptoonSlug = async (title: string): Promise<string | null> => 
   const normalizedQuery = normalizeTitle(title);
 
   // 1. Exact match in cache
-  const exactMatch = table.find((m) => normalizeTitle(m.title) === normalizedQuery);
+  const exactMatch = table.find(
+    (m) => normalizeTitle(m.title) === normalizedQuery,
+  );
   if (exactMatch) return exactMatch.slug;
 
   // 2. Partial match in cache
   const partialMatch = table.find(
-    (m) => normalizeTitle(m.title).includes(normalizedQuery) ||
-           normalizedQuery.includes(normalizeTitle(m.title)),
+    (m) =>
+      normalizeTitle(m.title).includes(normalizedQuery) ||
+      normalizedQuery.includes(normalizeTitle(m.title)),
   );
   if (partialMatch) return partialMatch.slug;
 
   // 3. Fallback: Naver search (Good for adult titles that DDG filters)
   try {
     const query = `탑툰 ${title}`;
-    const res = await axios.get(`https://search.naver.com/search.naver?query=${encodeURIComponent(query)}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-    
+    const res = await axios.get(
+      `https://search.naver.com/search.naver?query=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      },
+    );
+
     const html = res.data;
     const regex = /href="(https:\/\/toptoon\.com\/comic\/ep_list\/([^"]+))"/gi;
     let match = regex.exec(html);
@@ -111,19 +115,26 @@ export const findToptoonSlug = async (title: string): Promise<string | null> => 
       return match[2];
     }
   } catch (err: any) {
-    console.error(`🚧 [TOPTOON] Naver fallback failed for ${title}:`, err.message);
+    console.error(
+      `🚧 [TOPTOON] Naver fallback failed for ${title}:`,
+      err.message,
+    );
   }
 
   // 4. Fallback: DuckDuckGo search
   try {
     const query = `site:toptoon.com/comic/ep_list ${title}`;
-    const res = await axios.post('https://html.duckduckgo.com/html/', `q=${encodeURIComponent(query)}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-    
+    const res = await axios.post(
+      'https://html.duckduckgo.com/html/',
+      `q=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      },
+    );
+
     const html = res.data;
     const regex = /href="(https:\/\/toptoon\.com\/comic\/ep_list\/([^"]+))"/gi;
     let match = regex.exec(html);
@@ -143,9 +154,12 @@ export interface ToptoonAboutResult {
   description: string | null;
   genre: string | null;
   ogImage: string | null;
+  tags: string[];
 }
 
-export const fetchToptoonDetail = async (slug: string): Promise<ToptoonAboutResult | null> => {
+export const fetchToptoonDetail = async (
+  slug: string,
+): Promise<ToptoonAboutResult | null> => {
   try {
     const res = await toptoonApi.get(`/comic/ep_list/${slug}`, {
       headers: { Accept: 'text/html' },
@@ -153,25 +167,49 @@ export const fetchToptoonDetail = async (slug: string): Promise<ToptoonAboutResu
     const html: string = res.data;
 
     const getMeta = (property: string): string => {
-      const regex = new RegExp(`<meta\\s+(?:property|name)="${property}"\\s+content="([^"]*)"`, 'i');
+      const regex = new RegExp(
+        `<meta\\s+(?:property|name)="${property}"\\s+content="([^"]*)"`,
+        'i',
+      );
       const match = html.match(regex);
       return match?.[1] || '';
     };
 
     let description = getMeta('og:description');
     if (description) {
-      description = description.replace(/&quot;/g, '"')
-                               .replace(/&amp;/g, '&')
-                               .replace(/&lt;/g, '<')
-                               .replace(/&gt;/g, '>')
-                               .replace(/&#39;/g, "'");
+      description = description
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&#39;/g, "'");
+    }
+
+    // ── 탑툰 태그(키워드) 추출 ──
+    //   구조: <div class="comic_tag"> ... <a href="/hashtag?keyword=성장물#keyword">#성장물</a> ...
+    //   href의 keyword= 값에서 태그명을 추출 (가장 안정적)
+    const tags: string[] = [];
+    const tagRegex = /\/hashtag\?keyword=([^"&#]+)/gi;
+    let m;
+    while ((m = tagRegex.exec(html)) !== null) {
+      let tag = m[1].trim();
+      try {
+        tag = decodeURIComponent(tag); // URL 인코딩된 경우 디코딩
+      } catch {
+        /* 디코딩 실패 시 원본 사용 */
+      }
+      tag = tag.replace(/^#/, '').trim();
+      if (tag && !tags.includes(tag)) {
+        tags.push(tag);
+      }
     }
 
     return {
       url: getMeta('og:url') || `https://toptoon.com/comic/ep_list/${slug}`,
       description,
       ogImage: getMeta('og:image') || null,
-      genre: null, // Scrape later if needed
+      genre: null,
+      tags,
     };
   } catch (err: any) {
     console.error(`🚧 [TOPTOON] Failed to fetch detail for ${slug}:`, err.message);
@@ -179,7 +217,9 @@ export const fetchToptoonDetail = async (slug: string): Promise<ToptoonAboutResu
   }
 };
 
-export const getToptoonAbout = async (title: string): Promise<ToptoonAboutResult> => {
+export const getToptoonAbout = async (
+  title: string,
+): Promise<ToptoonAboutResult> => {
   const slug = await findToptoonSlug(title);
 
   if (!slug) {
@@ -188,6 +228,7 @@ export const getToptoonAbout = async (title: string): Promise<ToptoonAboutResult
       description: null,
       genre: null,
       ogImage: null,
+      tags: [],
     };
   }
 
@@ -199,6 +240,7 @@ export const getToptoonAbout = async (title: string): Promise<ToptoonAboutResult
       description: null,
       genre: null,
       ogImage: null,
+      tags: [],
     };
   }
 
