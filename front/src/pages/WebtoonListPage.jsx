@@ -14,6 +14,39 @@ const SORT_OPTIONS = [
 
 const PAGE_SIZE = 24
 
+// 페이지네이션에서 한 번에 보여줄 최대 페이지 번호 개수
+const PAGE_WINDOW_SIZE = 10
+
+// 현재 페이지 주변으로 최대 size개의 페이지 번호(1-based)를 계산한다.
+function getPageWindow(current, total, size) {
+  if (total <= size) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  let start = Math.max(1, current - Math.floor(size / 2))
+  const end = Math.min(total, start + size - 1)
+  start = Math.max(1, end - size + 1)
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+}
+
+function PageButton({ active, disabled, onClick, children, ...rest }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-current={active ? 'page' : undefined}
+      className={`flex h-9 min-w-9 items-center justify-center rounded-full px-3 text-sm font-semibold transition disabled:opacity-40 ${
+        active
+          ? 'bg-brand-500 text-white'
+          : 'border border-ink-100 text-ink-700 hover:bg-ink-50'
+      }`}
+      {...rest}
+    >
+      {children}
+    </button>
+  )
+}
+
 function FilterRow({ label, options, active, onChange }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -69,6 +102,8 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
     getPlatformOptions().then((data) => setPlatformOptions((data ?? []).slice(0, 16))).catch(() => {})
   }, [])
 
+  // 필터/정렬/검색/페이지 상태는 URL 검색 파라미터에 보관한다.
+  // → 상세보기에 들어갔다 브라우저 뒤로가기로 돌아와도 검색 상황이 URL로 그대로 복원된다.
   function updateFilters(overrides) {
     const next = { q: submittedKeyword, platform, genre, sort, page, ...overrides }
     const params = new URLSearchParams()
@@ -189,35 +224,57 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
             ))}
           </div>
 
-          {totalPages > 1 && (
-            <div className="mt-10 flex items-center justify-center gap-3">
-              <button
-                type="button"
-                disabled={page === 0}
-                onClick={() => {
-                  updateFilters({ page: Math.max(0, page - 1) })
-                  window.scrollTo({ top: 0 })
-                }}
-                className="rounded-full border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-50 disabled:opacity-40"
-              >
-                ← 이전
-              </button>
-              <span className="text-sm text-ink-500">
-                {page + 1} / {totalPages.toLocaleString()}
-              </span>
-              <button
-                type="button"
-                disabled={page + 1 >= totalPages}
-                onClick={() => {
-                  updateFilters({ page: page + 1 })
-                  window.scrollTo({ top: 0 })
-                }}
-                className="rounded-full border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-50 disabled:opacity-40"
-              >
-                다음 →
-              </button>
-            </div>
-          )}
+          {totalPages > 1 &&
+            (() => {
+              const goToPage = (targetIndex) => {
+                updateFilters({ page: targetIndex })
+                window.scrollTo({ top: 0 })
+              }
+              // 1-based 페이지 번호 창 (현재 페이지 주변 최대 10개)
+              const windowPages = getPageWindow(page + 1, totalPages, PAGE_WINDOW_SIZE)
+              const showLeadingEllipsis = windowPages[0] > 1
+              const showTrailingEllipsis = windowPages[windowPages.length - 1] < totalPages
+
+              return (
+                <div className="mt-10 flex flex-wrap items-center justify-center gap-1.5">
+                  {/* 맨 왼쪽: 가장 처음 페이지로 이동 */}
+                  <PageButton
+                    disabled={page === 0}
+                    onClick={() => goToPage(0)}
+                    aria-label="첫 페이지"
+                  >
+                    «
+                  </PageButton>
+
+                  {showLeadingEllipsis && (
+                    <span className="px-1 text-sm text-ink-400" aria-hidden>
+                      …
+                    </span>
+                  )}
+
+                  {windowPages.map((n) => (
+                    <PageButton key={n} active={n === page + 1} onClick={() => goToPage(n - 1)}>
+                      {n}
+                    </PageButton>
+                  ))}
+
+                  {showTrailingEllipsis && (
+                    <span className="px-1 text-sm text-ink-400" aria-hidden>
+                      …
+                    </span>
+                  )}
+
+                  {/* 맨 오른쪽: 가장 마지막 페이지로 이동 */}
+                  <PageButton
+                    disabled={page + 1 >= totalPages}
+                    onClick={() => goToPage(totalPages - 1)}
+                    aria-label="마지막 페이지"
+                  >
+                    »
+                  </PageButton>
+                </div>
+              )
+            })()}
         </>
       )}
     </div>

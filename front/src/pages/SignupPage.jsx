@@ -175,16 +175,26 @@ export default function SignupPage() {
       {step < 4 ? (
         <div className="flex gap-5">
           <div className="hidden shrink-0 sm:block">
-            <div className="flex h-28 w-28 flex-col items-center justify-center rounded-2xl border border-ink-100 bg-brand-50 text-4xl">
-              🐿
+            <div className="flex h-28 w-28 items-center justify-center">
+              <img
+                src="/quokka_wave.png"
+                alt="쿼카 마스코트"
+                className="h-full w-full object-contain"
+              />
             </div>
-            <p className="mt-2 max-w-28 text-center text-xs text-ink-500">"{STEP_MESSAGES[step - 1]}"</p>
+            {/* 마스코트가 건네는 말풍선 (위쪽 꼬리로 쿼카를 가리킴) */}
+            <div className="relative mt-3 max-w-28 rounded-2xl border border-ink-100 bg-white px-3 py-2 text-center text-xs leading-relaxed text-ink-600 shadow-sm">
+              <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-l border-t border-ink-100 bg-white" />
+              {STEP_MESSAGES[step - 1]}
+            </div>
           </div>
 
           <div className="flex-1">
             <StepDots step={step} />
             <p className="mb-4 text-xs font-semibold text-ink-300">STEP {step} / 4</p>
 
+            {/* 스텝 콘텐츠 영역: 최소 높이를 고정해 STEP 전환 시 위치가 흔들리지 않게 함 */}
+            <div className="min-h-[18rem]">
             {step === 1 && (
               <>
                 <h1 className="mb-4 text-lg font-bold text-ink-900">계정 정보</h1>
@@ -361,6 +371,7 @@ export default function SignupPage() {
                 </form>
               </>
             )}
+            </div>
 
             <SocialButtons />
           </div>

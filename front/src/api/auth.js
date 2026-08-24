@@ -35,3 +35,13 @@ export function login(payload) {
 export function getMe() {
   return api.get('/api/auth/me')
 }
+
+/** 기본 제공 프로필 아이콘 목록 */
+export function listProfileIcons() {
+  return api.get('/api/auth/profile-icons', { auth: false })
+}
+
+/** 기본 제공 아이콘으로 프로필 사진 변경 */
+export function updateProfileIcon(iconId) {
+  return api.patch('/api/auth/me/profile-icon', { iconId })
+}

@@ -2,6 +2,7 @@
 // 서버에 없는 통계는 임의로 만들지 않고 null로 유지한다.
 
 import { getWebtoon } from '../api/webtoon'
+import { mediaMixByTitle, normalizeMediaMix } from '../data/mediaMix'
 
 const COVER_PALETTES = [
   ['#ffb199', '#ff6b6b'], ['#a1c4fd', '#c2e9fb'], ['#f6d365', '#fda085'],
@@ -85,5 +86,6 @@ export function toDetailModel(d) {
       weeklyDay: DAY_KO[d.publishDay] ?? '미정',
     },
     demographics: null,
+    mediaMix: normalizeMediaMix(d.mediaMix?.length ? d.mediaMix : mediaMixByTitle(d.title)),
   }
 }

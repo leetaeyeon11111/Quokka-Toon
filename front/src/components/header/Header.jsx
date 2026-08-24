@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth'
 import SearchDropdown from './SearchDropdown'
 import HamburgerMenu from './HamburgerMenu'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
+import ProfileAvatar from '../common/ProfileAvatar'
 import { useExperienceLogs } from '../../hooks/useExperienceLogs'
 import ExperienceLogList from '../level/ExperienceLogList'
 
@@ -69,7 +70,7 @@ export default function Header() {
           className="flex items-center"
           aria-label="쿼카툰 홈"
         >
-          <img src="/quokka_logo.png" alt="쿼카툰" className="h-9 w-auto object-contain" />
+          <img src="/quokkatoon_logo.png" alt="쿼카툰" className="h-14 w-auto object-contain" />
         </Link>
 
         <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-8 text-sm font-semibold text-ink-700 md:flex">
@@ -95,6 +96,12 @@ export default function Header() {
                 aria-describedby="header-experience-preview"
                 className="flex max-w-30 min-w-0 items-center gap-1 rounded-full border border-ink-100 px-2 py-1.5 text-[11px] font-semibold text-ink-700 transition hover:border-brand-200 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 sm:max-w-44 sm:px-3 sm:text-xs"
               >
+                <ProfileAvatar
+                  src={user.profileImageUrl}
+                  alt=""
+                  sizeClass="h-5 w-5"
+                  emojiClass="text-[10px]"
+                />
                 <span className="shrink-0">{levelLabel(user)} ·</span>
                 <span className={`min-w-0 truncate ${nicknameLevelClass(user.level)}`}>
                   {user.nickname}

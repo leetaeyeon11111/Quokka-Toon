@@ -16,9 +16,10 @@ import GenderPieChart from '../components/webtoon/GenderPieChart'
 import AlarmModal from '../components/mypage/AlarmModal'
 import { StarsDisplay, StarsInput } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
+import MediaMixSection, { MediaMixHeroLinks } from '../components/webtoon/MediaMixSection'
 import { loginHref } from '../lib/navigation'
 
-const SECTIONS = [
+const BASE_SECTIONS = [
   { id: 'info', label: '정보' },
   { id: 'recommend', label: '추천' },
   { id: 'stats', label: '성별 통계' },
@@ -163,10 +164,15 @@ export default function WebtoonDetailPage() {
     }
   }, [webtoon])
 
-  const sections = useMemo(
-    () => (webtoon?.demographics ? SECTIONS : SECTIONS.filter((section) => section.id !== 'stats')),
-    [webtoon?.demographics],
-  )
+  const sections = useMemo(() => {
+    let next = webtoon?.demographics
+      ? BASE_SECTIONS
+      : BASE_SECTIONS.filter((section) => section.id !== 'stats')
+    if (webtoon?.mediaMix?.length) {
+      next = [next[0], { id: 'media-mix', label: '미디어 믹스' }, ...next.slice(1)]
+    }
+    return next
+  }, [webtoon?.demographics, webtoon?.mediaMix])
   const sectionIds = useMemo(() => sections.map((section) => section.id), [sections])
   const activeId = useScrollSpy(sectionIds)
 
@@ -363,6 +369,7 @@ export default function WebtoonDetailPage() {
               </a>
             ))}
           </div>
+          <MediaMixHeroLinks items={webtoon.mediaMix} />
           {!isLoggedIn && (
             <p className="mt-2 text-xs text-ink-300">* 즐겨찾기·인생작 담기는 로그인 후 이용할 수 있어요.</p>
           )}
@@ -416,6 +423,8 @@ export default function WebtoonDetailPage() {
               </div>
             )}
           </SectionCard>
+
+          <MediaMixSection items={webtoon.mediaMix} />
 
           <SectionCard id="recommend" title="추천">
             <p className="mb-2 text-sm font-bold text-ink-900">글/그림 작가의 다른 작품</p>

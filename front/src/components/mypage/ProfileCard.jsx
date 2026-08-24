@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import LevelGuideModal from './LevelGuideModal'
+import ProfileAvatar from '../common/ProfileAvatar'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
 import { useExperienceLogs } from '../../hooks/useExperienceLogs'
 import ExperienceLogList from '../level/ExperienceLogList'
@@ -23,9 +24,12 @@ export default function ProfileCard() {
 
   return (
     <div className="w-full shrink-0 rounded-2xl border border-ink-100 bg-white p-5 sm:w-56">
-      <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-ink-50 text-3xl">
-        🐿
-      </div>
+      <ProfileAvatar
+        src={user.profileImageUrl}
+        alt={`${user.nickname} 프로필`}
+        sizeClass="mx-auto mb-3 h-20 w-20"
+        emojiClass="text-3xl"
+      />
       <p className={`text-center text-base font-bold ${nicknameLevelClass(user.level)}`}>{user.nickname}</p>
       <button
         type="button"

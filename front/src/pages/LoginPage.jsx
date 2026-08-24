@@ -48,7 +48,11 @@ export default function LoginPage() {
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-14">
       {!showSuccess ? (
         <>
-          <p className="mb-6 text-center text-lg font-extrabold text-ink-900">🐿 쿼카툰</p>
+          <img
+            src="/quokkatoon_logo.png"
+            alt="쿼카툰"
+            className="mx-auto mb-6 h-auto w-56 object-contain"
+          />
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input
               type="email"
@@ -86,23 +90,29 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={goKakaoAuthorize}
-              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#fee500] py-3 text-sm font-semibold text-ink-900 transition hover:opacity-90"
-            >
-              <img src="/kakao_login.png" alt="" className="h-5 w-5 rounded-full" />
-              카카오
-            </button>
-            <button
-              type="button"
-              onClick={goNaverAuthorize}
-              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#03c75a] py-3 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              <img src="/naver_login.png" alt="" className="h-5 w-5 rounded-full" />
-              네이버
-            </button>
+          <div className="mt-6">
+            <div className="relative mb-4 text-center text-xs text-ink-300">
+              <span className="relative z-10 bg-white px-3">간편 로그인</span>
+              <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-ink-100" />
+            </div>
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={goKakaoAuthorize}
+                aria-label="카카오로 로그인"
+                className="h-12 w-12 overflow-hidden rounded-full transition hover:opacity-90"
+              >
+                <img src="/kakao_login.png" alt="카카오 로그인" className="h-full w-full object-cover" />
+              </button>
+              <button
+                type="button"
+                onClick={goNaverAuthorize}
+                aria-label="네이버로 로그인"
+                className="h-12 w-12 overflow-hidden rounded-full transition hover:opacity-90"
+              >
+                <img src="/naver_login.png" alt="네이버 로그인" className="h-full w-full object-cover" />
+              </button>
+            </div>
           </div>
 
           <p className="mt-6 text-center text-sm text-ink-500">
@@ -114,8 +124,12 @@ export default function LoginPage() {
         </>
       ) : (
         <div className="flex flex-col items-center text-center">
-          <div className="mb-5 flex h-28 w-28 items-center justify-center rounded-2xl border border-ink-100 bg-brand-50 text-4xl">
-            🐿👋
+          <div className="mb-5 flex h-28 w-28 items-center justify-center">
+            <img
+              src="/quokka_hand.png"
+              alt="쿼카 마스코트"
+              className="h-full w-full object-contain"
+            />
           </div>
           <h1 className="mb-2 text-2xl font-bold text-ink-900">로그인 완료!</h1>
           <p className="mb-6 text-sm text-ink-500">

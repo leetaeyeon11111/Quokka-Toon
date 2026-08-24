@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -45,6 +47,18 @@ public class AuthController {
     @GetMapping("/me")
     public ApiResponse<UserResponse> me(@AuthenticationPrincipal Long userId) {
         return ApiResponse.ok(authService.getMe(userId));
+    }
+
+    @GetMapping("/profile-icons")
+    public ApiResponse<List<ProfileIconResponse>> profileIcons() {
+        return ApiResponse.ok(authService.listProfileIcons());
+    }
+
+    @PatchMapping("/me/profile-icon")
+    public ApiResponse<UserResponse> updateProfileIcon(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody UpdateProfileIconRequest req) {
+        return ApiResponse.ok(authService.updateProfileIcon(userId, req.iconId()));
     }
 
     // 소셜 로그인 — 프론트 콜백에서 받은 인가 코드를 전달

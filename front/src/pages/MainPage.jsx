@@ -469,13 +469,16 @@ export default function MainPage() {
 
   return (
     <div ref={pageRef} className="relative isolate overflow-hidden">
+      {/* 화면 전체 너비를 덮는 배경 앰비언트 레이어 (가장자리까지 배경색이 이어지도록 fixed) */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
+        <div className="absolute -left-24 top-16 h-72 w-72 rounded-full bg-brand-100/70 blur-3xl sm:h-96 sm:w-96" />
+        <div className="absolute -right-20 bottom-16 h-80 w-80 rounded-full bg-[#dff4e8]/80 blur-3xl sm:h-96 sm:w-96" />
+      </div>
       <FloatingQuokkas />
       <section
         ref={heroRef}
         className="relative z-10 flex min-h-[calc(100svh-var(--site-header-height))] scroll-mt-[var(--site-header-height)] flex-col justify-center overflow-hidden px-6 py-10 [@media(max-height:720px)]:py-4 sm:px-8 lg:px-12"
       >
-        <div className="absolute -left-24 top-8 -z-10 h-72 w-72 rounded-full bg-brand-100/70 blur-3xl" />
-        <div className="absolute -right-20 bottom-6 -z-10 h-80 w-80 rounded-full bg-[#dff4e8]/80 blur-3xl" />
 
         <div className="mx-auto w-full max-w-3xl rounded-[2rem] border border-white/70 bg-white/70 px-6 py-8 text-center shadow-[0_22px_70px_rgba(28,26,31,0.08)] backdrop-blur-md sm:px-10 sm:py-10">
           <div>
