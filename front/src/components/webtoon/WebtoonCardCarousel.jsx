@@ -58,8 +58,8 @@ export default function WebtoonCardCarousel({
       startScrollLeft: trackRef.current?.scrollLeft ?? 0,
       moved: false,
     }
-    setIsDragging(true)
-    event.currentTarget.setPointerCapture(event.pointerId)
+    // pointerdown에서 캡처하면 단순 클릭의 click이 트랙으로 리타겟팅되어
+    // 카드 Link(상세 이동)가 동작하지 않는다. 실제 드래그 시작 시에만 캡처한다.
   }
 
   function handlePointerMove(event) {
@@ -67,8 +67,18 @@ export default function WebtoonCardCarousel({
     if (!track || dragState.current.pointerId !== event.pointerId) return
 
     const distance = event.clientX - dragState.current.startX
-    if (Math.abs(distance) > 8) dragState.current.moved = true
-    track.scrollLeft = dragState.current.startScrollLeft - distance
+    if (Math.abs(distance) > 8 && !dragState.current.moved) {
+      dragState.current.moved = true
+      setIsDragging(true)
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      } catch {
+        /* 캡처 불가 환경 무시 */
+      }
+    }
+    if (dragState.current.moved) {
+      track.scrollLeft = dragState.current.startScrollLeft - distance
+    }
   }
 
   function finishDragging(event) {

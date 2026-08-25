@@ -24,6 +24,7 @@ import MediaMixSection, { MediaMixHeroLinks } from '../components/webtoon/MediaM
 import PlatformLogo from '../components/webtoon/PlatformLogo'
 import { loginHref } from '../lib/navigation'
 import { platformButtonStyle } from '../lib/platformColors'
+import { platformLogoFrameClass } from '../lib/platformLogos'
 
 const BASE_SECTIONS = [
   { id: 'info', label: '정보' },
@@ -400,13 +401,15 @@ export default function WebtoonDetailPage() {
                 style={platformButtonStyle(p.name)}
                 className="flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-semibold transition hover:opacity-90"
               >
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/95 p-0.5">
+                <span
+                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center ${platformLogoFrameClass(p.name)}`}
+                >
                   <PlatformLogo
                     name={p.name}
                     logoUrl={p.logoUrl ?? webtoon.platformLogoUrl}
                     size="sm"
                     showNameFallback={false}
-                    className="!h-full !w-full"
+                    className="!h-full !w-full !rounded-none !bg-transparent"
                   />
                 </span>
                 {p.name}에서 보기

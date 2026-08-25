@@ -36,6 +36,19 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
               AND (:tag IS NULL OR EXISTS (
                     SELECT 1 FROM webtoon_tag wt JOIN tag t ON t.tag_id = wt.tag_id
                     WHERE wt.webtoon_id = w.webtoon_id AND t.name = :tag))
+            ORDER BY
+              CASE
+                WHEN :q IS NULL THEN 3
+                WHEN REPLACE(REPLACE(w.title, ' ', ''), '　', '')
+                     = REPLACE(REPLACE(:q, ' ', ''), '　', '') THEN 0
+                WHEN REPLACE(REPLACE(w.title, ' ', ''), '　', '')
+                     LIKE CONCAT('%', REPLACE(REPLACE(:q, ' ', ''), '　', ''), '%') THEN 1
+                WHEN REPLACE(REPLACE(IFNULL(w.product_name, ''), ' ', ''), '　', '')
+                     LIKE CONCAT('%', REPLACE(REPLACE(:q, ' ', ''), '　', ''), '%') THEN 2
+                ELSE 3
+              END,
+              w.released_at DESC,
+              w.webtoon_id DESC
             """,
             countQuery = """
             SELECT COUNT(*) FROM webtoon w

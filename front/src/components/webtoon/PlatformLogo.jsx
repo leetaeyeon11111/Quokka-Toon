@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { resolvePlatformLogoUrl } from '../../lib/platformLogos'
+import { platformLogoClip, resolvePlatformLogoUrl } from '../../lib/platformLogos'
 
 const SIZE_CLASS = {
   sm: 'h-5 w-5',
@@ -21,6 +21,7 @@ export default function PlatformLogo({
   const [failed, setFailed] = useState(false)
   const resolved = resolvePlatformLogoUrl(name, logoUrl)
   const sizeClass = SIZE_CLASS[size] ?? SIZE_CLASS.md
+  const clipClass = platformLogoClip(name) === 'circle' ? 'rounded-full' : 'rounded-md'
 
   if (resolved && !failed) {
     return (
@@ -30,7 +31,7 @@ export default function PlatformLogo({
         title={name || undefined}
         loading="lazy"
         onError={() => setFailed(true)}
-        className={`${sizeClass} shrink-0 rounded-md object-contain bg-white ${className}`}
+        className={`${sizeClass} shrink-0 object-contain ${clipClass} ${className}`}
       />
     )
   }

@@ -92,8 +92,7 @@ function Top10Slider({ items }) {
       startScrollLeft: trackRef.current?.scrollLeft ?? 0,
       moved: false,
     }
-    setIsDragging(true)
-    event.currentTarget.setPointerCapture(event.pointerId)
+    // 실제 드래그 시작 시에만 포인터 캡처 (단순 클릭 → 카드 Link 유지)
   }
 
   function handlePointerMove(event) {
@@ -101,8 +100,18 @@ function Top10Slider({ items }) {
     if (!track || dragState.current.pointerId !== event.pointerId) return
 
     const distance = event.clientX - dragState.current.startX
-    if (Math.abs(distance) > 8) dragState.current.moved = true
-    track.scrollLeft = dragState.current.startScrollLeft - distance
+    if (Math.abs(distance) > 8 && !dragState.current.moved) {
+      dragState.current.moved = true
+      setIsDragging(true)
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      } catch {
+        /* 캡처 불가 환경 무시 */
+      }
+    }
+    if (dragState.current.moved) {
+      track.scrollLeft = dragState.current.startScrollLeft - distance
+    }
   }
 
   function finishDragging(event) {

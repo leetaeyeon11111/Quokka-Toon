@@ -31,7 +31,13 @@ public class WebtoonController {
             @RequestParam(required = false) String genre,
             @RequestParam(required = false) String author,
             @RequestParam(required = false) String tag) {
-        Pageable pageable = PageRequest.of(page, Math.min(size, 60), sortOf(sort));
+        int safeSize = Math.min(size, 60);
+        // 검색어가 있으면 제목 일치가 태그 일치보다 앞에 오도록
+        // native 쿼리 ORDER BY(관련도)를 쓰고, Pageable Sort 는 붙이지 않는다.
+        boolean hasQuery = q != null && !q.isBlank();
+        Pageable pageable = hasQuery
+                ? PageRequest.of(page, safeSize)
+                : PageRequest.of(page, safeSize, sortOf(sort));
         return ApiResponse.ok(webtoonService.search(q, platform, genre, author, tag, pageable));
     }
 
