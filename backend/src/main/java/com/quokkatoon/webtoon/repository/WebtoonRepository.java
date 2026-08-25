@@ -12,8 +12,9 @@ import java.util.List;
 
 public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
 
-    // 목록 검색: 제목(q)/플랫폼/장르/작가/태그 선택 필터. 정렬은 Pageable(DB 컬럼명)로 받는다.
+    // 목록 검색: 제목(q)/플랫폼/장르/작가/태그 선택 필터.
     // 제목은 공백을 무시해 '나혼자만 레벨업' ↔ '나 혼자만 레벨업' 같이 매칭한다.
+    // 정렬은 Pageable Sort 를 쓰지 않고 :sort 로 처리(native ORDER BY 중복 방지).
     @Query(value = """
             SELECT w.* FROM webtoon w
             WHERE w.thumbnail_url <> ''
@@ -26,7 +27,11 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
                         SELECT 1 FROM webtoon_tag wt JOIN tag t ON t.tag_id = wt.tag_id
                         WHERE wt.webtoon_id = w.webtoon_id AND t.name LIKE CONCAT('%', :q, '%')))
               AND (:platform IS NULL OR EXISTS (
-                    SELECT 1 FROM platform p WHERE p.platform_id = w.platform_id AND p.name = :platform))
+                    SELECT 1 FROM platform p WHERE p.platform_id = w.platform_id AND p.name = :platform)
+                   OR EXISTS (
+                    SELECT 1 FROM webtoon_platform wp
+                    JOIN platform p ON p.platform_id = wp.platform_id
+                    WHERE wp.webtoon_id = w.webtoon_id AND p.name = :platform))
               AND (:genre IS NULL OR EXISTS (
                     SELECT 1 FROM webtoon_genre wg JOIN genre g ON g.genre_id = wg.genre_id
                     WHERE wg.webtoon_id = w.webtoon_id AND g.name = :genre))
@@ -47,6 +52,10 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
                      LIKE CONCAT('%', REPLACE(REPLACE(:q, ' ', ''), '　', ''), '%') THEN 2
                 ELSE 3
               END,
+              CASE WHEN :sort = 'views' THEN w.view_count END DESC,
+              CASE WHEN :sort = 'bookmark' THEN w.bookmark_count END DESC,
+              CASE WHEN :sort = 'rating' THEN w.rating_count END DESC,
+              CASE WHEN :sort = 'rating' THEN w.rating_avg END DESC,
               w.released_at DESC,
               w.webtoon_id DESC
             """,
@@ -62,7 +71,11 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
                         SELECT 1 FROM webtoon_tag wt JOIN tag t ON t.tag_id = wt.tag_id
                         WHERE wt.webtoon_id = w.webtoon_id AND t.name LIKE CONCAT('%', :q, '%')))
               AND (:platform IS NULL OR EXISTS (
-                    SELECT 1 FROM platform p WHERE p.platform_id = w.platform_id AND p.name = :platform))
+                    SELECT 1 FROM platform p WHERE p.platform_id = w.platform_id AND p.name = :platform)
+                   OR EXISTS (
+                    SELECT 1 FROM webtoon_platform wp
+                    JOIN platform p ON p.platform_id = wp.platform_id
+                    WHERE wp.webtoon_id = w.webtoon_id AND p.name = :platform))
               AND (:genre IS NULL OR EXISTS (
                     SELECT 1 FROM webtoon_genre wg JOIN genre g ON g.genre_id = wg.genre_id
                     WHERE wg.webtoon_id = w.webtoon_id AND g.name = :genre))
@@ -79,7 +92,23 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
                          @Param("genre") String genre,
                          @Param("author") String author,
                          @Param("tag") String tag,
+                         @Param("sort") String sort,
                          Pageable pageable);
+
+    // 목록 배지용: [webtoon_id, platform_name, logo_url]
+    @Query(value = """
+            SELECT wp.webtoon_id, p.name, p.logo_url
+            FROM webtoon_platform wp
+            JOIN platform p ON p.platform_id = wp.platform_id
+            WHERE wp.webtoon_id IN (:ids)
+            """, nativeQuery = true)
+    List<Object[]> findPlatformNamesForWebtoons(@Param("ids") List<Long> ids);
+
+    // 플랫폼 이름 → 로고
+    @Query(value = """
+            SELECT p.name, p.logo_url FROM platform p WHERE p.name IN (:names)
+            """, nativeQuery = true)
+    List<Object[]> findPlatformLogosByNames(@Param("names") List<String> names);
 
     // 작가: [name, role]
     @Query(value = """

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getWebtoonById } from '../../data/webtoons'
 import { useAppData } from '../../hooks/useAppData'
 import { listMyPosts } from '../../api/board'
+import { listMyReviews } from '../../api/review'
 import MyPageShell from '../../components/mypage/MyPageShell'
 import { StarsDisplay } from '../../components/common/Stars'
 
@@ -37,9 +37,11 @@ function PostRow({ post }) {
 }
 
 export default function PostsPage() {
-  const { posts, extraReviews } = useAppData()
+  const { posts } = useAppData()
   const [tab, setTab] = useState('posts')
   const [myPosts, setMyPosts] = useState([])
+  const [myReviews, setMyReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
 
   useEffect(() => {
     listMyPosts()
@@ -47,16 +49,28 @@ export default function PostsPage() {
       .catch(() => setMyPosts([]))
   }, [])
 
+  useEffect(() => {
+    if (tab !== 'reviews') return
+    let cancelled = false
+    setReviewsLoading(true)
+    listMyReviews()
+      .then((data) => {
+        if (!cancelled) setMyReviews(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        if (!cancelled) setMyReviews([])
+      })
+      .finally(() => {
+        if (!cancelled) setReviewsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tab])
+
   const myCommentPosts = useMemo(
     () => posts.filter((p) => p.comments.some((c) => c.isMine)),
     [posts],
-  )
-  const myReviews = useMemo(
-    () =>
-      Object.entries(extraReviews).flatMap(([webtoonId, reviews]) =>
-        reviews.map((r) => ({ ...r, webtoon: getWebtoonById(webtoonId) })),
-      ),
-    [extraReviews],
   )
 
   return (
@@ -92,31 +106,37 @@ export default function PostsPage() {
           ))}
 
         {tab === 'reviews' &&
-          (myReviews.length === 0 ? (
+          (reviewsLoading ? (
+            <p className="py-10 text-center text-sm text-ink-500">리뷰를 불러오는 중…</p>
+          ) : myReviews.length === 0 ? (
             <p className="py-10 text-center text-sm text-ink-500">아직 작성한 리뷰가 없어요.</p>
           ) : (
             <div className="flex flex-col gap-3">
-              {myReviews.map((review) =>
-                review.webtoon ? (
-                  <Link
-                    key={review.id}
-                    to={`/webtoons/${review.webtoon.id}`}
-                    className="flex gap-3 rounded-xl border border-ink-100 p-3 hover:bg-ink-50"
-                  >
-                    <div
-                      className="h-14 w-11 shrink-0 rounded"
-                      style={{ background: review.webtoon.coverGradient }}
+              {myReviews.map((review) => (
+                <Link
+                  key={review.id}
+                  to={`/webtoons/${review.webtoonId}`}
+                  className="flex gap-3 rounded-xl border border-ink-100 p-3 hover:bg-ink-50"
+                >
+                  {review.thumbnailUrl ? (
+                    <img
+                      src={review.thumbnailUrl}
+                      alt=""
+                      className="h-14 w-11 shrink-0 rounded object-cover"
                     />
-                    <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-2 text-sm font-bold text-ink-900">
-                        {review.webtoon.title} <StarsDisplay rating={review.rating} size="text-xs" />
-                      </p>
-                      <p className="truncate text-sm text-ink-700">"{review.text}"</p>
-                      <p className="text-xs text-ink-300">👍 {review.likes}</p>
-                    </div>
-                  </Link>
-                ) : null,
-              )}
+                  ) : (
+                    <div className="h-14 w-11 shrink-0 rounded bg-ink-100" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-2 text-sm font-bold text-ink-900">
+                      {review.webtoonTitle}{' '}
+                      <StarsDisplay rating={review.rating} size="text-xs" />
+                    </p>
+                    <p className="truncate text-sm text-ink-700">"{review.text}"</p>
+                    <p className="text-xs text-ink-300">👍 {review.likes}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
           ))}
       </div>

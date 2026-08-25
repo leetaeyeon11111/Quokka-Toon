@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -32,13 +31,9 @@ public class WebtoonController {
             @RequestParam(required = false) String author,
             @RequestParam(required = false) String tag) {
         int safeSize = Math.min(size, 60);
-        // 검색어가 있으면 제목 일치가 태그 일치보다 앞에 오도록
-        // native 쿼리 ORDER BY(관련도)를 쓰고, Pageable Sort 는 붙이지 않는다.
-        boolean hasQuery = q != null && !q.isBlank();
-        Pageable pageable = hasQuery
-                ? PageRequest.of(page, safeSize)
-                : PageRequest.of(page, safeSize, sortOf(sort));
-        return ApiResponse.ok(webtoonService.search(q, platform, genre, author, tag, pageable));
+        // native 쿼리에서 :sort 로 ORDER BY 처리. Pageable Sort 를 붙이면 ORDER BY 가 중복된다.
+        Pageable pageable = PageRequest.of(page, safeSize);
+        return ApiResponse.ok(webtoonService.search(q, platform, genre, author, tag, sort, pageable));
     }
 
     // 필터 옵션
@@ -66,25 +61,15 @@ public class WebtoonController {
         return ApiResponse.ok(webtoonService.ranking(size));
     }
 
-    // 상세: GET /api/webtoons/{id}
+    // 상세: GET /api/webtoons/{id} (조회수 미증가)
     @GetMapping("/{id}")
     public ApiResponse<WebtoonDetailResponse> detail(@PathVariable Long id) {
         return ApiResponse.ok(webtoonService.detail(id));
     }
 
-    // 정렬 키 → native search 쿼리용 DB 컬럼명
-    // latest = 연재 시작일(released_at). MySQL DESC 에서 NULL 은 뒤로 밀림.
-    // rating = 리뷰 건수 우선, 동률이면 평점 평균
-    private Sort sortOf(String sort) {
-        return switch (sort) {
-            case "views" -> Sort.by(Sort.Direction.DESC, "view_count");
-            case "rating" -> Sort.by(
-                    Sort.Order.desc("rating_count"),
-                    Sort.Order.desc("rating_avg"));
-            case "bookmark" -> Sort.by(Sort.Direction.DESC, "bookmark_count");
-            default -> Sort.by(
-                    Sort.Order.desc("released_at"),
-                    Sort.Order.desc("webtoon_id"));
-        };
+    // 조회수 +1: POST /api/webtoons/{id}/view
+    @PostMapping("/{id}/view")
+    public ApiResponse<Long> recordView(@PathVariable Long id) {
+        return ApiResponse.ok(webtoonService.recordView(id));
     }
 }

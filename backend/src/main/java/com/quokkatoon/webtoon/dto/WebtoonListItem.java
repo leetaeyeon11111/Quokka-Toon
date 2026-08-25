@@ -19,12 +19,20 @@ public record WebtoonListItem(
         int ratingCount
 ) {
     public static WebtoonListItem from(Webtoon w) {
+        return from(
+                w,
+                w.getPlatform() != null ? w.getPlatform().getName() : null,
+                w.getPlatform() != null ? w.getPlatform().getLogoUrl() : null
+        );
+    }
+
+    public static WebtoonListItem from(Webtoon w, String platformName, String platformLogoUrl) {
         return new WebtoonListItem(
                 w.getId(),
                 w.getTitle(),
                 w.getThumbnailUrl(),
-                w.getPlatform() != null ? w.getPlatform().getName() : null,
-                w.getPlatform() != null ? w.getPlatform().getLogoUrl() : null,
+                platformName,
+                platformLogoUrl,
                 w.getMainGenre() != null ? w.getMainGenre().getName() : null,
                 w.getAgeRating(),
                 w.getRatingAvg(),

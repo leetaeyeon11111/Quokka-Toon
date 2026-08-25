@@ -39,28 +39,28 @@ export const PLATFORM_LOGO_BY_NAME = {
   루리웹: '/platform-logos/ruliweb.png',
 }
 
-/** 원형 마크 — 흰 원 배경이 자연스러운 플랫폼 */
+/** 원형(또는 원형으로 보이게 클립할) 로고 — 버튼의 흰 프레임도 원으로 맞춤 */
 const CIRCLE_LOGO_NAMES = new Set([
+  '조아라',
   '리디북스',
   '미스터블루',
-  '레진코믹스',
-  '왓챠',
   '인스타그램',
 ])
 
 /**
  * 바로가기 버튼 로고 클립 모양.
- * - circle: 원형 브랜드 마크
- * - rounded: 앱아이콘형(사각·스퀘어클) — 카카오페이지·네이버시리즈 등
+ * - circle: 원형 브랜드 마크 → 흰 원형 프레임
+ * - rounded: 앱아이콘형(사각·스퀘어클)
  */
 export function platformLogoClip(name) {
   if (name && CIRCLE_LOGO_NAMES.has(name)) return 'circle'
   return 'rounded'
 }
 
+/** 상세 바로가기 버튼 안 로고 감싸는 프레임 */
 export function platformLogoFrameClass(name) {
   return platformLogoClip(name) === 'circle'
-    ? 'rounded-full bg-white/95 p-0.5'
+    ? 'rounded-full overflow-hidden bg-white p-0.5'
     : 'rounded-md overflow-hidden'
 }
 

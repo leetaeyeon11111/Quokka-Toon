@@ -21,7 +21,8 @@ export default function PlatformLogo({
   const [failed, setFailed] = useState(false)
   const resolved = resolvePlatformLogoUrl(name, logoUrl)
   const sizeClass = SIZE_CLASS[size] ?? SIZE_CLASS.md
-  const clipClass = platformLogoClip(name) === 'circle' ? 'rounded-full' : 'rounded-md'
+  const isCircle = platformLogoClip(name) === 'circle'
+  const clipClass = isCircle ? 'rounded-full' : 'rounded-md'
 
   if (resolved && !failed) {
     return (

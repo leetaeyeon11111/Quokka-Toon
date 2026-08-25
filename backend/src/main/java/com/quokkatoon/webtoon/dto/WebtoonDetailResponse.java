@@ -31,11 +31,13 @@ public record WebtoonDetailResponse(
         List<String> genres,
         List<String> tags,
         List<PlatformLinkItem> platforms,
-        List<MediaMixItem> mediaMix
+        List<MediaMixItem> mediaMix,
+        DemographicsStats demographics
 ) {
     public static WebtoonDetailResponse from(
             Webtoon w, List<AuthorItem> authors, List<String> genres, List<String> tags,
-            List<PlatformLinkItem> platforms, List<MediaMixItem> mediaMix) {
+            List<PlatformLinkItem> platforms, List<MediaMixItem> mediaMix,
+            DemographicsStats demographics) {
         return new WebtoonDetailResponse(
                 w.getId(), w.getTitle(), w.getThumbnailUrl(), w.getIllustrationUrl(),
                 w.getPlatform() != null ? w.getPlatform().getName() : null,
@@ -49,7 +51,7 @@ public record WebtoonDetailResponse(
                 w.getViewCount(), w.getRatingAvg(), w.getRatingCount(),
                 w.getReleasedAt(),
                 w.getSummary(), w.getAiSummary(),
-                authors, genres, tags, platforms, mediaMix
+                authors, genres, tags, platforms, mediaMix, demographics
         );
     }
 }

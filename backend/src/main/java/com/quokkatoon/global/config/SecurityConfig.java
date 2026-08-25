@@ -42,6 +42,7 @@ public class SecurityConfig {
                 // 인증 없이 접근 가능
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/webtoons/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/webtoons/*/view").permitAll()
                 .requestMatchers("/api/recommend/**").permitAll()
                 // 내가 쓴 글은 로그인 필요 (공개 GET 보다 먼저 선언)
                 .requestMatchers("/api/board/mine").authenticated()

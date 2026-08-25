@@ -1,20 +1,17 @@
 import { api } from './client'
 
-async function backendWebtoonId(webtoon) {
-  if (webtoon.backendId) return webtoon.backendId
-  const page = await api.get('/api/webtoons?size=500', { auth: false })
-  const match = (page?.content ?? page ?? []).find((item) => item.title === webtoon.title)
-  if (match?.id) return match.id
-  const numeric = Number(String(webtoon.id).replace(/^wt-/, ''))
-  return Number.isFinite(numeric) ? numeric : webtoon.id
+export async function listReviews(webtoon) {
+  const id = webtoon.backendId ?? webtoon.id
+  return api.get(`/api/webtoons/${id}/reviews`)
 }
 
-export async function listReviews(webtoon) {
-  return api.get(`/api/webtoons/${await backendWebtoonId(webtoon)}/reviews`)
+export async function listMyReviews() {
+  return api.get('/api/reviews/me')
 }
 
 export async function createReview(webtoon, payload) {
-  return api.post(`/api/webtoons/${await backendWebtoonId(webtoon)}/reviews`, payload)
+  const id = webtoon.backendId ?? webtoon.id
+  return api.post(`/api/webtoons/${id}/reviews`, payload)
 }
 
 export function updateReview(reviewId, payload) {

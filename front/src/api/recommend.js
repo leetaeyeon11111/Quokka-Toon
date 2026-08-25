@@ -1,13 +1,9 @@
 // 추천 API 진입점.
-//
 // 자연어 추천은 React → Spring → FastAPI 순서로 호출한다.
-// 상세/취향 추천의 기존 프론트 계산은 별도 화면 호환을 위해 유지한다.
 
-import { WEBTOONS } from '../data/webtoons'
-import { getSimilarWebtoons as computeSimilar } from '../lib/similarity'
 import { api } from './client'
-import { getWebtoon } from './webtoon'
-import { toDetailModel } from '../lib/webtoon'
+import { getWebtoon, searchWebtoons } from './webtoon'
+import { toCardModel, toDetailModel } from '../lib/webtoon'
 
 function clampScore(value) {
   const score = Math.round(Number(value) || 0)
@@ -59,27 +55,31 @@ export async function getRecommendations(query, { limit = 10 } = {}) {
 }
 
 /**
- * 특정 웹툰과 콘텐츠가 비슷한 다른 작품을 반환한다. (상세페이지 "비슷한 작품")
+ * 특정 웹툰과 비슷한 작품 (장르 기반 실 DB 검색).
  */
-export function getSimilarWebtoons(webtoon, limit = 5) {
-  return computeSimilar(webtoon, WEBTOONS, limit)
+export async function getSimilarWebtoons(webtoon, limit = 5) {
+  const genre = webtoon?.genres?.[0] ?? webtoon?.genre ?? webtoon?.mainGenre
+  if (!genre) return []
+  const data = await searchWebtoons({ genre, size: limit + 4 })
+  const selfId = String(webtoon.id)
+  return (data?.content ?? [])
+    .map(toCardModel)
+    .filter((w) => String(w.id) !== selfId)
+    .slice(0, limit)
 }
 
 /**
- * 검색어 없이 취향 태그만으로 추천한다. (마이페이지 "취향 리포트" 하단 추천)
+ * 취향 태그 기반 추천 (실 DB 태그 검색).
  */
-export function getRecommendationsByTaste(tasteTags, { excludeIds = [], limit = 10 } = {}) {
-  if (!tasteTags.length) return []
-  const owned = new Set(tasteTags.map((t) => t.toLowerCase()))
-
-  return WEBTOONS.filter((webtoon) => !excludeIds.includes(webtoon.id))
-    .map((webtoon) => {
-      const matched = webtoon.tags.filter((tag) => owned.has(tag.name.toLowerCase()))
-      const score = matched.reduce((sum, tag) => sum + tag.weight, 0)
-      return { webtoon, score }
-    })
-    .filter((entry) => entry.score > 0)
-    .sort((a, b) => b.score - a.score)
+export async function getRecommendationsByTaste(tasteTags, { excludeIds = [], limit = 10 } = {}) {
+  if (!tasteTags?.length) return []
+  const tag = typeof tasteTags[0] === 'string' ? tasteTags[0] : tasteTags[0]?.name
+  if (!tag) return []
+  const excluded = new Set(excludeIds.map(String))
+  const data = await searchWebtoons({ tag, size: limit + excluded.size })
+  return (data?.content ?? [])
+    .map(toCardModel)
+    .filter((w) => !excluded.has(String(w.id)))
     .slice(0, limit)
-    .map((entry) => entry.webtoon)
+    .map((webtoon) => ({ webtoon, score: 1 }))
 }

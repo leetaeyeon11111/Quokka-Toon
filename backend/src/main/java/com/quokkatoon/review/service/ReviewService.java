@@ -7,6 +7,7 @@ import com.quokkatoon.level.dto.ActionResponse;
 import com.quokkatoon.level.dto.ExpChangeResponse;
 import com.quokkatoon.level.entity.LevelActionType;
 import com.quokkatoon.level.service.ExperienceService;
+import com.quokkatoon.review.dto.MyReviewItem;
 import com.quokkatoon.review.dto.ReviewLikeResponse;
 import com.quokkatoon.review.dto.ReviewRequest;
 import com.quokkatoon.review.dto.ReviewResponse;
@@ -14,8 +15,10 @@ import com.quokkatoon.review.entity.Review;
 import com.quokkatoon.review.entity.ReviewLike;
 import com.quokkatoon.review.repository.ReviewLikeRepository;
 import com.quokkatoon.review.repository.ReviewRepository;
+import com.quokkatoon.user.entity.Gender;
 import com.quokkatoon.user.entity.User;
 import com.quokkatoon.user.repository.UserRepository;
+import com.quokkatoon.webtoon.dto.DemographicsStats;
 import com.quokkatoon.webtoon.entity.Webtoon;
 import com.quokkatoon.webtoon.repository.WebtoonRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.Period;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +51,91 @@ public class ReviewService {
                         currentUserId != null && reviewLikeRepository
                                 .findByReviewIdAndUserId(r.getId(), currentUserId).isPresent()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MyReviewItem> getMyReviews(Long userId) {
+        return reviewRepository.findByUserIdAndDeletedFalseOrderByCreatedAtDesc(userId).stream()
+                .map(r -> new MyReviewItem(
+                        r.getId(),
+                        r.getWebtoon().getId(),
+                        r.getWebtoon().getTitle(),
+                        r.getWebtoon().getThumbnailUrl(),
+                        r.getRating(),
+                        r.getContent(),
+                        r.getLikeCount(),
+                        r.getCreatedAt(),
+                        r.getUpdatedAt()))
+                .toList();
+    }
+
+    /** 리뷰 작성자의 성별·생년월일로 집계. 표본 부족 시 null. */
+    @Transactional(readOnly = true)
+    public DemographicsStats getDemographics(Long webtoonId) {
+        List<Review> reviews = reviewRepository.findActiveWithUserByWebtoonId(webtoonId);
+        if (reviews.size() < 3) return null;
+
+        List<Integer> maleRatings = new ArrayList<>();
+        List<Integer> femaleRatings = new ArrayList<>();
+        Map<String, List<Integer>> byAge = new LinkedHashMap<>();
+        for (String band : List.of("10대", "20대", "30대", "40대", "50대 이상")) {
+            byAge.put(band, new ArrayList<>());
+        }
+
+        LocalDate today = LocalDate.now();
+        for (Review review : reviews) {
+            User user = review.getUser();
+            Gender gender = user.getGender();
+            if (gender == Gender.M) maleRatings.add(review.getRating());
+            else if (gender == Gender.F) femaleRatings.add(review.getRating());
+
+            if (user.getBirthDate() != null) {
+                int age = Period.between(user.getBirthDate(), today).getYears();
+                String band = ageBand(age);
+                if (band != null) byAge.get(band).add(review.getRating());
+            }
+        }
+
+        int gendered = maleRatings.size() + femaleRatings.size();
+        if (gendered < 3) return null;
+
+        double maleRatio = round2(maleRatings.size() / (double) gendered);
+        double femaleRatio = round2(1.0 - maleRatio);
+
+        List<DemographicsStats.AgeRatingRow> ageRows = new ArrayList<>();
+        for (Map.Entry<String, List<Integer>> e : byAge.entrySet()) {
+            if (e.getValue().isEmpty()) continue;
+            ageRows.add(new DemographicsStats.AgeRatingRow(
+                    e.getKey(), avgOf(e.getValue()), e.getValue().size()));
+        }
+
+        // sampleSize = 성별이 설정된 리뷰 수(비율 분모). 미설정(NONE)은 제외.
+        return new DemographicsStats(
+                new DemographicsStats.GenderRatio(maleRatio, femaleRatio),
+                new DemographicsStats.GenderRating(
+                        maleRatings.isEmpty() ? null : avgOf(maleRatings),
+                        femaleRatings.isEmpty() ? null : avgOf(femaleRatings)),
+                ageRows,
+                gendered);
+    }
+
+    private static String ageBand(int age) {
+        if (age < 10) return null;
+        if (age < 20) return "10대";
+        if (age < 30) return "20대";
+        if (age < 40) return "30대";
+        if (age < 50) return "40대";
+        return "50대 이상";
+    }
+
+    private static double avgOf(List<Integer> ratings) {
+        double sum = 0;
+        for (int r : ratings) sum += r;
+        return round2(sum / ratings.size());
+    }
+
+    private static double round2(double v) {
+        return BigDecimal.valueOf(v).setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
     @Transactional

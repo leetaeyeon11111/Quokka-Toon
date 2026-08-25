@@ -2,7 +2,9 @@ package com.quokkatoon.webtoon.service;
 
 import com.quokkatoon.global.exception.BusinessException;
 import com.quokkatoon.global.exception.ErrorCode;
+import com.quokkatoon.review.service.ReviewService;
 import com.quokkatoon.webtoon.dto.AuthorItem;
+import com.quokkatoon.webtoon.dto.DemographicsStats;
 import com.quokkatoon.webtoon.dto.MediaMixItem;
 import com.quokkatoon.webtoon.dto.MediaMixWatchLink;
 import com.quokkatoon.webtoon.dto.PlatformLinkItem;
@@ -17,33 +19,42 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class WebtoonService {
 
+    private static final String KAKAO_WEBTOON = "카카오웹툰";
+    private static final String KAKAO_PAGE = "카카오페이지";
+
     private final WebtoonRepository webtoonRepository;
+    private final ReviewService reviewService;
 
     // 목록: 제목/플랫폼/장르/작가/태그 필터 (빈 문자열은 null 로 처리해 필터 해제).
     @Transactional(readOnly = true)
     public Page<WebtoonListItem> search(String q, String platform, String genre,
-                                        String author, String tag, Pageable pageable) {
-        return webtoonRepository
-                .search(blankToNull(q), blankToNull(platform), blankToNull(genre),
-                        blankToNull(author), blankToNull(tag), pageable)
-                .map(WebtoonListItem::from);
+                                        String author, String tag, String sort, Pageable pageable) {
+        String platformFilter = blankToNull(platform);
+        Page<Webtoon> page = webtoonRepository
+                .search(blankToNull(q), platformFilter, blankToNull(genre),
+                        blankToNull(author), blankToNull(tag), normalizeSort(sort), pageable);
+        Map<Long, Set<String>> namesById = platformNamesByWebtoon(page.getContent());
+        Map<String, String> logoByName = platformLogos(List.of(KAKAO_WEBTOON, KAKAO_PAGE));
+        return page.map(w -> toListItem(w, platformFilter, namesById, logoByName));
     }
 
     // 상세: 기본정보 + 연결 테이블(작가/장르/태그/플랫폼 바로가기) 조인
-    // 조회 시 view_count 증가 (조회순 정렬용)
-    @Transactional
+    // 조회수는 별도 recordView 로만 증가 (GET 중복·추천/즐겨찾기용 상세 조회와 분리)
+    @Transactional(readOnly = true)
     public WebtoonDetailResponse detail(Long id) {
         Webtoon w = webtoonRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WEBTOON_NOT_FOUND));
-        w.incrementViewCount();
 
         List<AuthorItem> authors = webtoonRepository.findAuthors(id).stream()
                 .map(row -> new AuthorItem((String) row[0], (String) row[1]))
@@ -67,21 +78,93 @@ public class WebtoonService {
         }
 
         List<MediaMixItem> mediaMix = loadMediaMix(id);
+        DemographicsStats demographics = reviewService.getDemographics(id);
 
-        return WebtoonDetailResponse.from(w, authors, genres, tags, platforms, mediaMix);
+        return WebtoonDetailResponse.from(w, authors, genres, tags, platforms, mediaMix, demographics);
+    }
+
+    /** 상세 페이지 진입 시 1회 호출 — 조회수 +1 후 갱신값 반환 */
+    @Transactional
+    public long recordView(Long id) {
+        Webtoon w = webtoonRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WEBTOON_NOT_FOUND));
+        w.incrementViewCount();
+        return w.getViewCount();
     }
 
     @Transactional(readOnly = true)
     public List<WebtoonListItem> ranking(int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 30));
-        return webtoonRepository.findRanking(safeLimit).stream()
-                .map(WebtoonListItem::from)
+        List<Webtoon> rows = webtoonRepository.findRanking(safeLimit);
+        Map<Long, Set<String>> namesById = platformNamesByWebtoon(rows);
+        Map<String, String> logoByName = platformLogos(List.of(KAKAO_WEBTOON, KAKAO_PAGE));
+        return rows.stream()
+                .map(w -> toListItem(w, null, namesById, logoByName))
                 .toList();
     }
 
     @Transactional
     public int backfillRatingStats() {
         return webtoonRepository.backfillRatingStatsFromReviews();
+    }
+
+    /**
+     * 목록 썸네일 배지용 플랫폼명.
+     * - 플랫폼 필터 중이면 필터 플랫폼명
+     * - 카카오웹툰+페이지 동시 보유(또는 카카오 계열)면 기본은 카카오웹툰 우선
+     * - 카카오페이지 단독이면 카카오페이지
+     */
+    static String resolveListPlatformName(String primary, Set<String> linked, String platformFilter) {
+        if (platformFilter != null && !platformFilter.isBlank()) {
+            return platformFilter;
+        }
+        Set<String> names = linked != null ? linked : Set.of();
+        boolean hasWeb = names.contains(KAKAO_WEBTOON) || KAKAO_WEBTOON.equals(primary);
+        boolean hasPage = names.contains(KAKAO_PAGE) || KAKAO_PAGE.equals(primary);
+        boolean kakaoRelated = hasWeb || hasPage
+                || KAKAO_WEBTOON.equals(primary) || KAKAO_PAGE.equals(primary);
+        if (kakaoRelated) {
+            if (hasWeb) return KAKAO_WEBTOON;
+            if (hasPage) return KAKAO_PAGE;
+        }
+        return primary;
+    }
+
+    private WebtoonListItem toListItem(Webtoon w, String platformFilter,
+                                       Map<Long, Set<String>> namesById,
+                                       Map<String, String> logoByName) {
+        String primary = w.getPlatform() != null ? w.getPlatform().getName() : null;
+        String primaryLogo = w.getPlatform() != null ? w.getPlatform().getLogoUrl() : null;
+        Set<String> linked = namesById.getOrDefault(w.getId(), Set.of());
+        String display = resolveListPlatformName(primary, linked, platformFilter);
+        String logo = display != null ? logoByName.getOrDefault(display, primaryLogo) : primaryLogo;
+        if (logo == null) logo = primaryLogo;
+        return WebtoonListItem.from(w, display, logo);
+    }
+
+    private Map<Long, Set<String>> platformNamesByWebtoon(List<Webtoon> webtoons) {
+        Map<Long, Set<String>> map = new HashMap<>();
+        if (webtoons == null || webtoons.isEmpty()) return map;
+        List<Long> ids = webtoons.stream().map(Webtoon::getId).toList();
+        for (Object[] row : webtoonRepository.findPlatformNamesForWebtoons(ids)) {
+            Long id = toLong(row[0]);
+            String name = row[1] != null ? String.valueOf(row[1]) : null;
+            if (id == null || name == null || name.isBlank()) continue;
+            map.computeIfAbsent(id, k -> new HashSet<>()).add(name);
+        }
+        return map;
+    }
+
+    private Map<String, String> platformLogos(List<String> names) {
+        Map<String, String> map = new HashMap<>();
+        if (names == null || names.isEmpty()) return map;
+        for (Object[] row : webtoonRepository.findPlatformLogosByNames(names)) {
+            if (row[0] == null) continue;
+            String name = String.valueOf(row[0]);
+            String logo = row[1] != null ? String.valueOf(row[1]) : null;
+            map.put(name, logo);
+        }
+        return map;
     }
 
     private List<MediaMixItem> loadMediaMix(Long webtoonId) {
@@ -156,5 +239,13 @@ public class WebtoonService {
 
     private static String blankToNull(String value) {
         return (value == null || value.isBlank()) ? null : value.trim();
+    }
+
+    private static String normalizeSort(String sort) {
+        if (sort == null) return "latest";
+        return switch (sort.trim()) {
+            case "views", "bookmark", "rating" -> sort.trim();
+            default -> "latest";
+        };
     }
 }

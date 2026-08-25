@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getWebtoon, searchWebtoons } from '../api/webtoon'
+import { getWebtoon, recordWebtoonView, searchWebtoons } from '../api/webtoon'
 import { createReport } from '../api/report'
 import { toDetailModel, toCardModel } from '../lib/webtoon'
 import { useAuth } from '../hooks/useAuth'
@@ -67,6 +67,11 @@ export default function WebtoonDetailPage() {
 
   const [otherWorks, setOtherWorks] = useState([])
   const [similarWorks, setSimilarWorks] = useState([])
+  /** 추천 탭용 작가 목록 — 작품 로드 시에만 고정(선택해도 칩이 줄지 않음) */
+  const [roleAuthorLists, setRoleAuthorLists] = useState({ writers: [], artists: [] })
+  /** 추천: 글작가(writer) | 그림작가(artist) — 기본 글작가 */
+  const [authorRoleTab, setAuthorRoleTab] = useState('writer')
+  const [selectedAuthor, setSelectedAuthor] = useState(null)
 
   const [showAllReviews, setShowAllReviews] = useState(false)
   const [showAlarm, setShowAlarm] = useState(false)
@@ -76,6 +81,8 @@ export default function WebtoonDetailPage() {
   const [reviewsLoading, setReviewsLoading] = useState(true)
   const [reviewError, setReviewError] = useState('')
   const [reportTarget, setReportTarget] = useState(null)
+  // StrictMode 이중 effect / 같은 id 재진입 시 조회수 중복 +1 방지
+  const recordedViewIdRef = useRef(null)
 
   // 상세 로드 (id 변경 시 화면 전용 상태 초기화)
   useEffect(() => {
@@ -87,6 +94,9 @@ export default function WebtoonDetailPage() {
       setHeroImgOk(true)
       setOtherWorks([])
       setSimilarWorks([])
+      setAuthorRoleTab('writer')
+      setSelectedAuthor(null)
+      setRoleAuthorLists({ writers: [], artists: [] })
       setReviews([])
       setReviewsLoading(true)
       setReviewError('')
@@ -96,7 +106,38 @@ export default function WebtoonDetailPage() {
       window.scrollTo({ top: 0 })
       try {
         const data = await getWebtoon(id)
-        if (!cancelled) setWebtoon(toDetailModel(data))
+        if (cancelled) return
+        const model = toDetailModel(data)
+        setWebtoon(model)
+        setRoleAuthorLists({
+          writers: [...(model.authors.writers ?? [])],
+          artists: [...(model.authors.artists ?? [])],
+        })
+        setSelectedAuthor(model.authors.writers?.[0] ?? model.authors.writer ?? null)
+
+        // 조회수는 GET과 분리 — 상세 진입당 1회만 기록
+        if (recordedViewIdRef.current !== id) {
+          recordedViewIdRef.current = id
+          try {
+            const nextViews = await recordWebtoonView(id)
+            if (!cancelled && nextViews != null) {
+              setWebtoon((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      viewCount: Number(nextViews) || prev.viewCount,
+                      stats: {
+                        ...prev.stats,
+                        views: Number(nextViews) || prev.stats?.views || 0,
+                      },
+                    }
+                  : prev,
+              )
+            }
+          } catch {
+            // 조회수 기록 실패는 상세 표시를 막지 않음
+          }
+        }
       } catch {
         if (!cancelled) setWebtoonError(true)
       } finally {
@@ -109,22 +150,50 @@ export default function WebtoonDetailPage() {
     }
   }, [id])
 
-  // 추천: 같은 작가의 다른 작품 / 같은 장르(비슷한 작품)
+  const writers = roleAuthorLists.writers
+  const artists = roleAuthorLists.artists
+  const authorsForRole = authorRoleTab === 'artist' ? artists : writers
+
+  // 글/그림 탭 전환 시에만 선택 작가 맞춤 (칩 목록은 그대로)
+  useEffect(() => {
+    const list = authorRoleTab === 'artist' ? artists : writers
+    if (!list.length) {
+      setSelectedAuthor(null)
+      return
+    }
+    setSelectedAuthor((prev) => (prev && list.includes(prev) ? prev : list[0]))
+  }, [authorRoleTab, writers, artists])
+
+  // 추천: 선택한 글/그림 작가의 다른 작품
+  useEffect(() => {
+    if (!webtoon || !selectedAuthor || selectedAuthor === '미상') {
+      setOtherWorks([])
+      return
+    }
+    let cancelled = false
+    const selfId = webtoon.id
+    setOtherWorks([])
+    searchWebtoons({ author: selectedAuthor, size: 12 })
+      .then((data) => {
+        if (!cancelled) {
+          setOtherWorks(
+            (data?.content ?? []).map(toCardModel).filter((w) => w.id !== selfId).slice(0, 8),
+          )
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setOtherWorks([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [webtoon?.id, selectedAuthor])
+
+  // 추천: 같은 장르(비슷한 작품)
   useEffect(() => {
     if (!webtoon) return
     let cancelled = false
     const selfId = webtoon.id
-    if (webtoon.authors.writer && webtoon.authors.writer !== '미상') {
-      searchWebtoons({ author: webtoon.authors.writer, size: 12 })
-        .then((data) => {
-          if (!cancelled) {
-            setOtherWorks(
-              (data?.content ?? []).map(toCardModel).filter((w) => w.id !== selfId).slice(0, 8),
-            )
-          }
-        })
-        .catch(() => {})
-    }
     const genreForSimilar = webtoon.genres?.[0] ?? webtoon.genre
     if (genreForSimilar) {
       searchWebtoons({ genre: genreForSimilar, size: 14 })
@@ -363,15 +432,25 @@ export default function WebtoonDetailPage() {
           </div>
 
           <p className="mb-3 text-sm text-ink-500">
-            {webtoon.stats.weeklyDay !== '미정' && `매주 ${webtoon.stats.weeklyDay}요일 연재 · `}
-            👁 {webtoon.stats.views.toLocaleString()} ·{' '}
-            {webtoon.stats.ratingCount > 0
-              ? `★ 리뷰 평균 ${webtoon.stats.ratingAvg.toFixed(1)}`
-              : '아직 등록된 평점이 없어요'}
+            {[
+              webtoon.stats.weeklyDay !== '미정' ? `매주 ${webtoon.stats.weeklyDay}요일 연재` : null,
+              webtoon.stats.views > 0 ? `👁 ${webtoon.stats.views.toLocaleString()}` : null,
+              webtoon.stats.bookmarkCount > 0
+                ? `북마크 ${webtoon.stats.bookmarkCount.toLocaleString()}`
+                : null,
+              webtoon.stats.ratingCount > 0
+                ? `★ 리뷰 평균 ${webtoon.stats.ratingAvg.toFixed(1)} (${webtoon.stats.ratingCount}명)`
+                : '아직 등록된 평점이 없어요',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
 
           <p className="mb-3 text-sm text-ink-700">
-            대표작가 · <span className="font-semibold">{webtoon.authors.writer}</span>
+            대표작가 ·{' '}
+            <span className="font-semibold">
+              {(writers.length ? writers : [webtoon.authors.writer]).join(', ')}
+            </span>
           </p>
 
           <div className="mb-6 flex flex-wrap gap-1.5">
@@ -409,7 +488,7 @@ export default function WebtoonDetailPage() {
                     logoUrl={p.logoUrl ?? webtoon.platformLogoUrl}
                     size="sm"
                     showNameFallback={false}
-                    className="!h-full !w-full !rounded-none !bg-transparent"
+                    className="!h-full !w-full !bg-transparent"
                   />
                 </span>
                 {p.name}에서 보기
@@ -439,11 +518,15 @@ export default function WebtoonDetailPage() {
             <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-ink-50 p-4">
                 <p className="mb-1 text-xs font-semibold text-ink-500">글작가</p>
-                <p className="text-sm font-bold text-ink-900">{webtoon.authors.writer}</p>
+                <p className="text-sm font-bold text-ink-900">
+                  {(writers.length ? writers : [webtoon.authors.writer]).join(', ')}
+                </p>
               </div>
               <div className="rounded-xl bg-ink-50 p-4">
                 <p className="mb-1 text-xs font-semibold text-ink-500">그림작가</p>
-                <p className="text-sm font-bold text-ink-900">{webtoon.authors.artist}</p>
+                <p className="text-sm font-bold text-ink-900">
+                  {(artists.length ? artists : [webtoon.authors.artist]).join(', ')}
+                </p>
               </div>
             </div>
 
@@ -474,48 +557,128 @@ export default function WebtoonDetailPage() {
           <MediaMixSection items={webtoon.mediaMix} />
 
           <SectionCard id="recommend" title="추천">
-            <p className="mb-2 text-sm font-bold text-ink-900">글/그림 작가의 다른 작품</p>
+            <p className="mb-3 text-sm font-bold text-ink-900">글/그림 작가의 다른 작품</p>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setAuthorRoleTab('writer')}
+                className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+                  authorRoleTab === 'writer'
+                    ? 'border-brand-500 bg-brand-50 text-brand-600'
+                    : 'border-ink-100 text-ink-600 hover:bg-ink-50'
+                }`}
+              >
+                글작가
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuthorRoleTab('artist')}
+                className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
+                  authorRoleTab === 'artist'
+                    ? 'border-brand-500 bg-brand-50 text-brand-600'
+                    : 'border-ink-100 text-ink-600 hover:bg-ink-50'
+                }`}
+              >
+                그림작가
+              </button>
+            </div>
+            {authorsForRole.length > 1 && (
+              <div
+                className="mb-3 flex flex-wrap gap-2"
+                role="listbox"
+                aria-label={authorRoleTab === 'artist' ? '그림작가 선택' : '글작가 선택'}
+              >
+                {authorsForRole.map((name) => {
+                  const selected = selectedAuthor === name
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      role="option"
+                      aria-selected={selected}
+                      onClick={() => setSelectedAuthor(name)}
+                      className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                        selected
+                          ? 'border-brand-500 bg-brand-50 text-brand-600 ring-1 ring-brand-500'
+                          : 'border-ink-200 bg-white text-ink-700 hover:border-ink-400 hover:bg-ink-50'
+                      }`}
+                    >
+                      {name}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            {authorsForRole.length === 1 && selectedAuthor && (
+              <p className="mb-2 text-xs text-ink-500">{selectedAuthor}</p>
+            )}
             <div className="mb-6">
-              <HorizontalRow items={otherWorks} emptyText="같은 작가의 다른 작품이 아직 없어요." />
+              <HorizontalRow
+                items={otherWorks}
+                emptyText={
+                  selectedAuthor
+                    ? `${selectedAuthor} 작가의 다른 작품이 아직 없어요.`
+                    : '같은 작가의 다른 작품이 아직 없어요.'
+                }
+              />
             </div>
             <p className="mb-2 text-sm font-bold text-ink-900">비슷한 작품</p>
             <HorizontalRow items={similarWorks} emptyText="비슷한 작품을 찾지 못했어요." />
           </SectionCard>
 
           {webtoon.demographics && <SectionCard id="stats" title="성별 통계">
+            <p className="mb-4 text-xs text-ink-400">
+              리뷰 작성자 기준 · 표본 {webtoon.demographics.sampleSize ?? 0}명
+            </p>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-6">
               <GenderPieChart male={webtoon.demographics.genderRatio.male} female={webtoon.demographics.genderRatio.female} />
               <div className="flex gap-8">
                 <div className="text-center">
                   <p className="mb-1 text-2xl">🧍‍♂️</p>
-                  <p className="text-lg font-bold text-ink-900">{webtoon.demographics.genderRating.male}</p>
-                  <StarsDisplay rating={webtoon.demographics.genderRating.male} />
+                  <p className="text-lg font-bold text-ink-900">
+                    {webtoon.demographics.genderRating.male != null
+                      ? webtoon.demographics.genderRating.male
+                      : '—'}
+                  </p>
+                  {webtoon.demographics.genderRating.male != null && (
+                    <StarsDisplay rating={webtoon.demographics.genderRating.male} />
+                  )}
                 </div>
                 <div className="text-center">
                   <p className="mb-1 text-2xl">🧍‍♀️</p>
-                  <p className="text-lg font-bold text-ink-900">{webtoon.demographics.genderRating.female}</p>
-                  <StarsDisplay rating={webtoon.demographics.genderRating.female} />
+                  <p className="text-lg font-bold text-ink-900">
+                    {webtoon.demographics.genderRating.female != null
+                      ? webtoon.demographics.genderRating.female
+                      : '—'}
+                  </p>
+                  {webtoon.demographics.genderRating.female != null && (
+                    <StarsDisplay rating={webtoon.demographics.genderRating.female} />
+                  )}
                 </div>
               </div>
             </div>
 
-            <p className="mb-3 text-sm font-bold text-ink-900">나이대별 평점 (5점 만점 · 평균)</p>
-            <div className="flex flex-col gap-2.5">
-              {webtoon.demographics.ageRatings.map((row) => (
-                <div key={row.age} className="flex items-center gap-3">
-                  <span className="w-16 shrink-0 text-xs font-semibold text-ink-500">{row.age}</span>
-                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-ink-100">
-                    <div
-                      className="h-full rounded-full bg-brand-500"
-                      style={{ width: `${(row.avg / 5) * 100}%` }}
-                    />
-                  </div>
-                  <span className="w-24 shrink-0 text-right text-xs text-ink-500">
-                    {row.avg} ({row.count}명)
-                  </span>
+            {webtoon.demographics.ageRatings?.length > 0 && (
+              <>
+                <p className="mb-3 text-sm font-bold text-ink-900">나이대별 평점 (5점 만점 · 평균)</p>
+                <div className="flex flex-col gap-2.5">
+                  {webtoon.demographics.ageRatings.map((row) => (
+                    <div key={row.age} className="flex items-center gap-3">
+                      <span className="w-16 shrink-0 text-xs font-semibold text-ink-500">{row.age}</span>
+                      <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-ink-100">
+                        <div
+                          className="h-full rounded-full bg-brand-500"
+                          style={{ width: `${(row.avg / 5) * 100}%` }}
+                        />
+                      </div>
+                      <span className="w-24 shrink-0 text-right text-xs text-ink-500">
+                        {row.avg} ({row.count}명)
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            )}
           </SectionCard>}
 
           <SectionCard id="reviews" title="리뷰 평점">

@@ -1,8 +1,8 @@
 // 백엔드 웹툰 응답 → 프론트 페이지가 기대하는 형태로 매핑.
-// 서버에 없는 통계는 임의로 만들지 않고 null로 유지한다.
+// 서버에 없는 통계는 임의로 만들지 않고 null/빈 값으로 유지한다.
 
 import { getWebtoon } from '../api/webtoon'
-import { mediaMixByTitle, normalizeMediaMix } from '../data/mediaMix'
+import { normalizeMediaMix } from '../data/mediaMix'
 
 const COVER_PALETTES = [
   ['#ffb199', '#ff6b6b'], ['#a1c4fd', '#c2e9fb'], ['#f6d365', '#fda085'],
@@ -25,6 +25,34 @@ export function ageRatingLabel(v) {
 }
 export function serialStatusLabel(v) {
   return STATUS_KO[v] ?? v
+}
+
+/** 백엔드 0~1 비율 · 목업 0~100 퍼센트 모두 % 로 통일 */
+function ratioToPercent(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0) return 0
+  const pct = n <= 1 ? n * 100 : n
+  return Math.round(pct * 100) / 100
+}
+
+function mapDemographics(d) {
+  if (!d?.genderRatio) return null
+  return {
+    genderRatio: {
+      male: ratioToPercent(d.genderRatio.male),
+      female: ratioToPercent(d.genderRatio.female),
+    },
+    genderRating: {
+      male: d.genderRating?.male != null ? Number(d.genderRating.male) : null,
+      female: d.genderRating?.female != null ? Number(d.genderRating.female) : null,
+    },
+    ageRatings: (d.ageRatings ?? []).map((row) => ({
+      age: row.age,
+      avg: Number(row.avg) || 0,
+      count: Number(row.count) || 0,
+    })),
+    sampleSize: Number(d.sampleSize) || 0,
+  }
 }
 
 // 목록 카드용: 백엔드 WebtoonListItem을 표시 형태로 정리한다.
@@ -54,15 +82,37 @@ export async function fetchWebtoonModelsByIds(ids) {
   return list.filter(Boolean)
 }
 
+function uniqueAuthorNames(authors, role) {
+  const names = []
+  const seen = new Set()
+  for (const a of authors ?? []) {
+    if (role && a.role !== role) continue
+    const raw = String(a?.name ?? '').trim()
+    if (!raw || raw === '미상') continue
+    // "유담, 밤나기"처럼 한 칸에 여러 명이 들어온 경우도 칩으로 분리
+    const parts = raw.split(/\s*[,，、]\s*|\s+&\s+/).map((p) => p.trim()).filter(Boolean)
+    for (const name of parts.length ? parts : [raw]) {
+      if (!name || name === '미상' || seen.has(name)) continue
+      seen.add(name)
+      names.push(name)
+    }
+  }
+  return names
+}
+
 // 상세용: WebtoonDetailResponse → 상세페이지 표시 모델
 export function toDetailModel(d) {
   const authors = d.authors ?? []
-  const writer = authors.find((a) => a.role === 'WRITER')?.name ?? authors[0]?.name ?? '미상'
-  const artist = authors.find((a) => a.role === 'ARTIST')?.name ?? writer
+  const writers = uniqueAuthorNames(authors, 'WRITER')
+  const artists = uniqueAuthorNames(authors, 'ARTIST')
+  // ARTIST 없으면 글작가와 동일 인물로 간주 (1인 창작)
+  const artistNames = artists.length ? artists : writers
+  const writer = writers[0] ?? authors[0]?.name ?? '미상'
+  const artist = artistNames[0] ?? writer
   const genre = d.mainGenre ?? d.genres?.[0] ?? '기타'
   return {
     id: d.id,
-    backendId: d.id, // 리뷰 API 가 이 값을 우선 사용
+    backendId: d.id,
     title: d.title,
     thumbnailUrl: d.thumbnailUrl,
     illustrationUrl: d.illustrationUrl,
@@ -73,7 +123,12 @@ export function toDetailModel(d) {
     isAdult: d.ageRating === '19',
     serialStatus: serialStatusLabel(d.serialStatus),
     publishDay: d.publishDay,
-    authors: { writer, artist },
+    authors: {
+      writer,
+      artist,
+      writers: writers.length ? writers : writer !== '미상' ? [writer] : [],
+      artists: artistNames.length ? artistNames : artist !== '미상' ? [artist] : [],
+    },
     tags: (d.tags ?? []).map((name) => ({ name })),
     synopsis: d.summary?.trim() || '등록된 줄거리가 아직 없어요.',
     aiSummary: d.aiSummary?.trim() || null,
@@ -93,7 +148,6 @@ export function toDetailModel(d) {
     ).filter((p) => {
       const u = String(p.url || '')
       if (!u.startsWith('http')) return false
-      // 구글 검색만 숨김. 플랫폼 자체 검색 URL은 딥링크 없을 때 폴백으로 허용.
       if (/google\./i.test(u)) return false
       return true
     }),
@@ -105,7 +159,7 @@ export function toDetailModel(d) {
       bookmarkCount: Number(d.bookmarkCount) || 0,
       weeklyDay: DAY_KO[d.publishDay] ?? '미정',
     },
-    demographics: null,
-    mediaMix: normalizeMediaMix(d.mediaMix?.length ? d.mediaMix : mediaMixByTitle(d.title)),
+    demographics: mapDemographics(d.demographics),
+    mediaMix: normalizeMediaMix(d.mediaMix ?? []),
   }
 }

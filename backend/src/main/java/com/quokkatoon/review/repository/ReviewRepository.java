@@ -14,6 +14,22 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findByWebtoonIdAndDeletedFalseOrderByLikeCountDescCreatedAtDesc(Long webtoonId);
     Optional<Review> findByUserIdAndWebtoonId(Long userId, Long webtoonId);
 
+    @Query("""
+            select r from Review r
+            join fetch r.user
+            join fetch r.webtoon
+            where r.user.id = :userId and r.deleted = false
+            order by r.createdAt desc
+            """)
+    List<Review> findByUserIdAndDeletedFalseOrderByCreatedAtDesc(@Param("userId") Long userId);
+
+    @Query("""
+            select r from Review r
+            join fetch r.user
+            where r.webtoon.id = :webtoonId and r.deleted = false
+            """)
+    List<Review> findActiveWithUserByWebtoonId(@Param("webtoonId") Long webtoonId);
+
     long countByWebtoonIdAndDeletedFalse(Long webtoonId);
 
     @Query("select avg(r.rating) from Review r where r.webtoon.id = :webtoonId and r.deleted = false")

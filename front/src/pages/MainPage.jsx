@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { WEBTOONS } from '../data/webtoons'
 import { TEAM_PICK_IDS } from '../data/teamPicks'
 import { getWebtoonRanking } from '../api/webtoon'
 import { toCardModel } from '../lib/webtoon'
@@ -16,10 +15,6 @@ const PLACEHOLDER_QUERIES = [
   '빌런을 참교육하는 사이다 복수극…',
   '두뇌싸움이 짜릿한 다크 판타지…',
 ]
-
-const TEAM_PICKS = TEAM_PICK_IDS.map((id) => WEBTOONS.find((webtoon) => webtoon.id === id)).filter(
-  Boolean,
-)
 
 const QUICK_PROMPTS = [
   { label: '비 오는 날 힐링', query: '비 오는 날 편안하게 읽기 좋은 힐링 웹툰' },
@@ -379,9 +374,9 @@ export default function MainPage() {
 
   // Math.random()은 순수하지 않으므로 렌더 중이 아닌 클릭(이벤트 핸들러) 시점에 고른다.
   function goToTeamPick() {
-    if (TEAM_PICKS.length === 0) return
-    const featured = TEAM_PICKS[Math.floor(Math.random() * TEAM_PICKS.length)]
-    navigate(webtoonHref(featured))
+    if (TEAM_PICK_IDS.length === 0) return
+    const id = TEAM_PICK_IDS[Math.floor(Math.random() * TEAM_PICK_IDS.length)]
+    navigate(webtoonHref({ id }))
   }
 
   function focusAiSearch() {

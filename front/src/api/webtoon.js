@@ -28,9 +28,14 @@ export async function searchWebtoons({
   return api.get(`/api/webtoons?${params.toString()}`, { auth: false })
 }
 
-/** 웹툰 상세 */
+/** 웹툰 상세 (조회수 미증가) */
 export async function getWebtoon(id) {
   return api.get(`/api/webtoons/${id}`, { auth: false })
+}
+
+/** 상세 페이지 진입 시 조회수 +1 (갱신된 viewCount 반환) */
+export async function recordWebtoonView(id) {
+  return api.post(`/api/webtoons/${id}/view`, undefined, { auth: false })
 }
 
 /** 홈 TOP N 랭킹 (리뷰 수 → 조회수 → 최근 리뷰) */

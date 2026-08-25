@@ -10,37 +10,48 @@ function formatCount(n) {
   return value.toLocaleString()
 }
 
+/** 정렬별 메타. 최신순은 0이어도 조회·평점·리뷰 수를 보여 준다. */
 function SortMeta({ sort, webtoon }) {
-  const rating = webtoon.ratingAvg ?? webtoon.stats?.ratingAvg
-  const views = webtoon.viewCount ?? webtoon.stats?.views ?? 0
-  const bookmarks = webtoon.bookmarkCount ?? webtoon.stats?.bookmarkCount ?? 0
-  const ratingCount = webtoon.ratingCount ?? webtoon.stats?.ratingCount ?? 0
+  const ratingRaw = webtoon.ratingAvg ?? webtoon.stats?.ratingAvg
+  const rating = ratingRaw != null && Number(ratingRaw) > 0 ? Number(ratingRaw) : null
+  const views = Number(webtoon.viewCount ?? webtoon.stats?.views ?? 0) || 0
+  const bookmarks = Number(webtoon.bookmarkCount ?? webtoon.stats?.bookmarkCount ?? 0) || 0
+  const ratingCount = Number(webtoon.ratingCount ?? webtoon.stats?.ratingCount ?? 0) || 0
 
   if (sort === 'bookmark') {
-    return <p className="truncate text-xs text-ink-500">북마크 {formatCount(bookmarks)}</p>
+    return <p className="mt-2 truncate text-xs text-ink-500">북마크 {formatCount(bookmarks)}</p>
   }
   if (sort === 'views') {
-    return <p className="truncate text-xs text-ink-500">조회 {formatCount(views)}</p>
+    return <p className="mt-2 truncate text-xs text-ink-500">조회 {formatCount(views)}</p>
   }
-  if (sort === 'rating') {
-    const avg = rating != null ? Number(rating).toFixed(1) : '—'
+  if (sort === 'rating' || sort === 'reviews') {
     return (
-      <p className="truncate text-xs text-ink-500">
-        ★ {avg} · 리뷰 {formatCount(ratingCount)}
+      <p className="mt-2 truncate text-xs text-ink-500">
+        ★ {rating != null ? rating.toFixed(1) : '—'}
+        {` · 리뷰 ${formatCount(ratingCount)}`}
       </p>
     )
   }
-  if (rating != null) {
-    return <p className="truncate text-xs text-ink-500">★ {Number(rating).toFixed(1)}</p>
-  }
-  return null
+
+  // latest 등: 0이어도 조회·평점·리뷰 표시
+  return (
+    <p className="mt-2 truncate text-xs text-ink-500">
+      {[
+        `★ ${rating != null ? rating.toFixed(1) : '—'}`,
+        `리뷰 ${formatCount(ratingCount)}`,
+        `조회 ${formatCount(views)}`,
+        bookmarks > 0 ? `북마크 ${formatCount(bookmarks)}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
+    </p>
+  )
 }
 
 export default function WebtoonCard({ webtoon, showPlatform = true, rank, sort, className = '' }) {
   const { id, title } = webtoon
   const [imgOk, setImgOk] = useState(true)
 
-  // 실데이터/mock 양쪽 지원
   const thumbnailUrl = webtoon.thumbnailUrl
   const gradient = webtoon.coverGradient ?? coverGradientFor(id)
   const platformName = webtoon.platformName ?? webtoon.platforms?.[0]?.name
@@ -84,8 +95,8 @@ export default function WebtoonCard({ webtoon, showPlatform = true, rank, sort, 
           </span>
         )}
       </div>
-      <p className="mt-2 truncate text-sm font-semibold text-ink-900">{title}</p>
       <SortMeta sort={sort} webtoon={webtoon} />
+      <p className="mt-1 truncate text-sm font-semibold text-ink-900">{title}</p>
     </Link>
   )
 }

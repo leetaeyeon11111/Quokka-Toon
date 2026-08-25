@@ -6,7 +6,6 @@ import MyPageShell from '../../components/mypage/MyPageShell'
 import WebtoonCardCarousel from '../../components/webtoon/WebtoonCardCarousel'
 import LifeWorksModal from '../../components/mypage/LifeWorksModal'
 
-const RANK_LABELS = ['상위 44%', '상위 32%', '상위 24%']
 const RANK_ICONS = ['💗', '💜', '👑']
 
 export default function TastePage() {
@@ -50,7 +49,9 @@ export default function TastePage() {
   const topGenres = useMemo(() => {
     const counts = new Map()
     sourceWebtoons.forEach((w) => counts.set(w.genre, (counts.get(w.genre) ?? 0) + 1))
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+    const total = ranked.reduce((sum, [, c]) => sum + c, 0) || 1
+    return ranked.map(([genre, count]) => [genre, count, Math.round((count / total) * 100)])
   }, [sourceWebtoons])
 
   const topTags = useMemo(() => {
@@ -121,11 +122,11 @@ export default function TastePage() {
             <p className="mb-1 text-sm font-bold text-ink-900">장르</p>
             <p className="mb-4 text-xs text-ink-500">많이 보고 담은 장르를 분석했어요.</p>
             <div className="flex justify-around">
-              {topGenres.map(([genre], i) => (
+              {topGenres.map(([genre, , share], i) => (
                 <div key={genre} className="text-center">
                   <p className="mb-1 text-2xl">{RANK_ICONS[i]}</p>
                   <p className="text-sm font-bold text-ink-900">{genre}</p>
-                  <p className="text-xs text-ink-500">{RANK_LABELS[i]}</p>
+                  <p className="text-xs text-ink-500">비중 {share}%</p>
                 </div>
               ))}
             </div>
