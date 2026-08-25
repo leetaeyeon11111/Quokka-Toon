@@ -2,6 +2,7 @@ package com.quokkatoon.user.dto;
 
 import com.quokkatoon.user.entity.Gender;
 import com.quokkatoon.user.entity.User;
+import com.quokkatoon.user.profile.AdminProfileIcon;
 import com.quokkatoon.user.profile.DefaultProfileIcon;
 import com.quokkatoon.level.dto.LevelProgressResponse;
 
@@ -27,15 +28,19 @@ public record UserResponse(
         int dailyExpCap,
         boolean maxLevel,
         int warningCount,
-        String role
+        String role,
+        String status
 ) {
     public static UserResponse from(User user, LevelProgressResponse progress) {
+        String profileImageUrl = user.isAdmin()
+                ? AdminProfileIcon.IMAGE_URL
+                : user.getProfileImageUrl();
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getNickname(),
-                user.getProfileImageUrl(),
-                DefaultProfileIcon.fromImageUrl(user.getProfileImageUrl())
+                profileImageUrl,
+                DefaultProfileIcon.fromImageUrl(profileImageUrl)
                         .map(DefaultProfileIcon::id)
                         .orElse(null),
                 user.getGender(),
@@ -51,7 +56,8 @@ public record UserResponse(
                 progress.dailyExpCap(),
                 progress.maxLevel(),
                 user.getWarningCount(),
-                user.getRole().name()
+                user.getRole().name(),
+                user.getStatus().name()
         );
     }
 }

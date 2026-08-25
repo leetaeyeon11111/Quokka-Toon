@@ -1,7 +1,11 @@
 package com.quokkatoon.global.config;
 
+import tools.jackson.databind.ObjectMapper;
 import com.quokkatoon.global.jwt.JwtAuthenticationFilter;
 import com.quokkatoon.global.jwt.JwtProvider;
+import com.quokkatoon.global.security.BannedUserFilter;
+import com.quokkatoon.user.repository.UserRepository;
+import com.quokkatoon.user.service.BanService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,9 +27,16 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtProvider jwtProvider;
+    private final UserRepository userRepository;
+    private final BanService banService;
+    private final ObjectMapper objectMapper;
 
-    public SecurityConfig(JwtProvider jwtProvider) {
+    public SecurityConfig(JwtProvider jwtProvider, UserRepository userRepository,
+                          BanService banService, ObjectMapper objectMapper) {
         this.jwtProvider = jwtProvider;
+        this.userRepository = userRepository;
+        this.banService = banService;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -38,7 +49,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // 현재 회원 조회는 로그인 필요 (permitAll 보다 먼저 선언)
-                .requestMatchers("/api/auth/me", "/api/auth/me/**").authenticated()
+                .requestMatchers("/api/auth/me", "/api/auth/me/**", "/api/auth/ban-status").authenticated()
                 // 인증 없이 접근 가능
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/webtoons/**").permitAll()
@@ -53,7 +64,9 @@ public class SecurityConfig {
                 // 그 외는 로그인 필요
                 .anyRequest().authenticated())
             .addFilterBefore(new JwtAuthenticationFilter(jwtProvider),
-                    UsernamePasswordAuthenticationFilter.class);
+                    UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(new BannedUserFilter(userRepository, banService, objectMapper),
+                    JwtAuthenticationFilter.class);
         return http.build();
     }
 

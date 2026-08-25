@@ -338,57 +338,6 @@ function AdminListSection() {
   )
 }
 
-// 프로필 아이콘 변경 모달
-function ProfileImageModal({ current, onClose, onSaved }) {
-  const [selected, setSelected] = useState(current || DEFAULT_PROFILE_ICON)
-  const [saving, setSaving] = useState(false)
-
-  async function handleSave() {
-    setSaving(true)
-    try {
-      await authApi.updateProfileImage(selected)
-      await onSaved()
-      onClose()
-    } catch (err) {
-      alert(err.message ?? '변경에 실패했어요.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-2xl bg-white p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <p className="mb-4 text-base font-bold text-ink-900">프로필 아이콘 선택</p>
-        <ProfileIconPicker value={selected} onChange={setSelected} />
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-500 hover:bg-ink-50"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="rounded-full bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {saving ? '저장 중…' : '저장'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function InfoPage() {
   const { user, isAdmin, refresh } = useAuth()
 
@@ -424,14 +373,6 @@ export default function InfoPage() {
         <p className="mb-1 text-sm font-bold text-ink-900">프로필 아이콘</p>
         <ProfileIconPicker selectedId={user.profileIconId} onSaved={() => refresh()} />
       </div>
-
-      {showIconPicker && (
-        <ProfileImageModal
-          current={user.profileImageUrl}
-          onClose={() => setShowIconPicker(false)}
-          onSaved={refresh}
-        />
-      )}
 
       <div className="rounded-2xl border border-ink-100 bg-white px-5">
         <p className="pt-4 text-sm font-bold text-ink-900">계정 관리</p>

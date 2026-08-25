@@ -14,4 +14,13 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
     long countByPostIdAndDeletedFalse(Long postId);
 
     List<Comment> findByPostIdOrderByCreatedAtAsc(Long postId);
+
+    @Query("""
+            SELECT c FROM Comment c
+            JOIN FETCH c.post p
+            JOIN FETCH p.category
+            WHERE c.user.id = :userId AND c.deleted = false
+            ORDER BY c.createdAt DESC
+            """)
+    List<Comment> findMyComments(@Param("userId") Long userId);
 }

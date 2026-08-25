@@ -64,6 +64,24 @@ export function banFromReport(reportId, { duration, reason, deletePost }) {
   return api.post(`/api/admin/reports/${reportId}/ban`, { duration, reason, deletePost })
 }
 
+// ---- 벤 관리 ----
+function mapBannedUser(u) {
+  return {
+    ...u,
+    bannedWhen: formatDate(u.bannedAt),
+    expiresWhen: u.expiresAt ? formatDate(u.expiresAt) : '영구',
+  }
+}
+
+export async function listBannedUsers() {
+  const list = await api.get('/api/admin/bans')
+  return list.map(mapBannedUser)
+}
+
+export function unbanUser(userId) {
+  return api.post(`/api/admin/bans/${userId}/unban`)
+}
+
 // ---- 추천 검색어(메인페이지 버튼) 관리 ----
 export function listQuickPrompts() {
   return api.get('/api/admin/quick-prompts')

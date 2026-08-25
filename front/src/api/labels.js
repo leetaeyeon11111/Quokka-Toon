@@ -35,9 +35,3 @@ export const REPORT_TYPE_TO_ENUM = {
 export const REPORT_TYPE_TO_LABEL = Object.fromEntries(
   Object.entries(REPORT_TYPE_TO_ENUM).map(([k, v]) => [v, k]),
 )
-
-export const REPORT_STATUS_TO_LABEL = {
-  PENDING: '미처리',
-  RESOLVED: '완료',
-  REJECTED: '반려',
-}

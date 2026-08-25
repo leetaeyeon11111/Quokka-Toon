@@ -12,8 +12,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e) {
+    public ResponseEntity<ApiResponse<Object>> handleBusiness(BusinessException e) {
         ErrorCode code = e.getErrorCode();
+        if (e.getDetail() != null) {
+            return ResponseEntity.status(code.getStatus())
+                    .body(ApiResponse.fail(code.getMessage(), code.name(), e.getDetail()));
+        }
         return ResponseEntity.status(code.getStatus()).body(ApiResponse.fail(code.getMessage()));
     }
 

@@ -10,6 +10,7 @@ public record SignupRequest(
         @Email @NotBlank String email,
         @NotBlank @Size(min = 8, max = 64) String password,
         @NotBlank @Size(max = 6) String nickname,
+        @Size(max = 500) String profileImageUrl,
         Gender gender,
         LocalDate birthDate
 ) {}

@@ -8,11 +8,9 @@ import com.quokkatoon.level.service.AttendanceService;
 import com.quokkatoon.level.service.ExperienceService;
 import com.quokkatoon.user.dto.*;
 import com.quokkatoon.user.entity.User;
+import com.quokkatoon.user.profile.AdminProfileIcon;
 import com.quokkatoon.user.profile.DefaultProfileIcon;
 import com.quokkatoon.user.repository.UserRepository;
-import com.quokkatoon.level.dto.LevelProgressResponse;
-import com.quokkatoon.level.service.AttendanceService;
-import com.quokkatoon.level.service.ExperienceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,6 +27,7 @@ public class AuthService {
     private final JwtProvider jwtProvider;
     private final AttendanceService attendanceService;
     private final ExperienceService experienceService;
+    private final BanService banService;
 
     // STEP 1: 이메일 중복 확인
     @Transactional(readOnly = true)
@@ -81,7 +80,7 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
         if (user.isBanned()) {
-            throw new BusinessException(ErrorCode.USER_BANNED);
+            throw new BusinessException(ErrorCode.USER_BANNED, banService.getBanStatus(user.getId()));
         }
         String token = jwtProvider.createToken(user.getId(), user.getRole().name());
         return new TokenResponse(token, user.getId(), user.getNickname(),
@@ -91,11 +90,19 @@ public class AuthService {
     // 현재 로그인한 회원 정보 조회 (GET /api/auth/me)
     @Transactional
     public UserResponse getMe(Long userId) {
-        attendanceService.processFirstMeCallOfDay(userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (user.isBanned()) {
+            throw new BusinessException(ErrorCode.USER_BANNED, banService.getBanStatus(userId));
+        }
+        attendanceService.processFirstMeCallOfDay(userId);
         LevelProgressResponse progress = experienceService.getProgress(userId);
         return UserResponse.from(user, progress);
+    }
+
+    @Transactional(readOnly = true)
+    public BanStatusResponse getBanStatus(Long userId) {
+        return banService.getBanStatus(userId);
     }
 
     @Transactional(readOnly = true)

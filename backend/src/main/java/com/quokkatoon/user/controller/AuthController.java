@@ -49,6 +49,12 @@ public class AuthController {
         return ApiResponse.ok(authService.getMe(userId));
     }
 
+    /** 정지 계정 안내 (정지 상태여도 조회 가능) */
+    @GetMapping("/ban-status")
+    public ApiResponse<BanStatusResponse> banStatus(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.ok(authService.getBanStatus(userId));
+    }
+
     @GetMapping("/profile-icons")
     public ApiResponse<List<ProfileIconResponse>> profileIcons() {
         return ApiResponse.ok(authService.listProfileIcons());

@@ -399,6 +399,108 @@ function InquiriesTab({ historyOnly }) {
   )
 }
 
+function BansTab() {
+  const { alert: showAlert, confirm: showConfirm } = useDialog()
+  const [bans, setBans] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState(null)
+
+  async function reload() {
+    setLoading(true)
+    try {
+      setBans(await adminApi.listBannedUsers())
+    } catch {
+      setBans([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    reload()
+  }, [])
+
+  async function handleUnban(user) {
+    const ok = await showConfirm({
+      title: '정지 해제',
+      message: `${user.nickname} 님의 정지를 해제할까요?`,
+      confirmLabel: '정지 해제',
+      cancelLabel: '취소',
+      tone: 'default',
+    })
+    if (!ok) return
+    setBusyId(user.userId)
+    try {
+      await adminApi.unbanUser(user.userId)
+      setBans((prev) => prev.filter((b) => b.userId !== user.userId))
+      showAlert('정지를 해제했어요.')
+    } catch (err) {
+      showAlert(err.message ?? '정지 해제에 실패했어요.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <div>
+      <p className="mb-4 text-sm text-ink-500">
+        현재 정지(벤) 상태인 회원 목록이에요. 정지를 해제하면 바로 로그인·이용이 가능합니다.
+      </p>
+
+      {loading ? (
+        <p className="py-16 text-center text-sm text-ink-500">불러오는 중…</p>
+      ) : bans.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-ink-100 bg-white py-16 text-center text-sm text-ink-500">
+          정지 중인 회원이 없어요.
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-ink-100 bg-white">
+          <div className="mb-0 flex items-center justify-between border-b border-ink-100 px-4 py-3">
+            <span className="text-sm font-semibold text-ink-500">정지 {bans.length}명</span>
+            <button
+              type="button"
+              onClick={reload}
+              className="text-xs font-semibold text-brand-600 hover:underline"
+            >
+              새로고침
+            </button>
+          </div>
+          <ul className="divide-y divide-ink-50">
+            {bans.map((user) => (
+              <li key={user.userId} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-ink-900">
+                    {user.nickname}{' '}
+                    <span className="font-normal text-ink-400">#{user.userId}</span>
+                  </p>
+                  <p className="truncate text-xs text-ink-500">{user.email}</p>
+                  <p className="mt-1 text-xs text-ink-700">
+                    <span className="rounded-full bg-red-50 px-2 py-0.5 font-semibold text-red-600">
+                      {user.durationLabel}
+                    </span>{' '}
+                    · 사유: {user.reason}
+                  </p>
+                  <p className="mt-1 text-[11px] text-ink-400">
+                    처리 {user.bannedWhen || '-'} · 만료 {user.expiresWhen}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busyId === user.userId}
+                  onClick={() => handleUnban(user)}
+                  className="shrink-0 rounded-full border border-mint-500/40 bg-mint-100 px-4 py-2 text-xs font-semibold text-mint-500 transition hover:bg-mint-500 hover:text-white disabled:opacity-50"
+                >
+                  {busyId === user.userId ? '처리 중…' : '정지 해제'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function QuickPromptsTab() {
   const [prompts, setPrompts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -569,6 +671,7 @@ function QuickPromptsTab() {
 const TABS = [
   { id: 'reports', label: '신고함' },
   { id: 'reportHistory', label: '신고 완료 기록' },
+  { id: 'bans', label: '벤 관리' },
   { id: 'inquiries', label: '문의게시판' },
   { id: 'inquiryHistory', label: '문의 완료 기록' },
   { id: 'quickPrompts', label: '추천 검색어' },
@@ -577,6 +680,7 @@ const TABS = [
 const TITLES = {
   reports: '신고함 — 작성자 제재',
   reportHistory: '신고 완료 기록',
+  bans: '벤 관리 — 정지 해제',
   inquiries: '문의게시판 관리',
   inquiryHistory: '문의 완료 기록',
   quickPrompts: '메인 추천 검색어 관리',
@@ -615,6 +719,7 @@ export default function AdminConsolePage() {
 
       {tab === 'reports' && <ReportsTab historyOnly={false} />}
       {tab === 'reportHistory' && <ReportsTab historyOnly />}
+      {tab === 'bans' && <BansTab />}
       {tab === 'inquiries' && <InquiriesTab historyOnly={false} />}
       {tab === 'inquiryHistory' && <InquiriesTab historyOnly />}
       {tab === 'quickPrompts' && <QuickPromptsTab />}

@@ -62,6 +62,19 @@ public class ReportService {
                 .toList();
     }
 
+    // 관리자: 상태별 신고 목록. status = PENDING(기본) | HANDLED(처리완료) | ALL
+    @Transactional(readOnly = true)
+    public List<ReportResponse> getByStatus(String status) {
+        String key = status == null ? "PENDING" : status.trim().toUpperCase();
+        List<Report> reports = switch (key) {
+            case "HANDLED" -> reportRepository.findByStatusInOrderByHandledAtDescCreatedAtDesc(
+                    List.of(ReportStatus.RESOLVED, ReportStatus.REJECTED));
+            case "ALL" -> reportRepository.findAllByOrderByCreatedAtDesc();
+            default -> reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.PENDING);
+        };
+        return reports.stream().map(this::toResponse).toList();
+    }
+
     // 관리자: 처리 완료(제재/반려) 신고 기록
     @Transactional(readOnly = true)
     public List<ReportResponse> getHandled() {

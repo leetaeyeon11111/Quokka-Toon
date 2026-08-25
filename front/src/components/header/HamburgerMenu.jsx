@@ -110,6 +110,9 @@ export default function HamburgerMenu({ onClose }) {
           <MenuLink to="/admin" onClose={onClose}>
             신고함 / 문의게시판
           </MenuLink>
+          <MenuLink to="/admin?tab=bans" onClose={onClose}>
+            벤 관리
+          </MenuLink>
           <MenuLink to="/admin?tab=reportHistory" onClose={onClose}>
             신고 완료 기록
           </MenuLink>

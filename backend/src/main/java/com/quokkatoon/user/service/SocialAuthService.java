@@ -33,6 +33,7 @@ public class SocialAuthService {
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final JwtProvider jwtProvider;
+    private final BanService banService;
 
     @Value("${oauth.kakao.rest-key}")
     private String kakaoRestKey;
@@ -143,7 +144,7 @@ public class SocialAuthService {
                 .orElseGet(() -> linkOrCreate(provider, uid, email, nickname, image));
 
         if (user.isBanned()) {
-            throw new BusinessException(ErrorCode.USER_BANNED);
+            throw new BusinessException(ErrorCode.USER_BANNED, banService.getBanStatus(user.getId()));
         }
         String jwt = jwtProvider.createToken(user.getId(), user.getRole().name());
         return new TokenResponse(jwt, user.getId(), user.getNickname(), user.getLevel(), user.getRole().name());

@@ -8,6 +8,7 @@ import com.quokkatoon.user.entity.AdminRequest;
 import com.quokkatoon.user.entity.AdminRequestStatus;
 import com.quokkatoon.user.entity.Role;
 import com.quokkatoon.user.entity.User;
+import com.quokkatoon.user.profile.AdminProfileIcon;
 import com.quokkatoon.user.repository.AdminRequestRepository;
 import com.quokkatoon.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -58,6 +59,7 @@ public class AdminRequestService {
     public void approve(Long requestId) {
         AdminRequest req = getRequest(requestId);
         req.getUser().promoteToAdmin();
+        req.getUser().updateProfileImageUrl(AdminProfileIcon.IMAGE_URL);
         req.approve();
     }
 
