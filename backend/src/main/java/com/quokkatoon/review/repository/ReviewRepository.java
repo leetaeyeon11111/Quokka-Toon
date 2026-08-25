@@ -14,6 +14,11 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     List<Review> findByWebtoonIdAndDeletedFalseOrderByLikeCountDescCreatedAtDesc(Long webtoonId);
     Optional<Review> findByUserIdAndWebtoonId(Long userId, Long webtoonId);
 
+    // 내가 쓴 리뷰 (웹툰 정보까지 함께 로딩). 삭제된 리뷰는 제외.
+    @Query("select r from Review r join fetch r.webtoon "
+            + "where r.user.id = :userId and r.deleted = false order by r.createdAt desc")
+    List<Review> findMyReviews(@Param("userId") Long userId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Review r where r.id = :id")
     Optional<Review> findByIdForUpdate(@Param("id") Long id);

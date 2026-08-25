@@ -7,6 +7,7 @@ import com.quokkatoon.level.dto.ActionResponse;
 import com.quokkatoon.level.dto.ExpChangeResponse;
 import com.quokkatoon.level.entity.LevelActionType;
 import com.quokkatoon.level.service.ExperienceService;
+import com.quokkatoon.review.dto.MyReviewItem;
 import com.quokkatoon.review.dto.ReviewLikeResponse;
 import com.quokkatoon.review.dto.ReviewRequest;
 import com.quokkatoon.review.dto.ReviewResponse;
@@ -32,6 +33,13 @@ public class ReviewService {
     private final UserRepository userRepository;
     private final WebtoonRepository webtoonRepository;
     private final ExperienceService experienceService;
+
+    // 내가 쓴 리뷰 (마이페이지)
+    @Transactional(readOnly = true)
+    public List<MyReviewItem> getMyReviews(Long userId) {
+        return reviewRepository.findMyReviews(userId).stream()
+                .map(MyReviewItem::of).toList();
+    }
 
     @Transactional(readOnly = true)
     public List<ReviewResponse> getReviews(Long webtoonId, Long currentUserId) {

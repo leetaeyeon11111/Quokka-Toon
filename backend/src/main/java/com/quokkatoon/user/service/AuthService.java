@@ -49,10 +49,19 @@ public class AuthService {
                 .email(req.email())
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .nickname(req.nickname())
+                .profileImageUrl(req.profileImageUrl())
                 .gender(req.gender())
                 .birthDate(req.birthDate())
                 .build();
         return userRepository.save(user).getId();
+    }
+
+    // 마이페이지: 프로필 이미지(아이콘) 변경
+    @Transactional
+    public void updateProfileImage(Long userId, String profileImageUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.updateProfileImage(profileImageUrl);
     }
 
     // 로그인 → JWT 발급

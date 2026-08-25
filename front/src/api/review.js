@@ -13,6 +13,11 @@ export async function listReviews(webtoon) {
   return api.get(`/api/webtoons/${await backendWebtoonId(webtoon)}/reviews`)
 }
 
+/** 내가 쓴 리뷰 (로그인 필요) */
+export function listMyReviews() {
+  return api.get('/api/reviews/mine')
+}
+
 export async function createReview(webtoon, payload) {
   return api.post(`/api/webtoons/${await backendWebtoonId(webtoon)}/reviews`, payload)
 }

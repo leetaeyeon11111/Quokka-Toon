@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as authApi from '../api/auth'
 import { goKakaoAuthorize, goNaverAuthorize } from '../api/social'
+import ProfileIconPicker from '../components/common/ProfileIconPicker'
+import { DEFAULT_PROFILE_ICON } from '../data/profileIcons'
 
 const STEP_MESSAGES = [
   '이메일이랑 비밀번호 입력해줄래?',
@@ -82,6 +84,7 @@ export default function SignupPage() {
 
   const [nickname, setNickname] = useState('')
   const [nicknameStatus, setNicknameStatus] = useState('idle')
+  const [profileIcon, setProfileIcon] = useState(DEFAULT_PROFILE_ICON)
 
   const passwordTooShort = password.length > 0 && password.length < 8
 
@@ -159,6 +162,7 @@ export default function SignupPage() {
         email: email.trim(),
         password,
         nickname: nickname.trim(),
+        profileImageUrl: profileIcon,
         gender: GENDER_MAP[gender] ?? 'NONE',
         birthDate: birth, // date input 값은 이미 'YYYY-MM-DD'
       })
@@ -359,6 +363,12 @@ export default function SignupPage() {
                   </div>
                   {nicknameStatus === 'available' && <p className="text-xs text-mint-500">사용 가능한 닉네임이에요.</p>}
                   {nicknameStatus === 'taken' && <p className="text-xs text-red-500">이미 사용 중인 닉네임이에요.</p>}
+
+                  <div className="mt-1">
+                    <p className="mb-2 text-xs font-semibold text-ink-500">프로필 아이콘</p>
+                    <ProfileIconPicker value={profileIcon} onChange={setProfileIcon} />
+                  </div>
+
                   {error && <p className="text-xs text-red-500">{error}</p>}
 
                   <button
@@ -378,8 +388,8 @@ export default function SignupPage() {
         </div>
       ) : (
         <div className="flex flex-col items-center text-center">
-          <div className="mb-5 flex h-28 w-28 items-center justify-center rounded-2xl border border-ink-100 bg-brand-50 text-4xl">
-            🐿🎉
+          <div className="mb-5 h-28 w-28 overflow-hidden rounded-2xl border border-ink-100 bg-brand-50">
+            <img src={profileIcon} alt="선택한 프로필 아이콘" className="h-full w-full object-cover" />
           </div>
           <h1 className="mb-2 text-2xl font-bold text-ink-900">{nickname}님, 환영해요 🎉</h1>
           <p className="mb-6 text-sm text-ink-500">

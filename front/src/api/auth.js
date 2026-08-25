@@ -35,3 +35,8 @@ export function login(payload) {
 export function getMe() {
   return api.get('/api/auth/me')
 }
+
+/** 프로필 이미지(아이콘) 변경 (토큰 필요) */
+export function updateProfileImage(profileImageUrl) {
+  return api.patch('/api/auth/me/profile-image', { profileImageUrl })
+}

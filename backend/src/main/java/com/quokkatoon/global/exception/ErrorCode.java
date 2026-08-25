@@ -15,6 +15,8 @@ public enum ErrorCode {
     SOCIAL_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "소셜 로그인에 실패했습니다."),
     WEBTOON_NOT_FOUND(HttpStatus.NOT_FOUND, "웹툰을 찾을 수 없습니다."),
     RECOMMEND_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "추천 서버 호출에 실패했습니다."),
+    WEBTOON_LINK_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "바로 보기 링크를 가져오지 못했습니다."),
+    UNSUPPORTED_PLATFORM(HttpStatus.BAD_REQUEST, "지원하지 않는 플랫폼입니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "게시글을 찾을 수 없습니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "댓글을 찾을 수 없습니다."),
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "리뷰를 찾을 수 없습니다."),
@@ -30,6 +32,7 @@ public enum ErrorCode {
     ADMIN_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "승격 요청을 찾을 수 없습니다."),
     CANNOT_REVOKE_SELF(HttpStatus.BAD_REQUEST, "본인의 관리자 권한은 해제할 수 없습니다."),
     NOT_ADMIN(HttpStatus.BAD_REQUEST, "관리자가 아닌 사용자입니다."),
+    QUICK_PROMPT_NOT_FOUND(HttpStatus.NOT_FOUND, "추천 검색어를 찾을 수 없습니다."),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
 

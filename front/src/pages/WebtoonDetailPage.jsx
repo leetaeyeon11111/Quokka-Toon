@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { getWebtoon, searchWebtoons } from '../api/webtoon'
+import { getWebtoon, getWebtoonViewLink, searchWebtoons } from '../api/webtoon'
 import { toDetailModel, toCardModel } from '../lib/webtoon'
 import { useAuth } from '../hooks/useAuth'
 import { useAppData } from '../hooks/useAppData'
@@ -56,6 +56,7 @@ export default function WebtoonDetailPage() {
   const [webtoonLoading, setWebtoonLoading] = useState(true)
   const [webtoonError, setWebtoonError] = useState(false)
   const [heroImgOk, setHeroImgOk] = useState(true)
+  const [viewLinkLoading, setViewLinkLoading] = useState(false)
 
   const [otherWorks, setOtherWorks] = useState([])
   const [similarWorks, setSimilarWorks] = useState([])
@@ -201,6 +202,26 @@ export default function WebtoonDetailPage() {
 
   function handleToggleLifeWork() {
     requireLogin(() => toggleLifeWork(webtoon.id))
+  }
+
+  // "~에서 보기": 클릭 시 백엔드 /view-link 를 호출해 클라우드가 만든 정확한 링크로 이동.
+  // 팝업 차단을 피하려고 클릭 즉시 빈 탭을 열고, 링크가 확정되면 그 탭을 이동시킨다.
+  async function handleOpenPlatform(fallbackUrl) {
+    const win = window.open('about:blank', '_blank')
+    if (win) win.opener = null
+    setViewLinkLoading(true)
+    try {
+      const res = await getWebtoonViewLink(webtoon.backendId ?? webtoon.id)
+      const target = res?.url || fallbackUrl
+      if (win) win.location.href = target
+      else window.open(target, '_blank', 'noopener,noreferrer')
+    } catch {
+      // 조회 실패 시 로컬 링크로라도 이동
+      if (win) win.location.href = fallbackUrl
+      else window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
+    } finally {
+      setViewLinkLoading(false)
+    }
   }
 
   async function submitReview(e) {
@@ -352,15 +373,15 @@ export default function WebtoonDetailPage() {
               {isLifeWork ? '❤️ 인생작 담김' : '🤍 인생작 담기'}
             </button>
             {webtoon.platforms.map((p) => (
-              <a
+              <button
                 key={p.name}
-                href={p.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-1 rounded-full bg-mint-500 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                type="button"
+                onClick={() => handleOpenPlatform(p.url)}
+                disabled={viewLinkLoading}
+                className="flex items-center gap-1 rounded-full bg-mint-500 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-progress disabled:opacity-60"
               >
-                ▶ {p.name}에서 보기
-              </a>
+                {viewLinkLoading ? '링크 여는 중…' : `▶ ${p.name}에서 보기`}
+              </button>
             ))}
           </div>
           {!isLoggedIn && (

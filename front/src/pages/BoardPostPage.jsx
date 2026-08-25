@@ -231,21 +231,21 @@ export default function BoardPostPage() {
           type="button"
           onClick={() => handleReactPost('like')}
           aria-label={isLoggedIn ? `추천 ${post.likes}` : '로그인 후 추천 가능'}
-          className={`rounded-full px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-ink-100 text-ink-500'}`}
+          className={`cursor-pointer rounded-full px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-ink-100 text-ink-500'}`}
         >
           👍 추천 {post.likes}
         </button>
         <button
           type="button"
           onClick={() => handleReactPost('dislike')}
-          className={`rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'text-ink-700 hover:bg-ink-50' : 'bg-ink-50 text-ink-300'}`}
+          className={`cursor-pointer rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold transition ${isLoggedIn ? 'text-ink-700 hover:border-ink-300 hover:bg-ink-100 hover:text-ink-900' : 'bg-ink-50 text-ink-300'}`}
         >
           👎 비추천 {post.dislikes}
         </button>
         <button
           type="button"
           onClick={() => handleReport('POST', post.id)}
-          className={`rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'text-red-500 hover:bg-red-50' : 'bg-ink-50 text-ink-300'}`}
+          className={`cursor-pointer rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'text-red-500 hover:bg-red-50' : 'bg-ink-50 text-ink-300'}`}
         >
           🚩 신고
         </button>
@@ -266,7 +266,7 @@ export default function BoardPostPage() {
             maxLength={1000}
             className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none focus:border-brand-300"
           />
-          <button type="submit" className="rounded-full bg-ink-900 px-5 py-2.5 text-sm font-semibold text-white">
+          <button type="submit" className="cursor-pointer rounded-full bg-ink-900 px-5 py-2.5 text-sm font-semibold text-white">
             등록
           </button>
         </form>
@@ -334,7 +334,7 @@ export default function BoardPostPage() {
                   <button
                     type="button"
                     onClick={() => submitReply(comment.id)}
-                    className="rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white"
+                    className="cursor-pointer rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white"
                   >
                     등록
                   </button>

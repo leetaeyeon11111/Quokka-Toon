@@ -337,6 +337,173 @@ function InquiriesTab() {
   )
 }
 
+function QuickPromptsTab() {
+  const [prompts, setPrompts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [draft, setDraft] = useState({ label: '', query: '', sortOrder: '' })
+
+  useEffect(() => {
+    adminApi
+      .listQuickPrompts()
+      .then(setPrompts)
+      .catch(() => setPrompts([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  function changeField(id, field, value) {
+    setPrompts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+  }
+
+  async function handleSave(p) {
+    if (!p.label.trim() || !p.query.trim()) {
+      alert('버튼 글씨와 검색어를 모두 입력해주세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      const updated = await adminApi.updateQuickPrompt(p.id, {
+        label: p.label.trim(),
+        query: p.query.trim(),
+        sortOrder: Number(p.sortOrder) || 0,
+      })
+      setPrompts((prev) => prev.map((x) => (x.id === p.id ? updated : x)))
+      alert('저장했어요.')
+    } catch (err) {
+      alert(err.message ?? '저장에 실패했어요.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('이 추천 검색어를 삭제할까요?')) return
+    try {
+      await adminApi.deleteQuickPrompt(id)
+      setPrompts((prev) => prev.filter((p) => p.id !== id))
+    } catch (err) {
+      alert(err.message ?? '삭제에 실패했어요.')
+    }
+  }
+
+  async function handleAdd() {
+    if (!draft.label.trim() || !draft.query.trim()) {
+      alert('버튼 글씨와 검색어를 모두 입력해주세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      const created = await adminApi.createQuickPrompt({
+        label: draft.label.trim(),
+        query: draft.query.trim(),
+        sortOrder: Number(draft.sortOrder) || prompts.length + 1,
+      })
+      setPrompts((prev) => [...prev, created])
+      setDraft({ label: '', query: '', sortOrder: '' })
+    } catch (err) {
+      alert(err.message ?? '추가에 실패했어요.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <p className="mb-4 text-sm text-ink-500">
+        메인페이지 검색창 아래의 추천 검색어 버튼을 편집해요. <b>버튼 글씨</b>는 사용자에게 보이는 글자,{' '}
+        <b>검색어</b>는 버튼을 눌렀을 때 실제로 실행되는 문장이에요. <b>순서</b>가 작을수록 앞에 표시됩니다.
+      </p>
+
+      {loading ? (
+        <p className="py-16 text-center text-sm text-ink-500">불러오는 중…</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {prompts.map((p) => (
+            <div key={p.id} className="rounded-xl border border-dashed border-ink-200 bg-white p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  value={p.label}
+                  onChange={(e) => changeField(p.id, 'label', e.target.value)}
+                  placeholder="버튼 글씨"
+                  maxLength={50}
+                  className="w-full rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none sm:w-48"
+                />
+                <input
+                  value={p.query}
+                  onChange={(e) => changeField(p.id, 'query', e.target.value)}
+                  placeholder="검색어(클릭 시 실행)"
+                  maxLength={200}
+                  className="w-full flex-1 rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none"
+                />
+                <input
+                  value={p.sortOrder}
+                  onChange={(e) => changeField(p.id, 'sortOrder', e.target.value)}
+                  placeholder="순서"
+                  type="number"
+                  className="w-full rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none sm:w-20"
+                />
+                <div className="flex shrink-0 gap-1.5">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleSave(p)}
+                    className="rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    저장
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p.id)}
+                    className="rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* 새 추천 검색어 추가 */}
+          <div className="rounded-xl border border-dashed border-brand-200 bg-brand-50/40 p-4">
+            <p className="mb-2 text-xs font-semibold text-brand-600">+ 새 추천 검색어 추가</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={draft.label}
+                onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
+                placeholder="버튼 글씨"
+                maxLength={50}
+                className="w-full rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none sm:w-48"
+              />
+              <input
+                value={draft.query}
+                onChange={(e) => setDraft((d) => ({ ...d, query: e.target.value }))}
+                placeholder="검색어(클릭 시 실행)"
+                maxLength={200}
+                className="w-full flex-1 rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none"
+              />
+              <input
+                value={draft.sortOrder}
+                onChange={(e) => setDraft((d) => ({ ...d, sortOrder: e.target.value }))}
+                placeholder="순서"
+                type="number"
+                className="w-full rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none sm:w-20"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleAdd}
+                className="shrink-0 rounded-full bg-brand-500 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                추가
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AdminConsolePage() {
   const { isAdmin } = useAuth()
   const [tab, setTab] = useState('reports')
@@ -350,7 +517,11 @@ export default function AdminConsolePage() {
       <div className="mb-5 flex items-center gap-3">
         <span className="rounded-full bg-ink-900 px-3 py-1.5 text-xs font-bold text-white">🔒 관리자 전용</span>
         <h1 className="text-xl font-bold text-ink-900">
-          {tab === 'reports' ? '신고함 — 작성자 제재' : '문의게시판 관리'}
+          {tab === 'reports'
+            ? '신고함 — 작성자 제재'
+            : tab === 'inquiries'
+              ? '문의게시판 관리'
+              : '추천 검색어 관리'}
         </h1>
       </div>
 
@@ -373,9 +544,18 @@ export default function AdminConsolePage() {
         >
           문의게시판
         </button>
+        <button
+          type="button"
+          onClick={() => setTab('prompts')}
+          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+            tab === 'prompts' ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
+          }`}
+        >
+          추천 검색어
+        </button>
       </div>
 
-      {tab === 'reports' ? <ReportsTab /> : <InquiriesTab />}
+      {tab === 'reports' ? <ReportsTab /> : tab === 'inquiries' ? <InquiriesTab /> : <QuickPromptsTab />}
     </div>
   )
 }

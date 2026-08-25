@@ -31,6 +31,15 @@ export async function getWebtoon(id) {
   return api.get(`/api/webtoons/${id}`, { auth: false })
 }
 
+/**
+ * 바로 보기 링크. 백엔드가 로컬 external_url 이 검색 페이지면
+ * 클라우드 API(korea-webtoon-api)로 실제 딥링크를 실시간 조회해 반환한다.
+ * 응답: { url, platform, source: 'LOCAL' | 'CLOUD_API' }
+ */
+export async function getWebtoonViewLink(id) {
+  return api.get(`/api/webtoons/${id}/view-link`, { auth: false })
+}
+
 /** 필터 옵션 */
 export async function getGenreOptions() {
   return api.get('/api/webtoons/genres', { auth: false })

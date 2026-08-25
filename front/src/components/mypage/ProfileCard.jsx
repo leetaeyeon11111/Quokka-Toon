@@ -23,8 +23,12 @@ export default function ProfileCard() {
 
   return (
     <div className="w-full shrink-0 rounded-2xl border border-ink-100 bg-white p-5 sm:w-56">
-      <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-ink-50 text-3xl">
-        🐿
+      <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-ink-50 text-3xl">
+        {user.profileImageUrl ? (
+          <img src={user.profileImageUrl} alt="프로필" className="h-full w-full object-cover" />
+        ) : (
+          '🐿'
+        )}
       </div>
       <p className={`text-center text-base font-bold ${nicknameLevelClass(user.level)}`}>{user.nickname}</p>
       <button

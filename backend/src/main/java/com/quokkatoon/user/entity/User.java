@@ -68,15 +68,21 @@ public class User extends BaseTimeEntity {
 
     @Builder
     private User(String email, String passwordHash, String nickname,
-                 Gender gender, LocalDate birthDate) {
+                 String profileImageUrl, Gender gender, LocalDate birthDate) {
         this.email = email;
         this.passwordHash = passwordHash;
         this.nickname = nickname;
+        this.profileImageUrl = profileImageUrl;
         this.gender = gender;
         this.birthDate = birthDate;
         this.role = Role.USER;
         this.status = UserStatus.ACTIVE;
         this.level = 1;
+    }
+
+    // 마이페이지 프로필 이미지(아이콘) 변경
+    public void updateProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 
     // 소셜 전용 계정 (비밀번호 없음)

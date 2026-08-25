@@ -129,7 +129,7 @@ export default function BoardWritePage() {
         <button
           type="submit"
           disabled={submitting}
-          className="mt-1 rounded-full bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
+          className="cursor-pointer mt-1 rounded-full bg-brand-500 py-3 text-sm font-semibold text-white transition hover:bg-brand-600 disabled:opacity-50"
         >
           {submitting ? '등록 중…' : '등록'}
         </button>

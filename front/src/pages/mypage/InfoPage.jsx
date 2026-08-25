@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import * as adminReqApi from '../../api/adminRequest'
+import * as authApi from '../../api/auth'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
+import ProfileIconPicker from '../../components/common/ProfileIconPicker'
+import { DEFAULT_PROFILE_ICON } from '../../data/profileIcons'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
 
 function EditableRow({ label, value, locked, onSave, mask }) {
@@ -281,8 +284,60 @@ function AdminListSection() {
   )
 }
 
+// 프로필 아이콘 변경 모달
+function ProfileImageModal({ current, onClose, onSaved }) {
+  const [selected, setSelected] = useState(current || DEFAULT_PROFILE_ICON)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await authApi.updateProfileImage(selected)
+      await onSaved()
+      onClose()
+    } catch (err) {
+      alert(err.message ?? '변경에 실패했어요.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="mb-4 text-base font-bold text-ink-900">프로필 아이콘 선택</p>
+        <ProfileIconPicker value={selected} onChange={setSelected} />
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-ink-100 px-4 py-2 text-sm font-semibold text-ink-500 hover:bg-ink-50"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-full bg-ink-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {saving ? '저장 중…' : '저장'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function InfoPage() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, refresh } = useAuth()
+  const [showIconPicker, setShowIconPicker] = useState(false)
 
   if (!user) {
     return (
@@ -293,8 +348,12 @@ export default function InfoPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
       <div className="mb-6 flex items-center gap-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ink-50 text-2xl">
-          🐿
+        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-ink-50 text-2xl">
+          {user.profileImageUrl ? (
+            <img src={user.profileImageUrl} alt="프로필" className="h-full w-full object-cover" />
+          ) : (
+            '🐿'
+          )}
         </div>
         <div className="flex-1">
           <p className={`text-base font-bold ${nicknameLevelClass(user.level)}`}>{user.nickname}</p>
@@ -314,12 +373,20 @@ export default function InfoPage() {
         </div>
         <button
           type="button"
-          onClick={() => alert('프로필 사진 변경은 다음 업데이트에서 지원돼요.')}
+          onClick={() => setShowIconPicker(true)}
           className="shrink-0 rounded-full border border-ink-100 px-4 py-2 text-xs font-semibold text-ink-700 hover:bg-ink-50"
         >
           프로필 사진 변경
         </button>
       </div>
+
+      {showIconPicker && (
+        <ProfileImageModal
+          current={user.profileImageUrl}
+          onClose={() => setShowIconPicker(false)}
+          onSaved={refresh}
+        />
+      )}
 
       <div className="rounded-2xl border border-ink-100 bg-white px-5">
         <p className="pt-4 text-sm font-bold text-ink-900">계정 관리</p>

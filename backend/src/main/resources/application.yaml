@@ -33,6 +33,10 @@ jwt:
 recommend:
   base-url: ${RECOMMEND_URL:http://localhost:8000}
 
+# 웹툰 메타/바로보기 링크 제공 API (korea-webtoon-api, Express 서버)
+webtoon-api:
+  base-url: ${WEBTOON_API_URL:http://localhost:3000}
+
 # 소셜 로그인 — 실제 키/시크릿은 secret.properties 또는 환경변수로 주입 (커밋 금지)
 oauth:
   kakao:

@@ -47,6 +47,14 @@ public class AuthController {
         return ApiResponse.ok(authService.getMe(userId));
     }
 
+    // 프로필 이미지(아이콘) 변경 (JWT 필요)
+    @PatchMapping("/me/profile-image")
+    public ApiResponse<Void> updateProfileImage(@AuthenticationPrincipal Long userId,
+                                                @Valid @RequestBody UpdateProfileImageRequest req) {
+        authService.updateProfileImage(userId, req.profileImageUrl());
+        return ApiResponse.ok(null);
+    }
+
     // 소셜 로그인 — 프론트 콜백에서 받은 인가 코드를 전달
     @PostMapping("/social/kakao")
     public ApiResponse<TokenResponse> kakao(@Valid @RequestBody SocialLoginRequest req) {

@@ -2,6 +2,7 @@ package com.quokkatoon.review.controller;
 
 import com.quokkatoon.global.common.ApiResponse;
 import com.quokkatoon.level.dto.ActionResponse;
+import com.quokkatoon.review.dto.MyReviewItem;
 import com.quokkatoon.review.dto.ReviewLikeResponse;
 import com.quokkatoon.review.dto.ReviewRequest;
 import com.quokkatoon.review.dto.ReviewResponse;
@@ -23,6 +24,12 @@ public class ReviewController {
     public ApiResponse<List<ReviewResponse>> list(@PathVariable Long webtoonId,
                                                   @AuthenticationPrincipal Long userId) {
         return ApiResponse.ok(reviewService.getReviews(webtoonId, userId));
+    }
+
+    // 내가 쓴 리뷰 (로그인)
+    @GetMapping("/reviews/mine")
+    public ApiResponse<List<MyReviewItem>> myReviews(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.ok(reviewService.getMyReviews(userId));
     }
 
     @PostMapping("/webtoons/{webtoonId}/reviews")

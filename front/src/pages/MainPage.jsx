@@ -7,6 +7,7 @@ import FeaturePromoCarousel from '../components/home/ContinuousFeaturePromoCarou
 import FloatingQuokkas from '../components/home/FloatingQuokkas'
 import { getSheetSnapDestination } from '../lib/homeSheet'
 import { webtoonHref } from '../lib/navigation'
+import { getQuickPrompts } from '../api/quickPrompt'
 
 const PLACEHOLDER_QUERIES = [
   '비 오는 날 읽기 좋은 힐링 만화…',
@@ -19,7 +20,8 @@ const TEAM_PICKS = TEAM_PICK_IDS.map((id) => WEBTOONS.find((webtoon) => webtoon.
   Boolean,
 )
 
-const QUICK_PROMPTS = [
+// 백엔드(/api/quick-prompts)에서 못 불러올 때 쓰는 기본값. 관리자가 편집하면 API 값으로 대체된다.
+const DEFAULT_QUICK_PROMPTS = [
   { label: '비 오는 날 힐링', query: '비 오는 날 편안하게 읽기 좋은 힐링 웹툰' },
   { label: '설레는 로맨스', query: '서로 천천히 가까워지는 설레는 로맨스 웹툰' },
   { label: '빌런 참교육', query: '빌런을 시원하게 참교육하는 사이다 복수극' },
@@ -196,6 +198,7 @@ export default function MainPage() {
   const [searchError, setSearchError] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const [quickPrompts, setQuickPrompts] = useState(DEFAULT_QUICK_PROMPTS)
   const pageRef = useRef(null)
   const heroRef = useRef(null)
   const searchInputRef = useRef(null)
@@ -218,6 +221,15 @@ export default function MainPage() {
     syncPreference()
     media.addEventListener('change', syncPreference)
     return () => media.removeEventListener('change', syncPreference)
+  }, [])
+
+  // 추천 검색어 버튼: 관리자가 편집한 값을 백엔드에서 가져온다. 실패/빈 값이면 기본값 유지.
+  useEffect(() => {
+    getQuickPrompts()
+      .then((list) => {
+        if (Array.isArray(list) && list.length > 0) setQuickPrompts(list)
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -585,9 +597,9 @@ export default function MainPage() {
               className="mt-4 flex flex-wrap justify-center gap-2 [@media(max-height:720px)]:mt-2 [@media(max-height:600px)]:hidden"
               aria-label="추천 검색어 예시"
             >
-              {QUICK_PROMPTS.map((prompt) => (
+              {quickPrompts.map((prompt) => (
                 <button
-                  key={prompt.label}
+                  key={prompt.id ?? prompt.label}
                   type="button"
                   onClick={() => chooseQuickPrompt(prompt.query)}
                   aria-pressed={query === prompt.query}
