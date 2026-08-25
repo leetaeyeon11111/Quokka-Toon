@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { goKakaoAuthorize, goNaverAuthorize } from '../api/social'
+import { useDialog } from '../hooks/useDialog'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { login, isLoggedIn, user } = useAuth()
+  const { alert: showAlert } = useDialog()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -39,6 +41,17 @@ export default function LoginPage() {
       setError(err.message ?? '로그인에 실패했어요.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  function handleSocialLogin(authorize) {
+    try {
+      authorize()
+    } catch (err) {
+      showAlert({
+        title: '로그인 설정이 필요해요',
+        message: err.message ?? '소셜 로그인을 시작하지 못했어요.',
+      })
     }
   }
 
@@ -98,7 +111,7 @@ export default function LoginPage() {
             <div className="flex justify-center gap-3">
               <button
                 type="button"
-                onClick={goKakaoAuthorize}
+                onClick={() => handleSocialLogin(goKakaoAuthorize)}
                 aria-label="카카오로 로그인"
                 className="h-12 w-12 overflow-hidden rounded-full transition hover:opacity-90"
               >
@@ -106,7 +119,7 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={goNaverAuthorize}
+                onClick={() => handleSocialLogin(goNaverAuthorize)}
                 aria-label="네이버로 로그인"
                 className="h-12 w-12 overflow-hidden rounded-full transition hover:opacity-90"
               >

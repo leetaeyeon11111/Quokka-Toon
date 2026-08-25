@@ -15,8 +15,7 @@ export const naverRedirectUri = () => `${window.location.origin}/oauth/naver/cal
 // 카카오 인증 페이지로 이동
 export function goKakaoAuthorize() {
   if (!KAKAO_CLIENT_ID) {
-    alert('카카오 로그인 설정(VITE_KAKAO_CLIENT_ID)이 필요해요.')
-    return
+    throw new Error('카카오 로그인 설정(VITE_KAKAO_CLIENT_ID)이 필요해요.')
   }
   const url =
     'https://kauth.kakao.com/oauth/authorize' +
@@ -29,8 +28,7 @@ export function goKakaoAuthorize() {
 // 네이버 인증 페이지로 이동 (state 로 CSRF 방지)
 export function goNaverAuthorize() {
   if (!NAVER_CLIENT_ID) {
-    alert('네이버 로그인 설정(VITE_NAVER_CLIENT_ID)이 필요해요.')
-    return
+    throw new Error('네이버 로그인 설정(VITE_NAVER_CLIENT_ID)이 필요해요.')
   }
   const state = Math.random().toString(36).slice(2)
   sessionStorage.setItem('naver_oauth_state', state)

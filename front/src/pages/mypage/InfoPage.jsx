@@ -5,6 +5,7 @@ import PlaceholderPage from '../../components/common/PlaceholderPage'
 import ProfileAvatar from '../../components/common/ProfileAvatar'
 import ProfileIconPickerModal from '../../components/mypage/ProfileIconPickerModal'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
+import { useDialog } from '../../hooks/useDialog'
 
 function EditableRow({ label, value, locked, onSave, mask }) {
   const [editing, setEditing] = useState(false)
@@ -80,6 +81,7 @@ function calcAge(birthDate) {
 
 // 일반 유저: 관리자 승격 요청
 function AdminRequestSection() {
+  const { alert: showAlert } = useDialog()
   const [status, setStatus] = useState(undefined) // undefined=로딩, null=요청없음, 'PENDING'/'APPROVED'/'REJECTED'
   const [submitting, setSubmitting] = useState(false)
 
@@ -96,7 +98,7 @@ function AdminRequestSection() {
       await adminReqApi.requestAdmin()
       setStatus('PENDING')
     } catch (err) {
-      alert(err.message ?? '요청에 실패했어요.')
+      showAlert(err.message ?? '요청에 실패했어요.')
     } finally {
       setSubmitting(false)
     }
@@ -138,6 +140,7 @@ function AdminRequestSection() {
 
 // 관리자: 승격 요청 목록 + 승인/거절
 function AdminApprovalSection() {
+  const { alert: showAlert } = useDialog()
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -155,7 +158,7 @@ function AdminApprovalSection() {
       else await adminReqApi.rejectAdminRequest(id)
       setRequests((prev) => prev.filter((r) => r.id !== id))
     } catch (err) {
-      alert(err.message ?? '처리에 실패했어요.')
+      showAlert(err.message ?? '처리에 실패했어요.')
     }
   }
 
@@ -210,6 +213,7 @@ function AdminApprovalSection() {
 // 관리자: 현재 관리자 목록 + 해제(강등)
 function AdminListSection() {
   const { user } = useAuth()
+  const { alert: showAlert, confirm: showConfirm } = useDialog()
   const [admins, setAdmins] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -222,12 +226,17 @@ function AdminListSection() {
   }, [])
 
   async function handleRevoke(userId) {
-    if (!confirm('이 사용자의 관리자 권한을 해제할까요?')) return
+    const confirmed = await showConfirm({
+      title: '관리자 권한 해제',
+      message: '이 사용자의 관리자 권한을 해제할까요?',
+      confirmLabel: '권한 해제',
+    })
+    if (!confirmed) return
     try {
       await adminReqApi.revokeAdmin(userId)
       setAdmins((prev) => prev.filter((a) => a.userId !== userId))
     } catch (err) {
-      alert(err.message ?? '해제에 실패했어요.')
+      showAlert(err.message ?? '해제에 실패했어요.')
     }
   }
 

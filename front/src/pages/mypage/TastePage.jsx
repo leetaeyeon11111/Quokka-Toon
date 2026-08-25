@@ -3,7 +3,7 @@ import { searchWebtoons } from '../../api/webtoon'
 import { fetchWebtoonModelsByIds, toCardModel } from '../../lib/webtoon'
 import { useAppData } from '../../hooks/useAppData'
 import MyPageShell from '../../components/mypage/MyPageShell'
-import WebtoonCard from '../../components/webtoon/WebtoonCard'
+import HorizontalWebtoonSlider from '../../components/webtoon/HorizontalWebtoonSlider'
 import LifeWorksModal from '../../components/mypage/LifeWorksModal'
 
 const RANK_LABELS = ['상위 44%', '상위 32%', '상위 24%']
@@ -65,7 +65,7 @@ export default function TastePage() {
   useEffect(() => {
     let cancelled = false
     async function run() {
-      const topGenre = sourceWebtoons[0]?.genres?.[0] ?? topGenres[0]?.[0]
+      const topGenre = topGenres[0]?.[0] ?? sourceWebtoons[0]?.genres?.[0]
       if (!topGenre) {
         if (!cancelled) setRecommendations([])
         return
@@ -158,12 +158,20 @@ export default function TastePage() {
 
       {recommendations.length > 0 && (
         <div className="mt-8">
-          <p className="mb-3 text-sm font-bold text-ink-900">최애 장르 기반 추천</p>
-          <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1">
-            {recommendations.map((w) => (
-              <WebtoonCard key={w.id} webtoon={w} />
-            ))}
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-bold text-ink-900">최애 장르 기반 추천</p>
+            {topGenres[0]?.[0] && (
+              <span className="rounded-full border border-ink-100 bg-white px-2.5 py-1 text-[11px] font-semibold text-ink-500">
+                {topGenres[0][0]} 기반
+              </span>
+            )}
           </div>
+          <HorizontalWebtoonSlider
+            items={recommendations}
+            ariaLabel="최애 장르 기반 추천 웹툰 목록"
+            previousLabel="이전 추천 작품 보기"
+            nextLabel="다음 추천 작품 보기"
+          />
         </div>
       )}
 

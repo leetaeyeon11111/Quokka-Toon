@@ -78,6 +78,8 @@ export default function RecommendResultPage() {
         />
       ) : loading ? (
         <ResultMessage
+          imageSrc="/quokka_ai_loading.gif"
+          imageAlt="추천 작품을 찾으러 달리는 쿼카"
           title="AI가 어울리는 작품을 찾고 있어요"
           description="첫 검색은 모델을 불러오느라 조금 더 걸릴 수 있어요."
         />

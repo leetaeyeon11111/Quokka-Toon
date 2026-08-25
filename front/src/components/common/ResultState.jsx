@@ -12,10 +12,26 @@ export function ResultGridSkeleton({ count = 12 }) {
   )
 }
 
-export function ResultMessage({ icon = '🐿', title, description, actionLabel, onAction }) {
+export function ResultMessage({
+  icon = '🐿',
+  imageSrc,
+  imageAlt = '',
+  title,
+  description,
+  actionLabel,
+  onAction,
+}) {
   return (
     <div className="flex flex-col items-center rounded-3xl border border-ink-100 bg-white px-6 py-16 text-center shadow-sm">
-      <span className="text-4xl" aria-hidden>{icon}</span>
+      {imageSrc ? (
+        <img
+          src={imageSrc}
+          alt={imageAlt}
+          className="h-44 w-44 rounded-3xl object-contain"
+        />
+      ) : (
+        <span className="text-4xl" aria-hidden>{icon}</span>
+      )}
       <h2 className="mt-4 text-lg font-bold text-ink-900">{title}</h2>
       {description && <p className="mt-2 max-w-lg text-sm leading-6 text-ink-500">{description}</p>}
       {actionLabel && onAction && (

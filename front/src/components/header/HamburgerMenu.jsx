@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { requiresAuthentication } from '../../lib/navigation'
 
 function Section({ title, children }) {
   return (
@@ -27,7 +28,16 @@ function MenuLink({ to, onClose, children }) {
 
 export default function HamburgerMenu({ onClose }) {
   const { isLoggedIn, logout } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const menuRef = useRef(null)
+
+  function handleLogout() {
+    const shouldGoHome = requiresAuthentication(location.pathname)
+    logout()
+    onClose()
+    if (shouldGoHome) navigate('/', { replace: true })
+  }
 
   useEffect(() => {
     menuRef.current?.querySelector('a, button')?.focus()
@@ -96,10 +106,7 @@ export default function HamburgerMenu({ onClose }) {
         <div className="px-3 pt-1">
           <button
             type="button"
-            onClick={() => {
-              logout()
-              onClose()
-            }}
+            onClick={handleLogout}
             className="block w-full rounded-xl bg-ink-900 py-3 text-center text-sm font-semibold text-white transition hover:bg-ink-700"
           >
             로그아웃
