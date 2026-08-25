@@ -151,7 +151,12 @@ public class ReportService {
                 board = "정식 리뷰";
             }
         }
-        return ReportResponse.of(r, author, title, board);
+
+        // 처리 내역: 처리한 관리자 닉네임 (미처리면 null)
+        String handledByName = r.getHandledBy() == null ? null
+                : userRepository.findById(r.getHandledBy()).map(User::getNickname).orElse(null);
+
+        return ReportResponse.of(r, author, title, board, handledByName);
     }
 
     private Report getReport(Long reportId) {

@@ -6,6 +6,8 @@ import * as adminApi from '../../api/admin'
 import { isInquiryDone } from '../../api/labels'
 import { useAuth } from '../../hooks/useAuth'
 import BanModal from '../../components/admin/BanModal'
+import ReportDetailModal from '../../components/admin/ReportDetailModal'
+import InquiryDetailModal from '../../components/admin/InquiryDetailModal'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
 import { useDialog } from '../../hooks/useDialog'
 
@@ -26,7 +28,9 @@ function ReportsTab({ historyOnly }) {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState('전체')
+  const [statusFilter, setStatusFilter] = useState('미처리')
   const [banTarget, setBanTarget] = useState(null)
+  const [detailTarget, setDetailTarget] = useState(null)
 
   useEffect(() => {
     const loader = historyOnly ? adminApi.listHandledReports : adminApi.listReports
@@ -73,6 +77,20 @@ function ReportsTab({ historyOnly }) {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex gap-1.5">
+          {REPORT_STATUS_TABS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => changeStatus(s)}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                statusFilter === s ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
@@ -110,11 +128,22 @@ function ReportsTab({ historyOnly }) {
                   <span className="mr-2 rounded-full border border-red-300 px-2 py-0.5 text-[11px] font-semibold text-red-500">
                     {report.type}
                   </span>
+                  {report.status !== '미처리' && (
+                    <span className="mr-2 rounded-full bg-mint-100 px-2 py-0.5 text-[11px] font-semibold text-mint-500">
+                      {report.status}
+                    </span>
+                  )}
                   <span className="text-sm font-semibold text-ink-900">{report.title}</span>
                   <p className="mt-1 text-xs text-ink-500">
                     작성자 {report.author} · {report.when} · {report.board}
                     {historyOnly && report.handledWhen ? ` · 처리 ${report.handledWhen}` : ''}
                   </p>
+                  {report.status !== '미처리' && (
+                    <p className="mt-0.5 text-xs text-ink-400">
+                      처리: {report.handledByName ?? '알 수 없음'}
+                      {report.handledDate ? ` · ${report.handledDate}` : ''}
+                    </p>
+                  )}
                 </div>
                 {historyOnly ? (
                   <button
@@ -158,6 +187,9 @@ function ReportsTab({ historyOnly }) {
       {banTarget && (
         <BanModal report={banTarget} onClose={() => setBanTarget(null)} onConfirm={handleBan} />
       )}
+      {detailTarget && (
+        <ReportDetailModal report={detailTarget} onClose={() => setDetailTarget(null)} />
+      )}
     </div>
   )
 }
@@ -171,6 +203,7 @@ function InquiriesTab({ historyOnly }) {
   const [keyword, setKeyword] = useState('')
   const [openReply, setOpenReply] = useState(null)
   const [draftAnswer, setDraftAnswer] = useState('')
+  const [detailInquiry, setDetailInquiry] = useState(null)
 
   useEffect(() => {
     adminApi
@@ -350,6 +383,177 @@ function InquiriesTab({ historyOnly }) {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {detailInquiry && (
+        <InquiryDetailModal inquiry={detailInquiry} onClose={() => setDetailInquiry(null)} />
+      )}
+    </div>
+  )
+}
+
+function QuickPromptsTab() {
+  const [prompts, setPrompts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [draft, setDraft] = useState({ label: '', query: '', sortOrder: '' })
+
+  useEffect(() => {
+    adminApi
+      .listQuickPrompts()
+      .then(setPrompts)
+      .catch(() => setPrompts([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  function changeField(id, field, value) {
+    setPrompts((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)))
+  }
+
+  async function handleSave(p) {
+    if (!p.label.trim() || !p.query.trim()) {
+      alert('버튼 글씨와 검색어를 모두 입력해주세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      const updated = await adminApi.updateQuickPrompt(p.id, {
+        label: p.label.trim(),
+        query: p.query.trim(),
+        sortOrder: Number(p.sortOrder) || 0,
+      })
+      setPrompts((prev) => prev.map((x) => (x.id === p.id ? updated : x)))
+      alert('저장했어요.')
+    } catch (err) {
+      alert(err.message ?? '저장에 실패했어요.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('이 추천 검색어를 삭제할까요?')) return
+    try {
+      await adminApi.deleteQuickPrompt(id)
+      setPrompts((prev) => prev.filter((p) => p.id !== id))
+    } catch (err) {
+      alert(err.message ?? '삭제에 실패했어요.')
+    }
+  }
+
+  async function handleAdd() {
+    if (!draft.label.trim() || !draft.query.trim()) {
+      alert('버튼 글씨와 검색어를 모두 입력해주세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      const created = await adminApi.createQuickPrompt({
+        label: draft.label.trim(),
+        query: draft.query.trim(),
+        sortOrder: Number(draft.sortOrder) || prompts.length + 1,
+      })
+      setPrompts((prev) => [...prev, created])
+      setDraft({ label: '', query: '', sortOrder: '' })
+    } catch (err) {
+      alert(err.message ?? '추가에 실패했어요.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <p className="mb-4 text-sm text-ink-500">
+        메인페이지 검색창 아래의 추천 검색어 버튼을 편집해요. <b>버튼 글씨</b>는 사용자에게 보이는 글자,{' '}
+        <b>검색어</b>는 버튼을 눌렀을 때 실제로 실행되는 문장이에요. <b>순서</b>가 작을수록 앞에 표시됩니다.
+      </p>
+
+      {loading ? (
+        <p className="py-16 text-center text-sm text-ink-500">불러오는 중…</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {prompts.map((p) => (
+            <div key={p.id} className="rounded-xl border border-dashed border-ink-200 bg-white p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  value={p.label}
+                  onChange={(e) => changeField(p.id, 'label', e.target.value)}
+                  placeholder="버튼 글씨"
+                  maxLength={50}
+                  className="w-full rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none sm:w-48"
+                />
+                <input
+                  value={p.query}
+                  onChange={(e) => changeField(p.id, 'query', e.target.value)}
+                  placeholder="검색어(클릭 시 실행)"
+                  maxLength={200}
+                  className="w-full flex-1 rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none"
+                />
+                <input
+                  value={p.sortOrder}
+                  onChange={(e) => changeField(p.id, 'sortOrder', e.target.value)}
+                  placeholder="순서"
+                  type="number"
+                  className="w-full rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none sm:w-20"
+                />
+                <div className="flex shrink-0 gap-1.5">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleSave(p)}
+                    className="rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    저장
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p.id)}
+                    className="rounded-full border border-red-200 px-3 py-2 text-xs font-semibold text-red-500 hover:bg-red-50"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* 새 추천 검색어 추가 */}
+          <div className="rounded-xl border border-dashed border-brand-200 bg-brand-50/40 p-4">
+            <p className="mb-2 text-xs font-semibold text-brand-600">+ 새 추천 검색어 추가</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={draft.label}
+                onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
+                placeholder="버튼 글씨"
+                maxLength={50}
+                className="w-full rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none sm:w-48"
+              />
+              <input
+                value={draft.query}
+                onChange={(e) => setDraft((d) => ({ ...d, query: e.target.value }))}
+                placeholder="검색어(클릭 시 실행)"
+                maxLength={200}
+                className="w-full flex-1 rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none"
+              />
+              <input
+                value={draft.sortOrder}
+                onChange={(e) => setDraft((d) => ({ ...d, sortOrder: e.target.value }))}
+                placeholder="순서"
+                type="number"
+                className="w-full rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none sm:w-20"
+              />
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleAdd}
+                className="shrink-0 rounded-full bg-brand-500 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              >
+                추가
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

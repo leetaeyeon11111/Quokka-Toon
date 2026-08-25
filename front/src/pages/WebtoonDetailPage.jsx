@@ -479,7 +479,7 @@ export default function WebtoonDetailPage() {
               {isLifeWork ? '❤️ 인생작 담김' : '🤍 인생작 담기'}
             </button>
             {webtoon.platforms.map((p) => (
-              <a
+              <button
                 key={p.name}
                 href={p.url}
                 target="_blank"

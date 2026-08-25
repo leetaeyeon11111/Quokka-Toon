@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppData } from '../../hooks/useAppData'
 import { listMyPosts } from '../../api/board'
@@ -36,6 +36,56 @@ function PostRow({ post }) {
   )
 }
 
+function CommentRow({ comment }) {
+  return (
+    <Link
+      to={`/board/post/${comment.postId}`}
+      className="flex flex-col gap-1 border-b border-ink-100 py-3 last:border-b-0"
+    >
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 rounded-full bg-ink-50 px-2 py-1 text-[11px] font-semibold text-ink-500">
+          {BOARD_LABELS[comment.board] ?? '전체게시판'}
+        </span>
+        <span className="truncate text-xs text-ink-500">{comment.postTitle}</span>
+      </div>
+      <p className="text-sm text-ink-900">{comment.text}</p>
+      <div className="flex items-center gap-3 text-xs text-ink-400">
+        <span>👍 {comment.likes}</span>
+        <span>{comment.date ?? formatDate(comment.createdAt)}</span>
+      </div>
+    </Link>
+  )
+}
+
+function ReviewRow({ review }) {
+  return (
+    <Link
+      to={`/webtoons/${review.webtoonId}`}
+      className="flex gap-3 rounded-xl border border-ink-100 p-3 hover:bg-ink-50"
+    >
+      {review.thumbnailUrl ? (
+        <img
+          src={review.thumbnailUrl}
+          alt={review.webtoonTitle}
+          className="h-14 w-11 shrink-0 rounded object-cover"
+        />
+      ) : (
+        <div
+          className="h-14 w-11 shrink-0 rounded"
+          style={{ background: coverGradientFor(review.webtoonId) }}
+        />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2 text-sm font-bold text-ink-900">
+          {review.webtoonTitle} <StarsDisplay rating={review.rating} size="text-xs" />
+        </p>
+        <p className="truncate text-sm text-ink-700">"{review.text}"</p>
+        <p className="text-xs text-ink-300">👍 {review.likes}</p>
+      </div>
+    </Link>
+  )
+}
+
 export default function PostsPage() {
   const { posts } = useAppData()
   const [tab, setTab] = useState('posts')
@@ -44,9 +94,9 @@ export default function PostsPage() {
   const [reviewsLoading, setReviewsLoading] = useState(false)
 
   useEffect(() => {
-    listMyPosts()
-      .then(setMyPosts)
-      .catch(() => setMyPosts([]))
+    listMyPosts().then(setMyPosts).catch(() => setMyPosts([]))
+    listMyComments().then(setMyComments).catch(() => setMyComments([]))
+    listMyReviews().then(setMyReviews).catch(() => setMyReviews([]))
   }, [])
 
   useEffect(() => {
@@ -99,10 +149,10 @@ export default function PostsPage() {
           ))}
 
         {tab === 'comments' &&
-          (myCommentPosts.length === 0 ? (
+          (myComments.length === 0 ? (
             <p className="py-10 text-center text-sm text-ink-500">아직 작성한 댓글이 없어요.</p>
           ) : (
-            myCommentPosts.map((post) => <PostRow key={post.id} post={post} />)
+            myComments.map((comment) => <CommentRow key={comment.commentId} comment={comment} />)
           ))}
 
         {tab === 'reviews' &&

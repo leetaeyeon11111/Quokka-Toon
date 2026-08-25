@@ -30,6 +30,12 @@ public class BoardController {
         return ApiResponse.ok(boardService.getMyPosts(userId));
     }
 
+    // 내가 쓴 댓글 (로그인)
+    @GetMapping("/comments/mine")
+    public ApiResponse<List<MyCommentItem>> myComments(@AuthenticationPrincipal Long userId) {
+        return ApiResponse.ok(boardService.getMyComments(userId));
+    }
+
     // 상세 (공개). 로그인 상태면 mine 플래그가 채워진다.
     @GetMapping("/{id}")
     public ApiResponse<PostDetailResponse> detail(@PathVariable Long id,

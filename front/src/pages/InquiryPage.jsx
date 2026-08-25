@@ -49,7 +49,6 @@ export default function InquiryPage() {
   const [category, setCategory] = useState('')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [fileName, setFileName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -86,7 +85,6 @@ export default function InquiryPage() {
       setCategory('')
       setTitle('')
       setContent('')
-      setFileName('')
       setTab('history')
     } catch (err) {
       setError(err.message ?? '문의 등록에 실패했어요.')
@@ -156,21 +154,6 @@ export default function InquiryPage() {
             <p className="text-xs text-ink-500">문의 내용을 입력해야 확인할 수 있어요.</p>
           )}
 
-          <div className="flex items-center gap-2">
-            <span className="flex-1 truncate rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm text-ink-300">
-              {fileName || '선택된 파일이 없습니다.'}
-            </span>
-            <label className="shrink-0 cursor-pointer rounded-xl border border-ink-100 px-4 py-3 text-sm font-semibold text-ink-700 hover:bg-ink-50">
-              파일 선택
-              <input
-                type="file"
-                accept="image/jpeg,image/png"
-                className="hidden"
-                onChange={(e) => setFileName(e.target.files?.[0]?.name ?? '')}
-              />
-            </label>
-          </div>
-          <p className="text-xs text-red-400">업로드는 jpg, jpeg, png 파일만 가능하며 10MB까지 등록이 됩니다.</p>
           {error && <p className="text-xs text-red-500">{error}</p>}
 
           <button

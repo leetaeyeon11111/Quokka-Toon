@@ -16,6 +16,7 @@ function mapInquiry(inq) {
     category: INQUIRY_CATEGORY_TO_LABEL[inq.category] ?? inq.category,
     status: INQUIRY_STATUS_TO_LABEL[inq.status] ?? inq.status,
     date: formatDate(inq.createdAt),
+    answeredDate: inq.answeredAt ? formatDate(inq.answeredAt) : '',
   }
 }
 
@@ -43,8 +44,9 @@ function mapReport(r) {
   }
 }
 
-export async function listReports() {
-  const list = await api.get('/api/admin/reports')
+/** status: 'PENDING'(기본) | 'HANDLED' | 'ALL' */
+export async function listReports(status = 'PENDING') {
+  const list = await api.get(`/api/admin/reports?status=${status}`)
   return list.map(mapReport)
 }
 
@@ -60,4 +62,21 @@ export function resolveReport(id) {
 /** 작성자 벤 (+선택적 게시글 삭제) */
 export function banFromReport(reportId, { duration, reason, deletePost }) {
   return api.post(`/api/admin/reports/${reportId}/ban`, { duration, reason, deletePost })
+}
+
+// ---- 추천 검색어(메인페이지 버튼) 관리 ----
+export function listQuickPrompts() {
+  return api.get('/api/admin/quick-prompts')
+}
+
+export function createQuickPrompt({ label, query, sortOrder }) {
+  return api.post('/api/admin/quick-prompts', { label, query, sortOrder })
+}
+
+export function updateQuickPrompt(id, { label, query, sortOrder }) {
+  return api.put(`/api/admin/quick-prompts/${id}`, { label, query, sortOrder })
+}
+
+export function deleteQuickPrompt(id) {
+  return api.delete(`/api/admin/quick-prompts/${id}`)
 }

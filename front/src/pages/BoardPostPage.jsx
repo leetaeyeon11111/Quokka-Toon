@@ -253,6 +253,19 @@ export default function BoardPostPage() {
     }
   }
 
+  async function handleDeleteComment(commentId) {
+    if (!confirm('댓글을 삭제할까요?')) return
+    try {
+      await boardApi.deleteComment(commentId)
+      setPost((prev) => ({
+        ...prev,
+        comments: prev.comments.filter((comment) => comment.id !== commentId && comment.parentId !== commentId),
+      }))
+    } catch (err) {
+      alert(err.message ?? '댓글 삭제에 실패했어요.')
+    }
+  }
+
   if (loading) {
     return <p className="py-24 text-center text-sm text-ink-500">불러오는 중…</p>
   }

@@ -24,6 +24,12 @@ export async function listMyPosts() {
   return list.map(mapPost)
 }
 
+/** 내가 쓴 댓글 (로그인 필요) */
+export async function listMyComments() {
+  const list = await api.get('/api/board/comments/mine')
+  return list.map((c) => ({ ...c, date: formatDate(c.createdAt) }))
+}
+
 /** 상세 조회 (댓글 포함). 로그인 상태면 mine 플래그가 채워진다. */
 export async function getPost(id) {
   const post = await api.get(`/api/board/${id}`)

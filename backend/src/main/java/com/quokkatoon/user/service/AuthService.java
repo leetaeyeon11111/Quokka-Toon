@@ -10,6 +10,9 @@ import com.quokkatoon.user.dto.*;
 import com.quokkatoon.user.entity.User;
 import com.quokkatoon.user.profile.DefaultProfileIcon;
 import com.quokkatoon.user.repository.UserRepository;
+import com.quokkatoon.level.dto.LevelProgressResponse;
+import com.quokkatoon.level.service.AttendanceService;
+import com.quokkatoon.level.service.ExperienceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -52,10 +55,19 @@ public class AuthService {
                 .email(req.email())
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .nickname(req.nickname())
+                .profileImageUrl(req.profileImageUrl())
                 .gender(req.gender())
                 .birthDate(req.birthDate())
                 .build();
         return userRepository.save(user).getId();
+    }
+
+    // 마이페이지: 프로필 이미지(아이콘) 변경
+    @Transactional
+    public void updateProfileImage(Long userId, String profileImageUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        user.updateProfileImage(profileImageUrl);
     }
 
     // 로그인 → JWT 발급

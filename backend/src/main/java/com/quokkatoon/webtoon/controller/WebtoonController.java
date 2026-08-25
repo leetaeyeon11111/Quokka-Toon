@@ -1,8 +1,10 @@
 package com.quokkatoon.webtoon.controller;
 
 import com.quokkatoon.global.common.ApiResponse;
+import com.quokkatoon.webtoon.dto.ViewLinkResponse;
 import com.quokkatoon.webtoon.dto.WebtoonDetailResponse;
 import com.quokkatoon.webtoon.dto.WebtoonListItem;
+import com.quokkatoon.webtoon.service.WebtoonLinkService;
 import com.quokkatoon.webtoon.service.WebtoonService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,6 +20,7 @@ import java.util.List;
 public class WebtoonController {
 
     private final WebtoonService webtoonService;
+    private final WebtoonLinkService webtoonLinkService;
 
     // 목록: GET /api/webtoons?page=0&size=24&sort=latest&q=&platform=&genre=&author=&tag=
     @GetMapping

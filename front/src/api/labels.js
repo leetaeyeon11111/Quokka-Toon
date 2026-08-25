@@ -20,6 +20,12 @@ export function isInquiryDone(status) {
   return status === '완료' || status === '답변완료' || status === 'DONE'
 }
 
+export const REPORT_STATUS_TO_LABEL = {
+  PENDING: '미처리',
+  RESOLVED: '처리완료',
+  REJECTED: '반려',
+}
+
 export const REPORT_TYPE_TO_ENUM = {
   '스팸/광고': 'SPAM',
   '욕설/비방': 'ABUSE',

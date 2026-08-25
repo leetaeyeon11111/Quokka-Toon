@@ -35,6 +35,32 @@ function Thumb({ webtoon }) {
   )
 }
 
+function Thumb({ webtoon }) {
+  const [imgOk, setImgOk] = useState(true)
+  const showImage = webtoon.thumbnailUrl && imgOk && !webtoon.isAdult
+  return (
+    <div
+      className="relative aspect-[3/4] w-full overflow-hidden rounded-lg"
+      style={{ background: webtoon.coverGradient }}
+    >
+      {showImage && (
+        <img
+          src={webtoon.thumbnailUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setImgOk(false)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      {webtoon.isAdult && (
+        <div className="absolute inset-0 flex items-center justify-center bg-ink-900/80 text-2xl">
+          🐿
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function FavoritesPage() {
   const { favorites, toggleFavorite, setAlarm } = useAppData()
   const [sortDesc, setSortDesc] = useState(true)

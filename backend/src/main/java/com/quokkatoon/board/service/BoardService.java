@@ -49,6 +49,13 @@ public class BoardService {
                 .stream().map(PostListItem::of).toList();
     }
 
+    // 내가 쓴 댓글
+    @Transactional(readOnly = true)
+    public List<MyCommentItem> getMyComments(Long userId) {
+        return commentRepository.findMyComments(userId)
+                .stream().map(MyCommentItem::of).toList();
+    }
+
     // 상세 (+조회수 증가)
     @Transactional
     public PostDetailResponse getPost(Long postId, Long currentUserId) {
