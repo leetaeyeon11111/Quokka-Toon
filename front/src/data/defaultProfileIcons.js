@@ -7,6 +7,7 @@ export const DEFAULT_PROFILE_ICONS = [
   { id: 'a4-wuxia', label: '격투', group: 'GENRE', groupLabel: '장르', imageUrl: '/avatars/quokka-ip-a4-wuxia.png' },
   { id: 'a5-school', label: '학원', group: 'GENRE', groupLabel: '장르', imageUrl: '/avatars/quokka-ip-a5-school.png' },
   { id: 'a6-gag', label: '개그', group: 'GENRE', groupLabel: '장르', imageUrl: '/avatars/quokka-ip-a6-gag.png' },
+  { id: 'a7-mystery', label: '추리', group: 'GENRE', groupLabel: '장르', imageUrl: '/avatars/quokka-ip-a7-mystery.png' },
   { id: 'b1-heart-eyes', label: '로맨스', group: 'FEMALE', groupLabel: '여성향', imageUrl: '/avatars/quokka-ip-b1-heart-eyes.png' },
   { id: 'b2-north-duke', label: '북부대공', group: 'FEMALE', groupLabel: '여성향', imageUrl: '/avatars/quokka-ip-b2-north-duke.png' },
   { id: 'b3-south-duke', label: '남부대공', group: 'FEMALE', groupLabel: '여성향', imageUrl: '/avatars/quokka-ip-b3-south-duke.png' },

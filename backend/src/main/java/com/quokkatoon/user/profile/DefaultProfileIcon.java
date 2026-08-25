@@ -14,6 +14,7 @@ public enum DefaultProfileIcon {
     A4_WUXIA("a4-wuxia", "격투", "GENRE", "장르", "/avatars/quokka-ip-a4-wuxia.png"),
     A5_SCHOOL("a5-school", "학원", "GENRE", "장르", "/avatars/quokka-ip-a5-school.png"),
     A6_GAG("a6-gag", "개그", "GENRE", "장르", "/avatars/quokka-ip-a6-gag.png"),
+    A7_MYSTERY("a7-mystery", "추리", "GENRE", "장르", "/avatars/quokka-ip-a7-mystery.png"),
     B1_HEART_EYES("b1-heart-eyes", "로맨스", "FEMALE", "여성향", "/avatars/quokka-ip-b1-heart-eyes.png"),
     B2_NORTH_DUKE("b2-north-duke", "북부대공", "FEMALE", "여성향", "/avatars/quokka-ip-b2-north-duke.png"),
     B3_SOUTH_DUKE("b3-south-duke", "남부대공", "FEMALE", "여성향", "/avatars/quokka-ip-b3-south-duke.png"),
