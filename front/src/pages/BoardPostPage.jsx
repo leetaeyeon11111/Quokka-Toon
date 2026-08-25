@@ -21,7 +21,7 @@ function CommentRow({ comment, onReplyClick, onReact, onReport, onDelete, childr
         </p>
         <p className="mb-2 text-sm text-ink-700">{comment.text}</p>
         <div className="flex items-center gap-3 text-xs text-ink-500">
-          <button type="button" onClick={() => onReact(comment.id)} className="hover:text-brand-500">
+          <button type="button" onClick={() => onReact(comment.id)} className={`transition hover:text-brand-500 ${comment.liked ? 'text-brand-500' : ''}`}>
             👍 {comment.likes}
           </button>
           <button type="button" onClick={() => onReplyClick(comment.id)} className="hover:text-brand-500">
@@ -231,14 +231,26 @@ export default function BoardPostPage() {
           type="button"
           onClick={() => handleReactPost('like')}
           aria-label={isLoggedIn ? `추천 ${post.likes}` : '로그인 후 추천 가능'}
-          className={`cursor-pointer rounded-full px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-ink-100 text-ink-500'}`}
+          className={`cursor-pointer rounded-full px-5 py-2.5 text-sm font-semibold transition ${
+            !isLoggedIn
+              ? 'bg-ink-100 text-ink-500'
+              : post.myReaction?.toLowerCase() === 'like'
+              ? 'bg-brand-600 text-white'
+              : 'bg-brand-500 text-white hover:bg-brand-600'
+          }`}
         >
           👍 추천 {post.likes}
         </button>
         <button
           type="button"
           onClick={() => handleReactPost('dislike')}
-          className={`cursor-pointer rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold transition ${isLoggedIn ? 'text-ink-700 hover:border-ink-300 hover:bg-ink-100 hover:text-ink-900' : 'bg-ink-50 text-ink-300'}`}
+          className={`cursor-pointer rounded-full border px-5 py-2.5 text-sm font-semibold transition ${
+            !isLoggedIn
+              ? 'border-ink-100 bg-ink-50 text-ink-300'
+              : post.myReaction?.toLowerCase() === 'dislike'
+              ? 'border-ink-300 bg-ink-100 text-ink-900'
+              : 'border-ink-100 text-ink-700 hover:border-ink-300 hover:bg-ink-100 hover:text-ink-900'
+          }`}
         >
           👎 비추천 {post.dislikes}
         </button>
@@ -296,7 +308,7 @@ export default function BoardPostPage() {
                     <button
                       type="button"
                       onClick={() => handleReactComment(reply.id)}
-                      className="text-xs text-ink-500 hover:text-brand-500"
+                      className={`text-xs transition hover:text-brand-500 ${reply.liked ? 'text-brand-500' : 'text-ink-500'}`}
                     >
                       👍 {reply.likes}
                     </button>
