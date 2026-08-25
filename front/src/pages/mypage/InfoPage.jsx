@@ -1,26 +1,68 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import * as adminReqApi from '../../api/adminRequest'
+import * as authApi from '../../api/auth'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
 import ProfileAvatar from '../../components/common/ProfileAvatar'
-import ProfileIconPickerModal from '../../components/mypage/ProfileIconPickerModal'
+import ProfileIconPicker from '../../components/mypage/ProfileIconPicker'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
 
-function EditableRow({ label, value, locked, onSave, mask }) {
+function EditableRow({ label, value, locked, onSave, mask, maxLength, hint }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!editing) setDraft(value)
+  }, [value, editing])
+
+  async function handleSave() {
+    const next = String(draft ?? '').trim()
+    if (!next) {
+      setError(`${label}을 입력해주세요.`)
+      return
+    }
+    if (maxLength && next.length > maxLength) {
+      setError(`${label}은 최대 ${maxLength}자예요.`)
+      return
+    }
+    if (next === value) {
+      setEditing(false)
+      setError('')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await onSave(next)
+      setEditing(false)
+    } catch (err) {
+      setError(err.message ?? '저장에 실패했어요.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className="flex items-center justify-between border-b border-ink-100 py-4 last:border-b-0">
       <div className="min-w-0 flex-1">
         <p className="mb-1 text-xs font-semibold text-ink-500">{label}</p>
         {editing ? (
-          <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            className="w-full max-w-xs rounded-full border border-ink-100 bg-ink-50 px-3 py-1.5 text-sm outline-none"
-          />
+          <>
+            <input
+              autoFocus
+              value={draft}
+              maxLength={maxLength}
+              onChange={(e) => {
+                setDraft(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)
+                setError('')
+              }}
+              className="w-full max-w-xs rounded-full border border-ink-100 bg-ink-50 px-3 py-1.5 text-sm outline-none"
+            />
+            {hint && <p className="mt-1 text-xs text-ink-300">{hint}</p>}
+            {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+          </>
         ) : (
           <p className="text-sm font-semibold text-ink-900">{mask ? '•'.repeat(8) : value}</p>
         )}
@@ -33,18 +75,18 @@ function EditableRow({ label, value, locked, onSave, mask }) {
         <div className="flex shrink-0 gap-1.5">
           <button
             type="button"
-            onClick={() => {
-              onSave(draft)
-              setEditing(false)
-            }}
-            className="rounded-full bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white"
+            disabled={saving}
+            onClick={handleSave}
+            className="rounded-full bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
           >
-            저장
+            {saving ? '저장 중…' : '저장'}
           </button>
           <button
             type="button"
+            disabled={saving}
             onClick={() => {
               setDraft(value)
+              setError('')
               setEditing(false)
             }}
             className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-500"
@@ -55,7 +97,11 @@ function EditableRow({ label, value, locked, onSave, mask }) {
       ) : (
         <button
           type="button"
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            setDraft(value)
+            setError('')
+            setEditing(true)
+          }}
           className="shrink-0 rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
         >
           수정
@@ -285,7 +331,6 @@ function AdminListSection() {
 
 export default function InfoPage() {
   const { user, isAdmin, refresh } = useAuth()
-  const [iconPickerOpen, setIconPickerOpen] = useState(false)
 
   if (!user) {
     return (
@@ -313,27 +358,25 @@ export default function InfoPage() {
             <div className="h-full rounded-full bg-brand-500" style={{ width: `${user.progressPercent ?? 0}%` }} />
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setIconPickerOpen(true)}
-          className="shrink-0 rounded-full border border-ink-100 px-4 py-2 text-xs font-semibold text-ink-700 hover:bg-ink-50"
-        >
-          프로필 사진 변경
-        </button>
       </div>
 
-      {iconPickerOpen && (
-        <ProfileIconPickerModal
-          selectedId={user.profileIconId}
-          onClose={() => setIconPickerOpen(false)}
-          onSaved={() => refresh()}
-        />
-      )}
+      <div className="mb-6 rounded-2xl border border-ink-100 bg-white p-5">
+        <p className="mb-1 text-sm font-bold text-ink-900">프로필 아이콘</p>
+        <ProfileIconPicker selectedId={user.profileIconId} onSaved={() => refresh()} />
+      </div>
 
       <div className="rounded-2xl border border-ink-100 bg-white px-5">
         <p className="pt-4 text-sm font-bold text-ink-900">계정 관리</p>
-        {/* 프로필 수정 API는 다음 단계에서 연동 예정 — 현재는 조회 전용 */}
-        <EditableRow label="닉네임" value={user.nickname} locked />
+        <EditableRow
+          label="닉네임"
+          value={user.nickname}
+          maxLength={6}
+          hint="최대 6글자"
+          onSave={async (nickname) => {
+            await authApi.updateNickname(nickname)
+            await refresh()
+          }}
+        />
         <EditableRow label="이메일 (아이디)" value={user.email ?? '-'} locked />
         <EditableRow
           label="성별 / 나이"

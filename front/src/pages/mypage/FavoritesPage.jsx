@@ -4,6 +4,7 @@ import { useAppData } from '../../hooks/useAppData'
 import { fetchWebtoonModelsByIds } from '../../lib/webtoon'
 import MyPageShell from '../../components/mypage/MyPageShell'
 import AlarmModal from '../../components/mypage/AlarmModal'
+import AdultCoverMark from '../../components/common/AdultCoverMark'
 
 function Thumb({ webtoon }) {
   const [imgOk, setImgOk] = useState(true)
@@ -23,8 +24,11 @@ function Thumb({ webtoon }) {
         />
       )}
       {webtoon.isAdult && (
-        <div className="absolute inset-0 flex items-center justify-center bg-ink-900/80 text-2xl">
-          🐿
+        <div className="absolute inset-0 bg-black text-white">
+          <AdultCoverMark fill />
+          <span className="absolute inset-x-0 bottom-1.5 text-center text-[10px] font-medium drop-shadow">
+            19금 가림
+          </span>
         </div>
       )}
     </div>

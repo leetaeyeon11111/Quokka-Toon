@@ -83,6 +83,7 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
   const submittedKeyword = initialFilters.q
   const platform = initialFilters.platform
   const genre = initialFilters.genre
+  const tag = initialFilters.tag
   const sort = initialFilters.sort
   const page = initialFilters.page
 
@@ -105,11 +106,12 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
   // 필터/정렬/검색/페이지 상태는 URL 검색 파라미터에 보관한다.
   // → 상세보기에 들어갔다 브라우저 뒤로가기로 돌아와도 검색 상황이 URL로 그대로 복원된다.
   function updateFilters(overrides) {
-    const next = { q: submittedKeyword, platform, genre, sort, page, ...overrides }
+    const next = { q: submittedKeyword, platform, genre, tag, sort, page, ...overrides }
     const params = new URLSearchParams()
     if (next.q) params.set('q', next.q)
     if (next.platform !== '전체') params.set('platform', next.platform)
     if (next.genre !== '전체') params.set('genre', next.genre)
+    if (next.tag) params.set('tag', next.tag)
     if (next.sort !== 'latest') params.set('sort', next.sort)
     if (next.page > 0) params.set('page', String(next.page + 1))
     setSearchParams(params)
@@ -122,7 +124,7 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
   function submitSearch(e) {
     e.preventDefault()
     const trimmedKeyword = keyword.trim()
-    updateFilters({ q: trimmedKeyword, page: 0 })
+    updateFilters({ q: trimmedKeyword, tag: '', page: 0 })
   }
 
   // 목록 로드
@@ -139,6 +141,7 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
           q: submittedKeyword.trim(),
           platform: platform === '전체' ? '' : platform,
           genre: genre === '전체' ? '' : genre,
+          tag,
         })
         if (cancelled) return
         setItems((data?.content ?? []).map(toCardModel))
@@ -154,7 +157,7 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
     return () => {
       cancelled = true
     }
-  }, [page, sort, submittedKeyword, platform, genre, reloadKey])
+  }, [page, sort, submittedKeyword, platform, genre, tag, reloadKey])
 
   return (
     <div className="px-6 py-10">
@@ -165,13 +168,27 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
             {SORT_OPTIONS.find((s) => s.key === sort)?.label} · 총 {totalElements.toLocaleString()}개
           </span>
         </h1>
+        {tag && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700">
+              #{tag}
+            </span>
+            <button
+              type="button"
+              onClick={() => updateFilters({ tag: '', page: 0 })}
+              className="text-xs text-ink-500 underline hover:text-ink-900"
+            >
+              태그 필터 해제
+            </button>
+          </div>
+        )}
       </div>
 
       <form onSubmit={submitSearch} className="mb-4 flex gap-2">
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="작품명을 검색"
+          placeholder="작품명·작가·태그 검색"
           className="flex-1 rounded-full border border-ink-100 bg-white px-4 py-2.5 text-sm outline-none focus:border-brand-300"
         />
         <button
@@ -205,7 +222,7 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
         <ResultGridSkeleton />
       ) : error ? (
         <ResultMessage
-          icon="⚠️"
+          tone="error"
           title="웹툰 목록을 불러오지 못했어요"
           description={error}
           actionLabel="다시 시도"
@@ -220,7 +237,7 @@ function WebtoonListContent({ initialFilters, setSearchParams }) {
         <>
           <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {items.map((webtoon) => (
-              <WebtoonCard key={webtoon.id} webtoon={webtoon} className="w-full" />
+              <WebtoonCard key={webtoon.id} webtoon={webtoon} sort={sort} className="w-full" />
             ))}
           </div>
 
@@ -289,6 +306,7 @@ export default function WebtoonListPage() {
     q: searchParams.get('q') ?? '',
     platform: searchParams.get('platform') ?? '전체',
     genre: searchParams.get('genre') ?? '전체',
+    tag: searchParams.get('tag') ?? '',
     sort: SORT_OPTIONS.some((option) => option.key === sortParam) ? sortParam : 'latest',
     page: Number.isInteger(pageParam) && pageParam > 0 ? pageParam - 1 : 0,
   }

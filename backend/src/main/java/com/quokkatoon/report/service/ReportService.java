@@ -62,6 +62,15 @@ public class ReportService {
                 .toList();
     }
 
+    // 관리자: 처리 완료(제재/반려) 신고 기록
+    @Transactional(readOnly = true)
+    public List<ReportResponse> getHandled() {
+        return reportRepository.findByStatusInOrderByHandledAtDescCreatedAtDesc(
+                        List.of(ReportStatus.RESOLVED, ReportStatus.REJECTED)).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     // 관리자: 신고 반려 처리
     @Transactional
     public void reject(Long reportId, Long adminId) {

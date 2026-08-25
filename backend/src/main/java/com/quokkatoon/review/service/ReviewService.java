@@ -22,6 +22,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 @Service
@@ -58,6 +60,7 @@ public class ReviewService {
         } else {
             review.restore(request.rating(), content);
         }
+        refreshWebtoonRating(webtoonId);
         ExpChangeResponse exp = experienceService.award(userId, LevelActionType.REVIEW, 5,
                 "REVIEW", review.getId(), userId, reviewCreateEvent(userId, webtoonId));
         return new ActionResponse<>(ReviewResponse.of(review, userId, false), exp);
@@ -68,6 +71,7 @@ public class ReviewService {
         Review review = getActiveForUpdate(reviewId);
         if (!review.isAuthor(userId)) throw new BusinessException(ErrorCode.ACCESS_DENIED);
         review.update(request.rating(), ContentValidator.review(request.content()));
+        refreshWebtoonRating(review.getWebtoon().getId());
         return new ActionResponse<>(ReviewResponse.of(review, userId,
                 reviewLikeRepository.findByReviewIdAndUserId(reviewId, userId).isPresent()), null);
     }
@@ -78,8 +82,10 @@ public class ReviewService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
         if (!review.isAuthor(userId)) throw new BusinessException(ErrorCode.ACCESS_DENIED);
         if (review.isDeleted()) return new ActionResponse<>(null, null);
+        Long webtoonId = review.getWebtoon().getId();
         review.softDelete();
         reviewLikeRepository.deleteAllByReviewId(reviewId);
+        refreshWebtoonRating(webtoonId);
         ExpChangeResponse exp = experienceService.reverseAllForReference("REVIEW", reviewId);
         return new ActionResponse<>(null, exp);
     }
@@ -110,6 +116,17 @@ public class ReviewService {
     private Review getActiveForUpdate(Long reviewId) {
         return reviewRepository.findByIdForUpdate(reviewId).filter(r -> !r.isDeleted())
                 .orElseThrow(() -> new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
+    }
+
+    private void refreshWebtoonRating(Long webtoonId) {
+        Webtoon webtoon = webtoonRepository.findById(webtoonId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.WEBTOON_NOT_FOUND));
+        long count = reviewRepository.countByWebtoonIdAndDeletedFalse(webtoonId);
+        Double avg = reviewRepository.averageRatingByWebtoonId(webtoonId);
+        BigDecimal ratingAvg = avg == null
+                ? BigDecimal.ZERO
+                : BigDecimal.valueOf(avg).setScale(2, RoundingMode.HALF_UP);
+        webtoon.applyRatingStats(ratingAvg, (int) count);
     }
 
     private String reviewCreateEvent(Long userId, Long webtoonId) {

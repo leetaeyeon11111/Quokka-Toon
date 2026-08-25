@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { INQUIRY_CATEGORIES } from '../data/inquiries'
 import { createInquiry, listMyInquiries } from '../api/inquiry'
+import { isInquiryDone } from '../api/labels'
 import { useAuth } from '../hooks/useAuth'
 import PlaceholderPage from '../components/common/PlaceholderPage'
 
 function InquiryHistoryItem({ inquiry }) {
   const [open, setOpen] = useState(false)
-  const isDone = inquiry.status === '답변완료'
+  const isDone = isInquiryDone(inquiry.status)
 
   return (
     <div className="rounded-xl border border-ink-100 p-4">
@@ -16,11 +17,11 @@ function InquiryHistoryItem({ inquiry }) {
         </span>
         <span className="flex-1 truncate text-sm font-semibold text-ink-900">{inquiry.title}</span>
         <span
-          className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-            isDone ? 'border-mint-500 text-mint-500' : 'border-ink-200 text-ink-500'
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+            isDone ? 'bg-mint-100 text-mint-500' : 'bg-ink-100 text-ink-500'
           }`}
         >
-          {inquiry.status}
+          {isDone ? '완료' : inquiry.status}
         </span>
       </div>
       <p className="text-xs text-ink-500">
@@ -63,9 +64,19 @@ export default function InquiryPage() {
     return <PlaceholderPage title="문의하기" description="문의하기는 로그인 후 이용할 수 있어요." showDemoLogin />
   }
 
+  const contentFilled = content.trim().length > 0
+  const canSubmit = Boolean(category && title.trim() && contentFilled)
+
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!category || !title.trim() || !content.trim()) return
+    if (!contentFilled) {
+      setError('문의 내용을 입력해주세요.')
+      return
+    }
+    if (!category || !title.trim()) {
+      setError(!category ? '문의 항목을 선택해주세요.' : '제목을 입력해주세요.')
+      return
+    }
     setError('')
     setSubmitting(true)
     try {
@@ -132,11 +143,18 @@ export default function InquiryPage() {
 
           <textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setContent(e.target.value)
+              if (error) setError('')
+            }}
             placeholder="문의 내용을 입력해주세요."
             rows={6}
             className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none"
+            aria-invalid={!contentFilled}
           />
+          {!contentFilled && (
+            <p className="text-xs text-ink-500">문의 내용을 입력해야 확인할 수 있어요.</p>
+          )}
 
           <div className="flex items-center gap-2">
             <span className="flex-1 truncate rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm text-ink-300">
@@ -157,8 +175,8 @@ export default function InquiryPage() {
 
           <button
             type="submit"
-            disabled={submitting}
-            className="mt-1 rounded-xl bg-brand-600 py-3.5 text-sm font-bold text-white transition hover:bg-brand-700 disabled:opacity-50"
+            disabled={submitting || !canSubmit}
+            className="mt-1 rounded-xl bg-brand-600 py-3.5 text-sm font-bold text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? '등록 중…' : '확인'}
           </button>

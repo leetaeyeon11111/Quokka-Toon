@@ -10,9 +10,13 @@ public record WebtoonListItem(
         String title,
         String thumbnailUrl,
         String platformName,
+        String platformLogoUrl,
         String mainGenre,
         String ageRating,
-        BigDecimal ratingAvg
+        BigDecimal ratingAvg,
+        long viewCount,
+        int bookmarkCount,
+        int ratingCount
 ) {
     public static WebtoonListItem from(Webtoon w) {
         return new WebtoonListItem(
@@ -20,9 +24,13 @@ public record WebtoonListItem(
                 w.getTitle(),
                 w.getThumbnailUrl(),
                 w.getPlatform() != null ? w.getPlatform().getName() : null,
+                w.getPlatform() != null ? w.getPlatform().getLogoUrl() : null,
                 w.getMainGenre() != null ? w.getMainGenre().getName() : null,
                 w.getAgeRating(),
-                w.getRatingAvg()
+                w.getRatingAvg(),
+                w.getViewCount(),
+                w.getBookmarkCount(),
+                w.getRatingCount()
         );
     }
 }

@@ -77,6 +77,9 @@ export default function Header() {
           <Link to="/webtoons" className="transition hover:text-brand-500">
             웹툰
           </Link>
+          <Link to="/?focus=ai" className="transition hover:text-brand-500">
+            AI 추천 검색
+          </Link>
           <Link to="/board" className="transition hover:text-brand-500">
             게시판
           </Link>
@@ -94,7 +97,7 @@ export default function Header() {
                 to="/mypage/favorites#experience-log"
                 title={`${levelLabel(user)} · ${user.nickname}`}
                 aria-describedby="header-experience-preview"
-                className="flex max-w-30 min-w-0 items-center gap-1 rounded-full border border-ink-100 px-2 py-1.5 text-[11px] font-semibold text-ink-700 transition hover:border-brand-200 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 sm:max-w-44 sm:px-3 sm:text-xs"
+                className="flex max-w-30 min-w-0 cursor-pointer items-center gap-1 rounded-full border border-ink-100 px-2 py-1.5 text-[11px] font-semibold text-ink-700 transition hover:border-brand-200 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 sm:max-w-44 sm:px-3 sm:text-xs"
               >
                 <ProfileAvatar
                   src={user.profileImageUrl}

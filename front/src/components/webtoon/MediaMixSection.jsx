@@ -1,4 +1,5 @@
 import { MEDIA_TYPE_ICON, MEDIA_TYPE_LABEL } from '../../data/mediaMix'
+import { namuWikiButtonStyle } from '../../lib/platformColors'
 
 function groupByType(items) {
   const groups = {}
@@ -27,7 +28,8 @@ export function MediaMixHeroLinks({ items }) {
           href={namu.namuWikiUrl}
           target="_blank"
           rel="noreferrer"
-          className="rounded-full border border-mint-500 bg-mint-100 px-4 py-2.5 text-sm font-semibold text-mint-500 transition hover:bg-mint-500 hover:text-white"
+          style={namuWikiButtonStyle()}
+          className="rounded-full border px-4 py-2.5 text-sm font-semibold transition hover:opacity-90"
         >
           나무위키에서 미디어믹스 보기
         </a>

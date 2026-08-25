@@ -1,31 +1,29 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createPost } from '../api/board'
-import { listWebtoons } from '../api/webtoon'
 import { useAuth } from '../hooks/useAuth'
 import { StarsInput } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
+import WebtoonSearchPicker from '../components/webtoon/WebtoonSearchPicker'
 import { useExperienceNotification } from '../hooks/useExperienceNotification'
+
+function boardFromQuery(params) {
+  return params.get('board') === 'webtoon' ? 'webtoon' : 'free'
+}
 
 export default function BoardWritePage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { isLoggedIn } = useAuth()
   const { notifyExperience } = useExperienceNotification()
 
-  const [board, setBoard] = useState('free')
-  const [webtoons, setWebtoons] = useState([])
-  const [webtoonId, setWebtoonId] = useState('')
+  const [board, setBoard] = useState(() => boardFromQuery(searchParams))
+  const [selectedWebtoon, setSelectedWebtoon] = useState(null)
   const [rating, setRating] = useState(0)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    listWebtoons()
-      .then(setWebtoons)
-      .catch(() => setWebtoons([]))
-  }, [])
 
   if (!isLoggedIn) {
     return <PlaceholderPage title="글쓰기" description="글쓰기는 로그인 후 이용할 수 있어요." showDemoLogin />
@@ -43,13 +41,17 @@ export default function BoardWritePage() {
       setError('본문은 공백을 제외하고 20~10,000자로 입력해주세요.')
       return
     }
+    if (board === 'webtoon' && !selectedWebtoon?.id) {
+      setError('웹툰을 선택해주세요.')
+      return
+    }
     setError('')
     setSubmitting(true)
 
     try {
       const action = await createPost({
         board,
-        webtoonId: board === 'webtoon' && webtoonId ? Number(webtoonId) : null,
+        webtoonId: board === 'webtoon' ? selectedWebtoon.id : null,
         title: normalizedTitle,
         content: normalizedContent,
         rating: board === 'webtoon' && rating > 0 ? rating : null,
@@ -75,7 +77,10 @@ export default function BoardWritePage() {
             <button
               key={b.key}
               type="button"
-              onClick={() => setBoard(b.key)}
+              onClick={() => {
+                setBoard(b.key)
+                setSearchParams(b.key === 'webtoon' ? { board: 'webtoon' } : { board: 'free' }, { replace: true })
+              }}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 board === b.key ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
               }`}
@@ -87,18 +92,7 @@ export default function BoardWritePage() {
 
         {board === 'webtoon' && (
           <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-ink-50 p-3">
-            <select
-              value={webtoonId}
-              onChange={(e) => setWebtoonId(e.target.value)}
-              className="w-full min-w-0 rounded-full border border-ink-100 bg-white px-3 py-2 text-sm outline-none"
-            >
-              <option value="">웹툰 선택</option>
-              {webtoons.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.title}
-                </option>
-              ))}
-            </select>
+            <WebtoonSearchPicker value={selectedWebtoon} onChange={setSelectedWebtoon} />
             <div className="flex items-center gap-2">
               <span className="text-sm text-ink-500">평점</span>
               <StarsInput value={rating} onChange={setRating} />

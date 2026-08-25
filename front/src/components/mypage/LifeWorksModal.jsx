@@ -24,11 +24,24 @@ function MiniThumb({ webtoon, className = '' }) {
   )
 }
 
+function SearchLoading() {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6" aria-busy="true" aria-label="검색 중">
+      <span
+        className="h-5 w-5 animate-spin rounded-full border-2 border-ink-100 border-t-brand-500 motion-reduce:animate-none"
+        aria-hidden
+      />
+      <p className="text-xs text-ink-400">검색 중…</p>
+    </div>
+  )
+}
+
 export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
   const [picking, setPicking] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [works, setWorks] = useState([])
   const [candidates, setCandidates] = useState([])
+  const [searching, setSearching] = useState(false)
 
   // 담은 인생작 실제 웹툰 로드
   useEffect(() => {
@@ -48,16 +61,23 @@ export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
     let cancelled = false
     async function search() {
       if (!picking || !keyword.trim()) {
-        if (!cancelled) setCandidates([])
+        if (!cancelled) {
+          setCandidates([])
+          setSearching(false)
+        }
         return
       }
+      if (!cancelled) setSearching(true)
       try {
         const data = await searchWebtoons({ q: keyword.trim(), size: 20 })
         if (!cancelled) setCandidates((data?.content ?? []).map(toCardModel))
       } catch {
         if (!cancelled) setCandidates([])
+      } finally {
+        if (!cancelled) setSearching(false)
       }
     }
+    if (picking && keyword.trim()) setSearching(true)
     const timer = setTimeout(search, 250)
     return () => {
       cancelled = true
@@ -108,24 +128,28 @@ export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
             className="mb-3 w-full rounded-full border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none"
           />
           <div className="max-h-72 overflow-y-auto">
-            {keyword.trim() && candidates.length === 0 && (
+            {keyword.trim() && searching && <SearchLoading />}
+            {keyword.trim() && !searching && candidates.length === 0 && (
               <p className="py-4 text-center text-xs text-ink-400">검색 결과가 없어요.</p>
             )}
-            {candidates.map((w) => {
-              const active = lifeWorks.includes(w.id) || lifeWorks.includes(String(w.id))
-              return (
-                <button
-                  key={w.id}
-                  type="button"
-                  onClick={() => onToggle(w.id)}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-ink-50"
-                >
-                  <MiniThumb webtoon={w} className="h-10 w-8 shrink-0 rounded" />
-                  <span className="flex-1 truncate text-sm text-ink-900">{w.title}</span>
-                  <span className={active ? 'text-brand-500' : 'text-ink-200'}>{active ? '★' : '☆'}</span>
-                </button>
-              )
-            })}
+            {!searching &&
+              candidates.map((w) => {
+                const active = lifeWorks.includes(w.id) || lifeWorks.includes(String(w.id))
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    onClick={() => onToggle(w.id)}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-ink-50"
+                  >
+                    <MiniThumb webtoon={w} className="h-10 w-8 shrink-0 rounded" />
+                    <span className="flex-1 truncate text-sm text-ink-900">{w.title}</span>
+                    <span className={active ? 'text-brand-500' : 'text-ink-200'}>
+                      {active ? '★' : '☆'}
+                    </span>
+                  </button>
+                )
+              })}
           </div>
           <button
             type="button"

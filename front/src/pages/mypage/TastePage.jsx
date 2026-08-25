@@ -3,7 +3,7 @@ import { searchWebtoons } from '../../api/webtoon'
 import { fetchWebtoonModelsByIds, toCardModel } from '../../lib/webtoon'
 import { useAppData } from '../../hooks/useAppData'
 import MyPageShell from '../../components/mypage/MyPageShell'
-import WebtoonCard from '../../components/webtoon/WebtoonCard'
+import WebtoonCardCarousel from '../../components/webtoon/WebtoonCardCarousel'
 import LifeWorksModal from '../../components/mypage/LifeWorksModal'
 
 const RANK_LABELS = ['상위 44%', '상위 32%', '상위 24%']
@@ -159,11 +159,12 @@ export default function TastePage() {
       {recommendations.length > 0 && (
         <div className="mt-8">
           <p className="mb-3 text-sm font-bold text-ink-900">최애 장르 기반 추천</p>
-          <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1">
-            {recommendations.map((w) => (
-              <WebtoonCard key={w.id} webtoon={w} />
-            ))}
-          </div>
+          <WebtoonCardCarousel
+            items={recommendations}
+            ariaLabel="최애 장르 기반 추천 작품 목록"
+            prevLabel="이전 추천 작품 보기"
+            nextLabel="다음 추천 작품 보기"
+          />
         </div>
       )}
 

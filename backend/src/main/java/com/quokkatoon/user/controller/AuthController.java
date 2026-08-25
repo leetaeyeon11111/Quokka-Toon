@@ -61,6 +61,13 @@ public class AuthController {
         return ApiResponse.ok(authService.updateProfileIcon(userId, req.iconId()));
     }
 
+    @PatchMapping("/me/nickname")
+    public ApiResponse<UserResponse> updateNickname(
+            @AuthenticationPrincipal Long userId,
+            @Valid @RequestBody UpdateNicknameRequest req) {
+        return ApiResponse.ok(authService.updateNickname(userId, req.nickname()));
+    }
+
     // 소셜 로그인 — 프론트 콜백에서 받은 인가 코드를 전달
     @PostMapping("/social/kakao")
     public ApiResponse<TokenResponse> kakao(@Valid @RequestBody SocialLoginRequest req) {

@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import RadarChart from './RadarChart'
+import AiSummaryMark from '../common/AiSummaryMark'
+import AdultCoverMark from '../common/AdultCoverMark'
+import PlatformLogo from './PlatformLogo'
 import { webtoonHref } from '../../lib/navigation'
 
 const TABS = [
@@ -29,9 +32,10 @@ export default function RecommendCard({ result }) {
   const { webtoon, reasonText, queryScore, tasteScore, total, axisTags } = result
   const [tab, setTab] = useState('reason')
   const [imgOk, setImgOk] = useState(true)
-  const strength = total >= 70 ? 2 : total > 0 ? 1 : 0
   const href = webtoonHref(webtoon)
   const showImage = webtoon.thumbnailUrl && imgOk && !webtoon.isAdult
+  const platformName = webtoon.platformName ?? webtoon.platforms?.[0]?.name
+  const platformLogoUrl = webtoon.platformLogoUrl ?? webtoon.platforms?.[0]?.logoUrl
 
   return (
     <div className="rounded-2xl border border-ink-100 bg-white p-5 shadow-sm">
@@ -51,11 +55,11 @@ export default function RecommendCard({ result }) {
               />
             )}
             {webtoon.isAdult && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-ink-900/80 text-white backdrop-blur-sm">
-                <span className="text-xl" aria-hidden>
-                  🐿
+              <div className="absolute inset-0 bg-black text-white">
+                <AdultCoverMark fill />
+                <span className="absolute inset-x-0 bottom-1 text-center text-[9px] font-medium drop-shadow">
+                  19금 가림
                 </span>
-                <span className="text-[10px] font-medium">19금 가림</span>
               </div>
             )}
           </div>
@@ -70,10 +74,12 @@ export default function RecommendCard({ result }) {
                 {webtoon.authors.writer}, {webtoon.authors.artist} | {webtoon.genre}
               </p>
             </Link>
-            <span className="shrink-0 text-sm text-brand-500" aria-label={`추천 강도 ${strength}`}>
-              {'★'.repeat(strength)}
-              {'☆'.repeat(2 - strength)}
-            </span>
+            <PlatformLogo
+              name={platformName}
+              logoUrl={platformLogoUrl}
+              size="md"
+              className="mt-0.5"
+            />
           </div>
 
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -87,7 +93,12 @@ export default function RecommendCard({ result }) {
             ))}
           </div>
 
-          <p className="mt-2 line-clamp-2 text-xs italic text-ink-500">"{webtoon.catchphrase}"</p>
+          {webtoon.catchphrase && (
+            <div className="mt-2 flex items-start gap-1.5">
+              <AiSummaryMark className="mt-0.5" />
+              <p className="line-clamp-2 min-w-0 text-xs italic text-ink-500">"{webtoon.catchphrase}"</p>
+            </div>
+          )}
         </div>
       </div>
 

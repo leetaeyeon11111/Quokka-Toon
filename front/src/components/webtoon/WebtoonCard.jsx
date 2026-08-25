@@ -2,8 +2,41 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { coverGradientFor } from '../../lib/webtoon'
 import { webtoonHref } from '../../lib/navigation'
+import AdultCoverMark from '../common/AdultCoverMark'
 
-export default function WebtoonCard({ webtoon, showPlatform = true, rank, className = '' }) {
+function formatCount(n) {
+  const value = Number(n) || 0
+  if (value >= 10000) return `${(value / 10000).toFixed(1)}만`
+  return value.toLocaleString()
+}
+
+function SortMeta({ sort, webtoon }) {
+  const rating = webtoon.ratingAvg ?? webtoon.stats?.ratingAvg
+  const views = webtoon.viewCount ?? webtoon.stats?.views ?? 0
+  const bookmarks = webtoon.bookmarkCount ?? webtoon.stats?.bookmarkCount ?? 0
+  const ratingCount = webtoon.ratingCount ?? webtoon.stats?.ratingCount ?? 0
+
+  if (sort === 'bookmark') {
+    return <p className="truncate text-xs text-ink-500">북마크 {formatCount(bookmarks)}</p>
+  }
+  if (sort === 'views') {
+    return <p className="truncate text-xs text-ink-500">조회 {formatCount(views)}</p>
+  }
+  if (sort === 'rating') {
+    const avg = rating != null ? Number(rating).toFixed(1) : '—'
+    return (
+      <p className="truncate text-xs text-ink-500">
+        ★ {avg} · 리뷰 {formatCount(ratingCount)}
+      </p>
+    )
+  }
+  if (rating != null) {
+    return <p className="truncate text-xs text-ink-500">★ {Number(rating).toFixed(1)}</p>
+  }
+  return null
+}
+
+export default function WebtoonCard({ webtoon, showPlatform = true, rank, sort, className = '' }) {
   const { id, title } = webtoon
   const [imgOk, setImgOk] = useState(true)
 
@@ -12,7 +45,6 @@ export default function WebtoonCard({ webtoon, showPlatform = true, rank, classN
   const gradient = webtoon.coverGradient ?? coverGradientFor(id)
   const platformName = webtoon.platformName ?? webtoon.platforms?.[0]?.name
   const isAdult = webtoon.isAdult ?? webtoon.ageRating === '19'
-  const rating = webtoon.ratingAvg ?? webtoon.stats?.ratingAvg
   const showImage = thumbnailUrl && imgOk && !isAdult
 
   return (
@@ -31,11 +63,11 @@ export default function WebtoonCard({ webtoon, showPlatform = true, rank, classN
           />
         )}
         {isAdult && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-ink-900/80 text-white backdrop-blur-sm">
-            <span className="text-2xl" aria-hidden>
-              🐿
+          <div className="absolute inset-0 bg-black text-white">
+            <AdultCoverMark fill />
+            <span className="absolute inset-x-0 bottom-2 text-center text-xs font-medium drop-shadow">
+              19금 가림
             </span>
-            <span className="text-xs font-medium">19금 가림</span>
           </div>
         )}
         {showPlatform && platformName && !isAdult && (
@@ -53,9 +85,7 @@ export default function WebtoonCard({ webtoon, showPlatform = true, rank, classN
         )}
       </div>
       <p className="mt-2 truncate text-sm font-semibold text-ink-900">{title}</p>
-      {rating != null && (
-        <p className="truncate text-xs text-ink-500">★ {Number(rating).toFixed(1)}</p>
-      )}
+      <SortMeta sort={sort} webtoon={webtoon} />
     </Link>
   )
 }

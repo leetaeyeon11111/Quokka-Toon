@@ -26,7 +26,7 @@ function MenuLink({ to, onClose, children }) {
 }
 
 export default function HamburgerMenu({ onClose }) {
-  const { isLoggedIn, logout } = useAuth()
+  const { isLoggedIn, isAdmin, logout } = useAuth()
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -72,6 +72,9 @@ export default function HamburgerMenu({ onClose }) {
         <MenuLink to="/webtoons" onClose={onClose}>
           전체 웹툰
         </MenuLink>
+        <MenuLink to="/?focus=ai" onClose={onClose}>
+          AI 추천 검색
+        </MenuLink>
       </Section>
 
       <Section title="게시판">
@@ -91,6 +94,20 @@ export default function HamburgerMenu({ onClose }) {
           문의하기 / 내 문의내역
         </MenuLink>
       </Section>
+
+      {isAdmin && (
+        <Section title="관리자">
+          <MenuLink to="/admin" onClose={onClose}>
+            신고함 / 문의게시판
+          </MenuLink>
+          <MenuLink to="/admin?tab=reportHistory" onClose={onClose}>
+            신고 완료 기록
+          </MenuLink>
+          <MenuLink to="/admin?tab=inquiryHistory" onClose={onClose}>
+            문의 완료 기록
+          </MenuLink>
+        </Section>
+      )}
 
       {isLoggedIn && (
         <div className="px-3 pt-1">

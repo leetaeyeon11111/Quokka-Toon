@@ -82,7 +82,7 @@ export default function RecommendResultPage() {
           description="첫 검색은 모델을 불러오느라 조금 더 걸릴 수 있어요."
         />
       ) : error ? (
-        <ResultMessage title="AI 추천을 불러오지 못했어요" description={error} />
+        <ResultMessage tone="error" title="AI 추천을 불러오지 못했어요" description={error} />
       ) : results.length === 0 ? (
         <ResultMessage
           title="어울리는 작품을 찾지 못했어요"

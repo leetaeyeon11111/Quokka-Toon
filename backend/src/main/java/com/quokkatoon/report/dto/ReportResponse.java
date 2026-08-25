@@ -15,7 +15,8 @@ public record ReportResponse(
         String title,       // 대상 글 제목 or 댓글 내용 일부
         String board,       // '자유게시판' | '웹툰게시판' | '댓글'
         String status,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime handledAt
 ) {
     public static ReportResponse of(Report r, String author, String title, String board) {
         return new ReportResponse(
@@ -28,7 +29,8 @@ public record ReportResponse(
                 title,
                 board,
                 r.getStatus().name(),
-                r.getCreatedAt()
+                r.getCreatedAt(),
+                r.getHandledAt()
         );
     }
 }

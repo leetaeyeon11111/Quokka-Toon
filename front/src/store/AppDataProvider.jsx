@@ -152,7 +152,7 @@ function reducer(state, action) {
       return {
         ...state,
         inquiries: state.inquiries.map((inq) =>
-          inq.id === action.id ? { ...inq, status: '답변완료', answer: action.answer } : inq,
+          inq.id === action.id ? { ...inq, status: '완료', answer: action.answer } : inq,
         ),
       }
     }

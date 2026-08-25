@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getWebtoon, searchWebtoons } from '../api/webtoon'
+import { createReport } from '../api/report'
 import { toDetailModel, toCardModel } from '../lib/webtoon'
 import { useAuth } from '../hooks/useAuth'
 import { useAppData } from '../hooks/useAppData'
@@ -14,10 +15,15 @@ import Tag from '../components/webtoon/Tag'
 import ScrollSpyNav from '../components/webtoon/ScrollSpyNav'
 import GenderPieChart from '../components/webtoon/GenderPieChart'
 import AlarmModal from '../components/mypage/AlarmModal'
+import ReportModal from '../components/board/ReportModal'
 import { StarsDisplay, StarsInput } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
+import AdultCoverMark from '../components/common/AdultCoverMark'
+import AiSummaryMark from '../components/common/AiSummaryMark'
 import MediaMixSection, { MediaMixHeroLinks } from '../components/webtoon/MediaMixSection'
+import PlatformLogo from '../components/webtoon/PlatformLogo'
 import { loginHref } from '../lib/navigation'
+import { platformButtonStyle } from '../lib/platformColors'
 
 const BASE_SECTIONS = [
   { id: 'info', label: '정보' },
@@ -68,6 +74,7 @@ export default function WebtoonDetailPage() {
   const [reviews, setReviews] = useState([])
   const [reviewsLoading, setReviewsLoading] = useState(true)
   const [reviewError, setReviewError] = useState('')
+  const [reportTarget, setReportTarget] = useState(null)
 
   // 상세 로드 (id 변경 시 화면 전용 상태 초기화)
   useEffect(() => {
@@ -179,8 +186,17 @@ export default function WebtoonDetailPage() {
   if (webtoonLoading) {
     return <p className="py-24 text-center text-sm text-ink-500">불러오는 중…</p>
   }
-  if (webtoonError || !webtoon) {
-    return <PlaceholderPage title="작품을 찾을 수 없어요" description="주소를 다시 확인해주세요." />
+  if (webtoonError) {
+    return (
+      <PlaceholderPage
+        title="작품을 불러오지 못했어요"
+        description="요청에 실패했어요. 잠시 후 다시 시도해주세요."
+        showBack
+      />
+    )
+  }
+  if (!webtoon) {
+    return <PlaceholderPage title="작품을 찾을 수 없어요" description="주소를 다시 확인해주세요." showBack />
   }
 
   const favorited = Boolean(favorites[webtoon.id])
@@ -263,6 +279,24 @@ export default function WebtoonDetailPage() {
     }
   }
 
+  function handleReportReview(reviewId) {
+    if (!isLoggedIn) {
+      navigate(loginHref(`/webtoons/${webtoon.id}#reviews`))
+      return
+    }
+    setReportTarget({ targetType: 'REVIEW', targetId: reviewId })
+  }
+
+  async function submitReport(typeLabel) {
+    try {
+      await createReport({ ...reportTarget, typeLabel })
+      setReportTarget(null)
+      alert('신고가 접수됐어요.')
+    } catch (error) {
+      alert(error.message ?? '신고 접수에 실패했어요.')
+    }
+  }
+
   return (
     <div className="px-6 py-10">
       {/* 히어로 */}
@@ -280,11 +314,11 @@ export default function WebtoonDetailPage() {
             />
           )}
           {webtoon.isAdult && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-ink-900/80 text-white backdrop-blur-sm">
-              <span className="text-4xl" aria-hidden>
-                🐿
+            <div className="absolute inset-0 bg-black text-white">
+              <AdultCoverMark fill />
+              <span className="absolute inset-x-0 bottom-3 text-center text-sm font-medium drop-shadow">
+                19금 가림
               </span>
-              <span className="text-sm font-medium">19금 가림</span>
             </div>
           )}
         </div>
@@ -363,9 +397,19 @@ export default function WebtoonDetailPage() {
                 href={p.url}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-1 rounded-full bg-mint-500 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                style={platformButtonStyle(p.name)}
+                className="flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-semibold transition hover:opacity-90"
               >
-                ▶ {p.name}에서 보기
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/95 p-0.5">
+                  <PlatformLogo
+                    name={p.name}
+                    logoUrl={p.logoUrl ?? webtoon.platformLogoUrl}
+                    size="sm"
+                    showNameFallback={false}
+                    className="!h-full !w-full"
+                  />
+                </span>
+                {p.name}에서 보기
               </a>
             ))}
           </div>
@@ -416,8 +460,8 @@ export default function WebtoonDetailPage() {
 
             {webtoon.aiSummary && (
               <div className="rounded-xl border border-mint-500 bg-mint-100 p-4">
-                <p className="mb-1 flex items-center gap-1 text-sm font-bold text-mint-500">
-                  ✨ AI 요약
+                <p className="mb-1">
+                  <AiSummaryMark className="text-xs" />
                 </p>
                 <p className="text-sm text-ink-700">{webtoon.aiSummary}</p>
               </div>
@@ -514,6 +558,15 @@ export default function WebtoonDetailPage() {
                     >
                       👍 추천 {review.likes}
                     </button>
+                    {!review.mine && (
+                      <button
+                        type="button"
+                        onClick={() => handleReportReview(review.id)}
+                        className="text-ink-500 hover:text-red-500"
+                      >
+                        🚩 신고
+                      </button>
+                    )}
                     {review.mine && (
                       <>
                         <button
@@ -575,6 +628,14 @@ export default function WebtoonDetailPage() {
 
         <ScrollSpyNav sections={sections} activeId={activeId} />
       </div>
+
+      {reportTarget && (
+        <ReportModal
+          target={reportTarget}
+          onConfirm={submitReport}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
     </div>
   )
 }

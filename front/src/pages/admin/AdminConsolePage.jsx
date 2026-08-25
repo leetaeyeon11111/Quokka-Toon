@@ -1,24 +1,38 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { REPORT_TYPES } from '../../data/reports'
 import { INQUIRY_CATEGORIES } from '../../data/inquiries'
 import * as adminApi from '../../api/admin'
+import { isInquiryDone } from '../../api/labels'
 import { useAuth } from '../../hooks/useAuth'
 import BanModal from '../../components/admin/BanModal'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
 
-function ReportsTab() {
+function StatusTag({ done, children }) {
+  return (
+    <span
+      className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+        done ? 'bg-mint-100 text-mint-500' : 'bg-ink-100 text-ink-500'
+      }`}
+    >
+      {children}
+    </span>
+  )
+}
+
+function ReportsTab({ historyOnly }) {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState('전체')
   const [banTarget, setBanTarget] = useState(null)
 
   useEffect(() => {
-    adminApi
-      .listReports()
+    const loader = historyOnly ? adminApi.listHandledReports : adminApi.listReports
+    loader()
       .then(setReports)
       .catch(() => setReports([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [historyOnly])
 
   const filtered = useMemo(
     () => (typeFilter === '전체' ? reports : reports.filter((r) => r.type === typeFilter)),
@@ -60,14 +74,16 @@ function ReportsTab() {
             </option>
           ))}
         </select>
-        <span className="ml-auto text-sm font-semibold text-ink-500">미처리 {filtered.length}건</span>
+        <span className="ml-auto text-sm font-semibold text-ink-500">
+          {historyOnly ? `완료 기록 ${filtered.length}건` : `미처리 ${filtered.length}건`}
+        </span>
       </div>
 
       {loading ? (
         <p className="py-16 text-center text-sm text-ink-500">불러오는 중…</p>
       ) : filtered.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-ink-100 bg-white py-16 text-center text-sm text-ink-500">
-          처리할 신고가 없어요.
+          {historyOnly ? '완료된 신고 기록이 없어요.' : '처리할 신고가 없어요.'}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
@@ -75,37 +91,55 @@ function ReportsTab() {
             <div key={report.id} className="rounded-xl border border-dashed border-ink-200 bg-white p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
+                  {historyOnly && (
+                    <StatusTag done={report.status !== '반려'}>
+                      {report.status === '반려' ? '반려' : '완료'}
+                    </StatusTag>
+                  )}
                   <span className="mr-2 rounded-full border border-red-300 px-2 py-0.5 text-[11px] font-semibold text-red-500">
                     {report.type}
                   </span>
                   <span className="text-sm font-semibold text-ink-900">{report.title}</span>
                   <p className="mt-1 text-xs text-ink-500">
                     작성자 {report.author} · {report.when} · {report.board}
+                    {historyOnly && report.handledWhen ? ` · 처리 ${report.handledWhen}` : ''}
                   </p>
                 </div>
-                <div className="flex shrink-0 gap-1.5">
+                {historyOnly ? (
                   <button
                     type="button"
-                    onClick={() => alert(`[${report.title}]\n작성자: ${report.author}\n게시판: ${report.board}`)}
+                    onClick={() =>
+                      alert(`[${report.title}]\n작성자: ${report.author}\n게시판: ${report.board}\n상태: ${report.status}`)
+                    }
                     className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
                   >
                     보기
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleResolve(report.id)}
-                    className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
-                  >
-                    반려
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBanTarget(report)}
-                    className="rounded-full bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800"
-                  >
-                    🚫 작성자 벤
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => alert(`[${report.title}]\n작성자: ${report.author}\n게시판: ${report.board}`)}
+                      className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                    >
+                      보기
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleResolve(report.id)}
+                      className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                    >
+                      반려
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBanTarget(report)}
+                      className="rounded-full bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800"
+                    >
+                      🚫 작성자 벤
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -119,11 +153,11 @@ function ReportsTab() {
   )
 }
 
-function InquiriesTab() {
+function InquiriesTab({ historyOnly }) {
   const [inquiries, setInquiries] = useState([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('전체')
-  const [status, setStatus] = useState('전체')
+  const [status, setStatus] = useState(historyOnly ? '완료' : '전체')
   const [keyword, setKeyword] = useState('')
   const [openReply, setOpenReply] = useState(null)
   const [draftAnswer, setDraftAnswer] = useState('')
@@ -138,15 +172,17 @@ function InquiriesTab() {
 
   const filtered = useMemo(() => {
     return inquiries.filter((inq) => {
+      if (historyOnly && !isInquiryDone(inq.status)) return false
+      if (!historyOnly && status === '완료' && !isInquiryDone(inq.status)) return false
+      if (!historyOnly && status !== '전체' && status !== '완료' && inq.status !== status) return false
       if (category !== '전체' && inq.category !== category) return false
-      if (status !== '전체' && inq.status !== status) return false
       if (keyword.trim()) {
         const kw = keyword.trim().toLowerCase()
         if (!inq.title.toLowerCase().includes(kw) && !inq.author.toLowerCase().includes(kw)) return false
       }
       return true
     })
-  }, [inquiries, category, status, keyword])
+  }, [inquiries, category, status, keyword, historyOnly])
 
   async function handleAnswer(id) {
     if (!draftAnswer.trim()) return
@@ -154,7 +190,7 @@ function InquiriesTab() {
       await adminApi.answerInquiry(id, draftAnswer.trim())
       setInquiries((prev) =>
         prev.map((inq) =>
-          inq.id === id ? { ...inq, status: '답변완료', answer: draftAnswer.trim() } : inq,
+          inq.id === id ? { ...inq, status: '완료', answer: draftAnswer.trim() } : inq,
         ),
       )
       setOpenReply(null)
@@ -188,15 +224,17 @@ function InquiriesTab() {
             </option>
           ))}
         </select>
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="rounded-full border border-ink-100 bg-white px-3 py-2 text-xs font-semibold text-ink-700 outline-none"
-        >
-          <option value="전체">상태: 전체</option>
-          <option value="답변대기">답변대기</option>
-          <option value="답변완료">답변완료</option>
-        </select>
+        {!historyOnly && (
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className="rounded-full border border-ink-100 bg-white px-3 py-2 text-xs font-semibold text-ink-700 outline-none"
+          >
+            <option value="전체">상태: 전체</option>
+            <option value="답변대기">답변대기</option>
+            <option value="완료">완료</option>
+          </select>
+        )}
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
@@ -204,7 +242,9 @@ function InquiriesTab() {
           className="rounded-full border border-ink-100 bg-white px-3 py-2 text-xs outline-none"
         />
         <span className="ml-auto text-sm font-semibold text-ink-500">
-          {filtered.filter((i) => i.status === '답변대기').length}건 답변대기
+          {historyOnly
+            ? `완료 기록 ${filtered.length}건`
+            : `${filtered.filter((i) => !isInquiryDone(i.status)).length}건 답변대기`}
         </span>
       </div>
 
@@ -212,84 +252,102 @@ function InquiriesTab() {
         <p className="py-16 text-center text-sm text-ink-500">불러오는 중…</p>
       ) : filtered.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-ink-100 bg-white py-16 text-center text-sm text-ink-500">
-          문의가 없어요.
+          {historyOnly ? '완료된 문의 기록이 없어요.' : '문의가 없어요.'}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {filtered.map((inq) => (
-            <div key={inq.id} className="rounded-xl border border-dashed border-ink-200 bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <span
-                    className={`mr-2 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      inq.status === '답변완료' ? 'bg-mint-100 text-mint-500' : 'bg-ink-100 text-ink-500'
-                    }`}
-                  >
-                    {inq.status}
-                  </span>
-                  <span className="text-sm font-semibold text-ink-900">
-                    {inq.category} · {inq.title}
-                  </span>
-                  <p className="mt-1 text-xs text-ink-500">
-                    작성자 {inq.author} · {inq.date}
-                  </p>
+          {filtered.map((inq) => {
+            const done = isInquiryDone(inq.status)
+            return (
+              <div key={inq.id} className="rounded-xl border border-dashed border-ink-200 bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <StatusTag done={done}>{done ? '완료' : inq.status}</StatusTag>
+                    <span className="text-sm font-semibold text-ink-900">
+                      {inq.category} · {inq.title}
+                    </span>
+                    <p className="mt-1 text-xs text-ink-500">
+                      작성자 {inq.author} · {inq.date}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    {!historyOnly && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenReply(openReply === inq.id ? null : inq.id)
+                          setDraftAnswer(inq.answer || '')
+                        }}
+                        className="rounded-full bg-brand-100 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50"
+                      >
+                        답변
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => alert(inq.content)}
+                      className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                    >
+                      보기
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(inq.id)}
+                      className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50"
+                    >
+                      삭제
+                    </button>
+                  </div>
                 </div>
-                <div className="flex shrink-0 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setOpenReply(openReply === inq.id ? null : inq.id)
-                      setDraftAnswer(inq.answer || '')
-                    }}
-                    className="rounded-full bg-brand-100 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-brand-50"
-                  >
-                    답변
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => alert(inq.content)}
-                    className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
-                  >
-                    보기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(inq.id)}
-                    className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-500 hover:bg-red-50"
-                  >
-                    삭제
-                  </button>
-                </div>
-              </div>
 
-              {openReply === inq.id && (
-                <div className="mt-3 flex gap-2">
-                  <input
-                    value={draftAnswer}
-                    onChange={(e) => setDraftAnswer(e.target.value)}
-                    placeholder="답변을 입력해주세요."
-                    className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2 text-xs outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleAnswer(inq.id)}
-                    className="rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white"
-                  >
-                    등록
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+                {historyOnly && done && inq.answer && (
+                  <p className="mt-3 rounded-lg bg-mint-100 p-3 text-xs text-ink-700">{inq.answer}</p>
+                )}
+
+                {openReply === inq.id && (
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      value={draftAnswer}
+                      onChange={(e) => setDraftAnswer(e.target.value)}
+                      placeholder="답변을 입력해주세요."
+                      className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2 text-xs outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAnswer(inq.id)}
+                      className="rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white"
+                    >
+                      등록
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
   )
 }
 
+const TABS = [
+  { id: 'reports', label: '신고함' },
+  { id: 'reportHistory', label: '신고 완료 기록' },
+  { id: 'inquiries', label: '문의게시판' },
+  { id: 'inquiryHistory', label: '문의 완료 기록' },
+]
+
+const TITLES = {
+  reports: '신고함 — 작성자 제재',
+  reportHistory: '신고 완료 기록',
+  inquiries: '문의게시판 관리',
+  inquiryHistory: '문의 완료 기록',
+}
+
 export default function AdminConsolePage() {
   const { isAdmin } = useAuth()
-  const [tab, setTab] = useState('reports')
+  const [params, setParams] = useSearchParams()
+  const tab = TABS.some((item) => item.id === params.get('tab')) ? params.get('tab') : 'reports'
 
   if (!isAdmin) {
     return <PlaceholderPage title="관리자 콘솔" description="관리자 권한이 필요한 페이지예요." showDemoLogin />
@@ -299,33 +357,28 @@ export default function AdminConsolePage() {
     <div className="px-6 py-10">
       <div className="mb-5 flex items-center gap-3">
         <span className="rounded-full bg-ink-900 px-3 py-1.5 text-xs font-bold text-white">🔒 관리자 전용</span>
-        <h1 className="text-xl font-bold text-ink-900">
-          {tab === 'reports' ? '신고함 — 작성자 제재' : '문의게시판 관리'}
-        </h1>
+        <h1 className="text-xl font-bold text-ink-900">{TITLES[tab]}</h1>
       </div>
 
-      <div className="mb-5 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setTab('reports')}
-          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-            tab === 'reports' ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
-          }`}
-        >
-          신고함
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('inquiries')}
-          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-            tab === 'inquiries' ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
-          }`}
-        >
-          문의게시판
-        </button>
+      <div className="mb-5 flex flex-wrap gap-2">
+        {TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setParams(item.id === 'reports' ? {} : { tab: item.id })}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              tab === item.id ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
-      {tab === 'reports' ? <ReportsTab /> : <InquiriesTab />}
+      {tab === 'reports' && <ReportsTab historyOnly={false} />}
+      {tab === 'reportHistory' && <ReportsTab historyOnly />}
+      {tab === 'inquiries' && <InquiriesTab historyOnly={false} />}
+      {tab === 'inquiryHistory' && <InquiriesTab historyOnly />}
     </div>
   )
 }

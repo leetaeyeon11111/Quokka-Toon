@@ -12,10 +12,33 @@ export function ResultGridSkeleton({ count = 12 }) {
   )
 }
 
-export function ResultMessage({ icon = '🐿', title, description, actionLabel, onAction }) {
+const ERROR_QUOKKA = '/error_quokka.png'
+
+export function ResultMessage({
+  icon = '🐿',
+  imageSrc,
+  tone = 'default',
+  title,
+  description,
+  actionLabel,
+  onAction,
+}) {
+  const illustration = imageSrc ?? (tone === 'error' ? ERROR_QUOKKA : null)
+
   return (
     <div className="flex flex-col items-center rounded-3xl border border-ink-100 bg-white px-6 py-16 text-center shadow-sm">
-      <span className="text-4xl" aria-hidden>{icon}</span>
+      {illustration ? (
+        <img
+          src={illustration}
+          alt=""
+          aria-hidden
+          className="mb-1 h-36 w-36 object-contain sm:h-44 sm:w-44"
+        />
+      ) : (
+        <span className="text-4xl" aria-hidden>
+          {icon}
+        </span>
+      )}
       <h2 className="mt-4 text-lg font-bold text-ink-900">{title}</h2>
       {description && <p className="mt-2 max-w-lg text-sm leading-6 text-ink-500">{description}</p>}
       {actionLabel && onAction && (

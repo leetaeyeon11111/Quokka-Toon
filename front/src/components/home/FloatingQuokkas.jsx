@@ -12,7 +12,7 @@ export default function FloatingQuokkas() {
       {QUOKKAS.map((q, i) => (
         <img
           key={i}
-          src="/quokka.png"
+          src="/quokka_float.png"
           alt=""
           className="floating-quokka"
           style={{

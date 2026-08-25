@@ -7,7 +7,8 @@ const REPORT_TYPES = Object.keys(REPORT_TYPE_TO_ENUM)
 
 export default function ReportModal({ target, onConfirm, onClose }) {
   const [typeLabel, setTypeLabel] = useState(null)
-  const targetName = target?.targetType === 'COMMENT' ? '댓글' : '게시글'
+  const targetName =
+    target?.targetType === 'COMMENT' ? '댓글' : target?.targetType === 'REVIEW' ? '리뷰' : '게시글'
 
   return (
     <Modal title="신고하기" icon="🚩" onClose={onClose}>

@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { WEBTOONS } from '../data/webtoons'
 import { TEAM_PICK_IDS } from '../data/teamPicks'
+import { getWebtoonRanking } from '../api/webtoon'
+import { toCardModel } from '../lib/webtoon'
 import WebtoonCard from '../components/webtoon/WebtoonCard'
 import FeaturePromoCarousel from '../components/home/ContinuousFeaturePromoCarousel'
 import FloatingQuokkas from '../components/home/FloatingQuokkas'
@@ -190,12 +192,14 @@ function Top10Slider({ items }) {
 
 export default function MainPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [query, setQuery] = useState('')
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [diceRolling, setDiceRolling] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const [top10, setTop10] = useState([])
   const pageRef = useRef(null)
   const heroRef = useRef(null)
   const searchInputRef = useRef(null)
@@ -211,6 +215,7 @@ export default function MainPage() {
     moved: false,
     suppressClick: false,
   })
+  const focusAiSearchRef = useRef(null)
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -335,10 +340,21 @@ export default function MainPage() {
     }
   }, [reduceMotion])
 
-  const top10 = useMemo(
-    () => [...WEBTOONS].sort((a, b) => b.stats.views - a.stats.views).slice(0, 10),
-    [],
-  )
+  useEffect(() => {
+    let cancelled = false
+    getWebtoonRanking(10)
+      .then((data) => {
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : data?.content ?? []
+        setTop10(list.map(toCardModel))
+      })
+      .catch(() => {
+        if (!cancelled) setTop10([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -366,6 +382,18 @@ export default function MainPage() {
       reduceMotion ? 0 : 440,
     )
   }
+  focusAiSearchRef.current = focusAiSearch
+
+  // 헤더/햄버거 "AI 추천 검색" → 메인 히어로 검색창으로 포커스
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('focus') !== 'ai') return undefined
+    const timer = window.setTimeout(() => {
+      focusAiSearchRef.current?.()
+      navigate('/', { replace: true })
+    }, 50)
+    return () => window.clearTimeout(timer)
+  }, [location.search, navigate])
 
   function chooseQuickPrompt(prompt) {
     setQuery(prompt)
@@ -690,10 +718,14 @@ export default function MainPage() {
               🔥 TOP 10
             </h2>
             <span className="rounded-full border border-ink-100 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-ink-500">
-              조회수 기준
+              리뷰·조회 기준
             </span>
           </div>
-          <Top10Slider items={top10} />
+          {top10.length > 0 ? (
+            <Top10Slider items={top10} />
+          ) : (
+            <p className="py-8 text-center text-sm text-ink-400">인기 작품을 불러오는 중…</p>
+          )}
         </section>
 
         <section className="mx-auto w-full max-w-6xl px-6 pb-16 pt-8 sm:px-8 lg:px-12">

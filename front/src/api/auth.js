@@ -45,3 +45,8 @@ export function listProfileIcons() {
 export function updateProfileIcon(iconId) {
   return api.patch('/api/auth/me/profile-icon', { iconId })
 }
+
+/** 닉네임 변경 (최대 6자) */
+export function updateNickname(nickname) {
+  return api.patch('/api/auth/me/nickname', { nickname })
+}

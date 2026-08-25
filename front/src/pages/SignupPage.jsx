@@ -5,7 +5,7 @@ import { goKakaoAuthorize, goNaverAuthorize } from '../api/social'
 
 const STEP_MESSAGES = [
   '이메일이랑 비밀번호 입력해줄래?',
-  '나이랑 성별도 알려줄래?',
+  '성별·나이는 추천에 쓰여. 고지도 읽어줘!',
   '이제 닉네임만 정해줘!',
 ]
 
@@ -26,6 +26,62 @@ function StepDots({ step }) {
         <span key={n} className={`h-2 w-2 rounded-full ${n <= step ? 'bg-ink-900' : 'bg-ink-100'}`} />
       ))}
     </div>
+  )
+}
+
+function PersonalInfoNotice() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <aside className="mb-3 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-xs leading-relaxed text-ink-700">
+      <p className="font-semibold text-ink-900">왜 성별과 나이를 받나요?</p>
+      <p className="mt-1">
+        성별과 생년월일은 맞춤 웹툰 추천과, 작품 상세의 성별·나이대 통계를 만드는 데 쓰여요. 다른
+        회원에게 개인정보가 그대로 공개되지는 않아요.
+      </p>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="mt-2 font-semibold text-brand-700 hover:text-brand-800"
+      >
+        개인정보 수집·이용 고지 {open ? '접기' : '자세히 보기'}
+      </button>
+      {open && (
+        <dl className="mt-2 space-y-2 text-ink-600">
+          <div>
+            <dt className="font-semibold text-ink-800">수집 항목</dt>
+            <dd>성별, 생년월일(나이 산출용)</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-ink-800">수집·이용 목적</dt>
+            <dd>
+              취향에 맞는 웹툰 추천, 작품별 성별·나이대 평점·비율 등 집계 통계, 내 정보에서 프로필
+              확인
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-ink-800">이용 방법</dt>
+            <dd>
+              회원 계정에 저장되며, 통계는 개인을 알아볼 수 없는 집계 형태로만 사용해요. 제3자에게
+              제공하지 않아요.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-ink-800">보관 기간</dt>
+            <dd>회원 계정을 유지하는 동안 보관해요.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-ink-800">동의 거부</dt>
+            <dd>이 단계는 가입에 필요해요. 입력하지 않으면 다음 단계로 진행할 수 없어요.</dd>
+          </div>
+          <div>
+            <dt className="font-semibold text-ink-800">확인 위치</dt>
+            <dd>가입 후 마이페이지 → 내 정보 관리에서 성별·나이를 확인할 수 있어요.</dd>
+          </div>
+        </dl>
+      )}
+    </aside>
   )
 }
 
@@ -194,7 +250,7 @@ export default function SignupPage() {
             <p className="mb-4 text-xs font-semibold text-ink-300">STEP {step} / 4</p>
 
             {/* 스텝 콘텐츠 영역: 최소 높이를 고정해 STEP 전환 시 위치가 흔들리지 않게 함 */}
-            <div className="min-h-[18rem]">
+            <div className="min-h-[22rem]">
             {step === 1 && (
               <>
                 <h1 className="mb-4 text-lg font-bold text-ink-900">계정 정보</h1>
@@ -258,7 +314,8 @@ export default function SignupPage() {
 
             {step === 2 && (
               <>
-                <h1 className="mb-4 text-lg font-bold text-ink-900">나이 · 성별</h1>
+                <h1 className="mb-2 text-lg font-bold text-ink-900">나이 · 성별</h1>
+                <PersonalInfoNotice />
                 <form onSubmit={goNextFromStep2} className="flex flex-col gap-3">
                   <div className="flex gap-2">
                     <select

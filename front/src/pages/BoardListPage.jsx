@@ -4,6 +4,7 @@ import { listPosts } from '../api/board'
 import { StarsDisplay } from '../components/common/Stars'
 import { nicknameLevelClass } from '../lib/level'
 import { LevelBadge } from '../components/common/LevelBadge'
+import { ResultMessage } from '../components/common/ResultState'
 
 const TABS = [
   { key: 'all', label: '전체게시판', to: '/board' },
@@ -115,7 +116,13 @@ export default function BoardListPage({ boardType = 'all' }) {
             className="rounded-full border border-ink-100 bg-white px-4 py-2 text-sm outline-none"
           />
           <Link
-            to="/board/write"
+            to={
+              boardType === 'webtoon'
+                ? '/board/write?board=webtoon'
+                : boardType === 'free'
+                  ? '/board/write?board=free'
+                  : '/board/write'
+            }
             className="shrink-0 rounded-full bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
           >
             {boardType === 'webtoon' ? '리뷰 쓰기' : '글쓰기'}
@@ -135,7 +142,11 @@ export default function BoardListPage({ boardType = 'all' }) {
         {loading ? (
           <p className="py-16 text-center text-sm text-ink-500">불러오는 중…</p>
         ) : error ? (
-          <p className="py-16 text-center text-sm text-red-500">{error}</p>
+          <ResultMessage
+            tone="error"
+            title="게시글을 불러오지 못했어요"
+            description={error}
+          />
         ) : paged.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center text-sm text-ink-500">
             <p>{keyword.trim() ? `'${keyword.trim()}' 검색 결과가 없어요.` : '아직 게시글이 없어요.'}</p>

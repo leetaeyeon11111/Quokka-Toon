@@ -9,12 +9,12 @@ import java.util.Optional;
 /** 프론트 public/avatars 에 있는 기본 제공 프로필 아이콘. */
 public enum DefaultProfileIcon {
     A1_FANTASY("a1-fantasy", "판타지", "GENRE", "장르", "/avatars/quokka-ip-a1-fantasy.png"),
-    A2_ROMANCE("a2-romance", "로맨스", "FEMALE", "여성향", "/avatars/quokka-ip-a2-romance.png"),
+    A2_ROMANCE("a2-romance", "꽃", "FEMALE", "여성향", "/avatars/quokka-ip-a2-romance.png"),
     A3_ACTION("a3-action", "액션", "GENRE", "장르", "/avatars/quokka-ip-a3-action.png"),
-    A4_WUXIA("a4-wuxia", "무협", "MALE", "남성향", "/avatars/quokka-ip-a4-wuxia.png"),
+    A4_WUXIA("a4-wuxia", "격투", "GENRE", "장르", "/avatars/quokka-ip-a4-wuxia.png"),
     A5_SCHOOL("a5-school", "학원", "GENRE", "장르", "/avatars/quokka-ip-a5-school.png"),
     A6_GAG("a6-gag", "개그", "GENRE", "장르", "/avatars/quokka-ip-a6-gag.png"),
-    B1_HEART_EYES("b1-heart-eyes", "하트뿅뿅", "FEMALE", "여성향", "/avatars/quokka-ip-b1-heart-eyes.png"),
+    B1_HEART_EYES("b1-heart-eyes", "로맨스", "FEMALE", "여성향", "/avatars/quokka-ip-b1-heart-eyes.png"),
     B2_NORTH_DUKE("b2-north-duke", "북부대공", "FEMALE", "여성향", "/avatars/quokka-ip-b2-north-duke.png"),
     B3_SOUTH_DUKE("b3-south-duke", "남부대공", "FEMALE", "여성향", "/avatars/quokka-ip-b3-south-duke.png"),
     B4_VILLAINESS("b4-villainess", "악녀", "FEMALE", "여성향", "/avatars/quokka-ip-b4-villainess.png"),

@@ -74,4 +74,13 @@ public class Webtoon extends BaseTimeEntity {
 
     @Column(name = "released_at")
     private LocalDate releasedAt;
+
+    public void incrementViewCount() {
+        this.viewCount += 1;
+    }
+
+    public void applyRatingStats(BigDecimal avg, int count) {
+        this.ratingAvg = avg != null ? avg : BigDecimal.ZERO;
+        this.ratingCount = Math.max(0, count);
+    }
 }

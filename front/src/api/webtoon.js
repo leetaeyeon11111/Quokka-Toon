@@ -17,12 +17,14 @@ export async function searchWebtoons({
   platform = '',
   genre = '',
   author = '',
+  tag = '',
 } = {}) {
   const params = new URLSearchParams({ page, size, sort })
   if (q) params.set('q', q)
   if (platform) params.set('platform', platform)
   if (genre) params.set('genre', genre)
   if (author) params.set('author', author)
+  if (tag) params.set('tag', tag)
   return api.get(`/api/webtoons?${params.toString()}`, { auth: false })
 }
 
@@ -31,10 +33,18 @@ export async function getWebtoon(id) {
   return api.get(`/api/webtoons/${id}`, { auth: false })
 }
 
+/** 홈 TOP N 랭킹 (리뷰 수 → 조회수 → 최근 리뷰) */
+export async function getWebtoonRanking(size = 10) {
+  return api.get(`/api/webtoons/ranking?size=${size}`, { auth: false })
+}
+
 /** 필터 옵션 */
 export async function getGenreOptions() {
   return api.get('/api/webtoons/genres', { auth: false })
 }
 export async function getPlatformOptions() {
   return api.get('/api/webtoons/platforms', { auth: false })
+}
+export async function getPopularTags({ limit = 16 } = {}) {
+  return api.get(`/api/webtoons/tags/popular?limit=${limit}`, { auth: false })
 }

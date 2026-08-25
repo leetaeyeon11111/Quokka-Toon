@@ -43,6 +43,33 @@ body {
   box-sizing: border-box;
 }
 
+/* 클릭 가능한 컨트롤은 호버 시 손가락 커서.
+   @layer base 에 두어 cursor-grab / disabled:cursor-not-allowed 유틸이 덮어쓸 수 있게 한다. */
+@layer base {
+  button:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  select:not(:disabled),
+  summary,
+  a[href],
+  [role="button"]:not([aria-disabled="true"]),
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]),
+  label:has(input[type="file"]) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

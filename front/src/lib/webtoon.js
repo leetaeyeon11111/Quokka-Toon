@@ -35,10 +35,14 @@ export function toCardModel(item) {
     title: item.title,
     thumbnailUrl: item.thumbnailUrl,
     platformName: item.platformName,
+    platformLogoUrl: item.platformLogoUrl ?? null,
     mainGenre: item.mainGenre,
     ageRating: item.ageRating,
     isAdult: item.ageRating === '19',
     ratingAvg: rating > 0 ? rating : null,
+    viewCount: Number(item.viewCount) || 0,
+    bookmarkCount: Number(item.bookmarkCount) || 0,
+    ratingCount: Number(item.ratingCount) || 0,
   }
 }
 
@@ -74,9 +78,25 @@ export function toDetailModel(d) {
     synopsis: d.summary?.trim() || '등록된 줄거리가 아직 없어요.',
     aiSummary: d.aiSummary?.trim() || null,
     externalUrl: d.externalUrl,
-    platforms: d.externalUrl
-      ? [{ name: d.platformName ?? '플랫폼', url: d.externalUrl }]
-      : [],
+    platformName: d.platformName ?? null,
+    platformLogoUrl: d.platformLogoUrl ?? null,
+    platforms: (d.platforms?.length
+      ? d.platforms.map((p) => ({
+          name: p.name,
+          url: p.url,
+          isPrimary: p.isPrimary,
+          logoUrl: p.logoUrl ?? null,
+        }))
+      : d.externalUrl
+        ? [{ name: d.platformName ?? '플랫폼', url: d.externalUrl, logoUrl: d.platformLogoUrl ?? null }]
+        : []
+    ).filter((p) => {
+      const u = String(p.url || '')
+      if (!u.startsWith('http')) return false
+      // 구글 검색만 숨김. 플랫폼 자체 검색 URL은 딥링크 없을 때 폴백으로 허용.
+      if (/google\./i.test(u)) return false
+      return true
+    }),
     episodeCount: d.episodeCount,
     stats: {
       views: Number(d.viewCount) || 0,

@@ -24,6 +24,12 @@ public class AdminReportController {
         return ApiResponse.ok(reportService.getPending());
     }
 
+    // 처리 완료 신고 기록 (RESOLVED / REJECTED)
+    @GetMapping("/handled")
+    public ApiResponse<List<ReportResponse>> listHandled() {
+        return ApiResponse.ok(reportService.getHandled());
+    }
+
     // 신고 반려
     @PostMapping("/{id}/resolve")
     public ApiResponse<Void> reject(@PathVariable Long id, @AuthenticationPrincipal Long adminId) {

@@ -5,6 +5,7 @@ import { formatDate } from '../lib/date'
 import {
   INQUIRY_CATEGORY_TO_LABEL,
   INQUIRY_STATUS_TO_LABEL,
+  REPORT_STATUS_TO_LABEL,
   REPORT_TYPE_TO_LABEL,
 } from './labels'
 
@@ -36,12 +37,19 @@ function mapReport(r) {
   return {
     ...r,
     type: REPORT_TYPE_TO_LABEL[r.type] ?? r.type,
+    status: REPORT_STATUS_TO_LABEL[r.status] ?? r.status,
     when: formatDate(r.createdAt),
+    handledWhen: formatDate(r.handledAt),
   }
 }
 
 export async function listReports() {
   const list = await api.get('/api/admin/reports')
+  return list.map(mapReport)
+}
+
+export async function listHandledReports() {
+  const list = await api.get('/api/admin/reports/handled')
   return list.map(mapReport)
 }
 

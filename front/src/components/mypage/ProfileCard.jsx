@@ -3,14 +3,16 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import LevelGuideModal from './LevelGuideModal'
 import ProfileAvatar from '../common/ProfileAvatar'
+import ProfileIconPickerModal from './ProfileIconPickerModal'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
 import { useExperienceLogs } from '../../hooks/useExperienceLogs'
 import ExperienceLogList from '../level/ExperienceLogList'
 
 export default function ProfileCard() {
-  const { user } = useAuth()
+  const { user, refresh } = useAuth()
   const location = useLocation()
   const [showGuide, setShowGuide] = useState(false)
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const experienceLogs = useExperienceLogs(10, user?.userId)
 
   useEffect(() => {
@@ -24,17 +26,25 @@ export default function ProfileCard() {
 
   return (
     <div className="w-full shrink-0 rounded-2xl border border-ink-100 bg-white p-5 sm:w-56">
-      <ProfileAvatar
-        src={user.profileImageUrl}
-        alt={`${user.nickname} 프로필`}
-        sizeClass="mx-auto mb-3 h-20 w-20"
-        emojiClass="text-3xl"
-      />
+      <button
+        type="button"
+        onClick={() => setIconPickerOpen(true)}
+        className="mx-auto mb-3 block text-center"
+        title="프로필 아이콘 고르기"
+      >
+        <ProfileAvatar
+          src={user.profileImageUrl}
+          alt={`${user.nickname} 프로필`}
+          sizeClass="mx-auto h-20 w-20"
+          emojiClass="text-3xl"
+        />
+        <span className="mt-1.5 block text-[11px] font-semibold text-brand-500">아이콘 고르기</span>
+      </button>
       <p className={`text-center text-base font-bold ${nicknameLevelClass(user.level)}`}>{user.nickname}</p>
       <button
         type="button"
         onClick={() => setShowGuide(true)}
-        className="mx-auto mt-1 block text-center text-sm font-semibold text-brand-500 hover:underline"
+        className="mx-auto mt-1 block cursor-pointer text-center text-sm font-semibold text-brand-500 hover:underline"
       >
         {levelLabel(user)}
       </button>
@@ -70,6 +80,13 @@ export default function ProfileCard() {
       </section>
 
       {showGuide && <LevelGuideModal onClose={() => setShowGuide(false)} />}
+      {iconPickerOpen && (
+        <ProfileIconPickerModal
+          selectedId={user.profileIconId}
+          onClose={() => setIconPickerOpen(false)}
+          onSaved={() => refresh()}
+        />
+      )}
     </div>
   )
 }

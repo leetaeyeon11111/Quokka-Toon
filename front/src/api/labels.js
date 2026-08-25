@@ -13,7 +13,11 @@ export const INQUIRY_CATEGORY_TO_LABEL = Object.fromEntries(
 
 export const INQUIRY_STATUS_TO_LABEL = {
   WAITING: '답변대기',
-  DONE: '답변완료',
+  DONE: '완료',
+}
+
+export function isInquiryDone(status) {
+  return status === '완료' || status === '답변완료' || status === 'DONE'
 }
 
 export const REPORT_TYPE_TO_ENUM = {
@@ -25,3 +29,9 @@ export const REPORT_TYPE_TO_ENUM = {
 export const REPORT_TYPE_TO_LABEL = Object.fromEntries(
   Object.entries(REPORT_TYPE_TO_ENUM).map(([k, v]) => [v, k]),
 )
+
+export const REPORT_STATUS_TO_LABEL = {
+  PENDING: '미처리',
+  RESOLVED: '완료',
+  REJECTED: '반려',
+}

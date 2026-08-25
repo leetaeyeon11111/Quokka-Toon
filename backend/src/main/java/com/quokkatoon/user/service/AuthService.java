@@ -101,4 +101,20 @@ public class AuthService {
         LevelProgressResponse progress = experienceService.getProgress(userId);
         return UserResponse.from(user, progress);
     }
+
+    @Transactional
+    public UserResponse updateNickname(Long userId, String nickname) {
+        String trimmed = nickname == null ? "" : nickname.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 6) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if (!trimmed.equals(user.getNickname()) && userRepository.existsByNickname(trimmed)) {
+            throw new BusinessException(ErrorCode.NICKNAME_DUPLICATED);
+        }
+        user.updateNickname(trimmed);
+        LevelProgressResponse progress = experienceService.getProgress(userId);
+        return UserResponse.from(user, progress);
+    }
 }
