@@ -22,6 +22,8 @@ import BoardWritePage from './pages/BoardWritePage'
 
 import AdminConsolePage from './pages/admin/AdminConsolePage'
 import ProtectedRoute from './components/common/ProtectedRoute'
+import AiSummaryMarkMockPage from './pages/AiSummaryMarkMockPage'
+import AiSearchMockPage from './pages/AiSearchMockPage'
 
 function App() {
   return (
@@ -31,6 +33,8 @@ function App() {
         <Route path="/recommend" element={<RecommendResultPage />} />
         <Route path="/webtoons" element={<WebtoonListPage />} />
         <Route path="/webtoons/:id" element={<WebtoonDetailPage />} />
+        <Route path="/dev/ai-summary-mark" element={<AiSummaryMarkMockPage />} />
+        <Route path="/dev/ai-search" element={<AiSearchMockPage />} />
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />

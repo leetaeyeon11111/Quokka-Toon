@@ -17,6 +17,7 @@ const ERROR_QUOKKA = '/error_quokka.png'
 export function ResultMessage({
   icon = '🐿',
   imageSrc,
+  imageAlt = '',
   tone = 'default',
   title,
   description,
@@ -30,8 +31,8 @@ export function ResultMessage({
       {illustration ? (
         <img
           src={illustration}
-          alt=""
-          aria-hidden
+          alt={imageAlt}
+          aria-hidden={!imageAlt}
           className="mb-1 h-36 w-36 object-contain sm:h-44 sm:w-44"
         />
       ) : (

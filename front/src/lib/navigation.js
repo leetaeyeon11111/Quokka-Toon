@@ -10,3 +10,10 @@ export function loginHref(returnTo) {
   const destination = returnTo?.trim()
   return destination ? `/login?returnTo=${encodeURIComponent(destination)}` : '/login'
 }
+
+const AUTH_REQUIRED_PATHS = ['/mypage', '/admin', '/board/write', '/inquiry']
+
+export function requiresAuthentication(pathname) {
+  const path = (pathname || '/').split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/'
+  return AUTH_REQUIRED_PATHS.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+}

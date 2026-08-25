@@ -7,6 +7,7 @@ import { isInquiryDone } from '../../api/labels'
 import { useAuth } from '../../hooks/useAuth'
 import BanModal from '../../components/admin/BanModal'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
+import { useDialog } from '../../hooks/useDialog'
 
 function StatusTag({ done, children }) {
   return (
@@ -21,6 +22,7 @@ function StatusTag({ done, children }) {
 }
 
 function ReportsTab({ historyOnly }) {
+  const { alert: showAlert } = useDialog()
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState('전체')
@@ -44,7 +46,7 @@ function ReportsTab({ historyOnly }) {
       await adminApi.resolveReport(id)
       setReports((prev) => prev.filter((r) => r.id !== id))
     } catch (err) {
-      alert(err.message ?? '처리에 실패했어요.')
+      showAlert(err.message ?? '처리에 실패했어요.')
     }
   }
 
@@ -55,8 +57,17 @@ function ReportsTab({ historyOnly }) {
       await adminApi.banFromReport(target.id, { duration: days, reason, deletePost })
       setReports((prev) => prev.filter((r) => r.id !== target.id))
     } catch (err) {
-      alert(err.message ?? '제재에 실패했어요.')
+      showAlert(err.message ?? '제재에 실패했어요.')
     }
+  }
+
+  function showReportDetail(report) {
+    showAlert({
+      title: report.title,
+      message: historyOnly
+        ? `작성자: ${report.author}\n게시판: ${report.board}\n상태: ${report.status}`
+        : `작성자: ${report.author}\n게시판: ${report.board}`,
+    })
   }
 
   return (
@@ -108,9 +119,7 @@ function ReportsTab({ historyOnly }) {
                 {historyOnly ? (
                   <button
                     type="button"
-                    onClick={() =>
-                      alert(`[${report.title}]\n작성자: ${report.author}\n게시판: ${report.board}\n상태: ${report.status}`)
-                    }
+                    onClick={() => showReportDetail(report)}
                     className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
                   >
                     보기
@@ -119,7 +128,7 @@ function ReportsTab({ historyOnly }) {
                   <div className="flex shrink-0 gap-1.5">
                     <button
                       type="button"
-                      onClick={() => alert(`[${report.title}]\n작성자: ${report.author}\n게시판: ${report.board}`)}
+                      onClick={() => showReportDetail(report)}
                       className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
                     >
                       보기
@@ -154,6 +163,7 @@ function ReportsTab({ historyOnly }) {
 }
 
 function InquiriesTab({ historyOnly }) {
+  const { alert: showAlert, confirm: showConfirm } = useDialog()
   const [inquiries, setInquiries] = useState([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('전체')
@@ -195,17 +205,22 @@ function InquiriesTab({ historyOnly }) {
       )
       setOpenReply(null)
     } catch (err) {
-      alert(err.message ?? '답변 등록에 실패했어요.')
+      showAlert(err.message ?? '답변 등록에 실패했어요.')
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('문의를 삭제할까요?')) return
+    const confirmed = await showConfirm({
+      title: '문의 삭제',
+      message: '삭제한 문의는 복구할 수 없어요. 그대로 삭제할까요?',
+      confirmLabel: '삭제',
+    })
+    if (!confirmed) return
     try {
       await adminApi.deleteInquiry(id)
       setInquiries((prev) => prev.filter((inq) => inq.id !== id))
     } catch (err) {
-      alert(err.message ?? '삭제에 실패했어요.')
+      showAlert(err.message ?? '삭제에 실패했어요.')
     }
   }
 
@@ -285,7 +300,7 @@ function InquiriesTab({ historyOnly }) {
                     )}
                     <button
                       type="button"
-                      onClick={() => alert(inq.content)}
+                      onClick={() => showAlert({ title: inq.title, message: inq.content })}
                       className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
                     >
                       보기
@@ -305,21 +320,32 @@ function InquiriesTab({ historyOnly }) {
                 )}
 
                 {openReply === inq.id && (
-                  <div className="mt-3 flex gap-2">
+                  <form
+                    className="mt-3 flex gap-2"
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      handleAnswer(inq.id)
+                    }}
+                  >
                     <input
+                      autoFocus
                       value={draftAnswer}
                       onChange={(e) => setDraftAnswer(e.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Escape') return
+                        setOpenReply(null)
+                        setDraftAnswer('')
+                      }}
                       placeholder="답변을 입력해주세요."
                       className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2 text-xs outline-none"
                     />
                     <button
-                      type="button"
-                      onClick={() => handleAnswer(inq.id)}
+                      type="submit"
                       className="rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white"
                     >
                       등록
                     </button>
-                  </div>
+                  </form>
                 )}
               </div>
             )

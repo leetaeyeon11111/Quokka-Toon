@@ -1,6 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { getSheetSnapDestination } from '../src/lib/homeSheet.js'
+import {
+  advanceSheetWheelGesture,
+  getSheetSnapDestination,
+  getSheetWheelIntent,
+} from '../src/lib/homeSheet.js'
 
 test('collapsed sheet opens after crossing one quarter and otherwise returns to hero', () => {
   assert.equal(getSheetSnapDestination({ startedExpanded: false, progress: 0.24 }), 'hero')
@@ -51,5 +55,57 @@ test('stale velocity is ignored after the user pauses before release', () => {
       velocityAge: 100,
     }),
     'content',
+  )
+})
+
+test('wheel gesture switches only after enough distance accumulates', () => {
+  const initial = { direction: 0, distance: 0, lastTime: 0 }
+  const first = advanceSheetWheelGesture(initial, 70, 10)
+  const second = advanceSheetWheelGesture(first, 70, 30)
+  const third = advanceSheetWheelGesture(second, 30, 50)
+
+  assert.equal(first.triggered, false)
+  assert.equal(second.triggered, false)
+  assert.equal(third.triggered, true)
+})
+
+test('wheel gesture resets after changing direction or pausing', () => {
+  const initial = { direction: 0, distance: 0, lastTime: 0 }
+  const forward = advanceSheetWheelGesture(initial, 120, 10)
+  const reversed = advanceSheetWheelGesture(forward, -60, 30)
+  const expired = advanceSheetWheelGesture(forward, 60, 400)
+
+  assert.equal(reversed.distance, 60)
+  assert.equal(reversed.triggered, false)
+  assert.equal(expired.distance, 60)
+  assert.equal(expired.triggered, false)
+})
+
+test('wheel intent preserves native scrolling inside popular content', () => {
+  assert.deepEqual(
+    getSheetWheelIntent({ current: 1200, heroTop: 0, contentTop: 900, deltaY: -100 }),
+    { type: 'native' },
+  )
+  assert.deepEqual(
+    getSheetWheelIntent({ current: 900, heroTop: 0, contentTop: 900, deltaY: 100 }),
+    { type: 'native' },
+  )
+})
+
+test('wheel intent captures the overshoot when upward scrolling crosses content top', () => {
+  assert.deepEqual(
+    getSheetWheelIntent({ current: 940, heroTop: 0, contentTop: 900, deltaY: -100 }),
+    { type: 'crossing', snapTop: 900, deltaY: -60 },
+  )
+})
+
+test('wheel intent repairs an invalid middle position instead of trapping it', () => {
+  assert.deepEqual(
+    getSheetWheelIntent({ current: 40, heroTop: 0, contentTop: 900, deltaY: -100 }),
+    { type: 'repair', destination: 'hero' },
+  )
+  assert.deepEqual(
+    getSheetWheelIntent({ current: 40, heroTop: 0, contentTop: 900, deltaY: 100 }),
+    { type: 'repair', destination: 'content' },
   )
 })

@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { searchWebtoons } from '../api/webtoon'
 import { TEAM_PICK_IDS } from '../data/teamPicks'
-import { getWebtoonRanking } from '../api/webtoon'
 import { toCardModel } from '../lib/webtoon'
-import WebtoonCard from '../components/webtoon/WebtoonCard'
 import FeaturePromoCarousel from '../components/home/ContinuousFeaturePromoCarousel'
 import FloatingQuokkas from '../components/home/FloatingQuokkas'
-import { getSheetSnapDestination } from '../lib/homeSheet'
+import {
+  advanceSheetWheelGesture,
+  getSheetSnapDestination,
+  getSheetWheelIntent,
+  SHEET_WHEEL_GESTURE_IDLE_MS,
+} from '../lib/homeSheet'
 import { webtoonHref } from '../lib/navigation'
+import HorizontalWebtoonSlider from '../components/webtoon/HorizontalWebtoonSlider'
 
 const PLACEHOLDER_QUERIES = [
   '비 오는 날 읽기 좋은 힐링 만화…',
@@ -40,160 +45,6 @@ function getSiteHeaderHeight() {
   return document.querySelector('[data-site-header]')?.getBoundingClientRect().height ?? 0
 }
 
-function Top10Slider({ items }) {
-  const cardWidth = 176 // 160px card + 16px gap
-  const trackRef = useRef(null)
-  const dragState = useRef({ pointerId: null, startX: 0, startScrollLeft: 0, moved: false })
-  const [isDragging, setIsDragging] = useState(false)
-  const [scrollControls, setScrollControls] = useState({ left: false, right: true })
-
-  useEffect(() => {
-    const track = trackRef.current
-    if (!track) return undefined
-
-    const updateScrollControls = () => {
-      const maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth)
-      const edgeThreshold = 8
-      setScrollControls({
-        left: track.scrollLeft > edgeThreshold,
-        right: track.scrollLeft < maxScrollLeft - edgeThreshold,
-      })
-    }
-
-    const frame = window.requestAnimationFrame(updateScrollControls)
-    track.addEventListener('scroll', updateScrollControls, { passive: true })
-    window.addEventListener('resize', updateScrollControls)
-
-    return () => {
-      window.cancelAnimationFrame(frame)
-      track.removeEventListener('scroll', updateScrollControls)
-      window.removeEventListener('resize', updateScrollControls)
-    }
-  }, [items.length])
-
-  function scrollRankings(direction) {
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    trackRef.current?.scrollBy({
-      left: direction * cardWidth * 2,
-      behavior: reduceMotion ? 'auto' : 'smooth',
-    })
-  }
-
-  function handlePointerDown(event) {
-    if (event.button !== 0) return
-    dragState.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startScrollLeft: trackRef.current?.scrollLeft ?? 0,
-      moved: false,
-    }
-    // 실제 드래그 시작 시에만 포인터 캡처 (단순 클릭 → 카드 Link 유지)
-  }
-
-  function handlePointerMove(event) {
-    const track = trackRef.current
-    if (!track || dragState.current.pointerId !== event.pointerId) return
-
-    const distance = event.clientX - dragState.current.startX
-    if (Math.abs(distance) > 8 && !dragState.current.moved) {
-      dragState.current.moved = true
-      setIsDragging(true)
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId)
-      } catch {
-        /* 캡처 불가 환경 무시 */
-      }
-    }
-    if (dragState.current.moved) {
-      track.scrollLeft = dragState.current.startScrollLeft - distance
-    }
-  }
-
-  function finishDragging(event) {
-    if (dragState.current.pointerId !== event.pointerId) return
-    dragState.current.pointerId = null
-    setIsDragging(false)
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId)
-    }
-    window.setTimeout(() => {
-      dragState.current.moved = false
-    }, 0)
-  }
-
-  return (
-    <div className="group relative w-full">
-      <div
-        ref={trackRef}
-        aria-label="TOP 10 웹툰 목록"
-        className={`flex w-full overflow-x-auto px-1 pb-2 [scrollbar-width:none] [touch-action:pan-y] [&::-webkit-scrollbar]:hidden ${
-          isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
-        }`}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={finishDragging}
-        onPointerCancel={finishDragging}
-        onDragStart={(event) => event.preventDefault()}
-        onClickCapture={(event) => {
-          if (!dragState.current.moved) return
-          event.preventDefault()
-          event.stopPropagation()
-          dragState.current.moved = false
-        }}
-      >
-        {items.map((webtoon, index) => (
-          <div key={webtoon.id} className="mr-4 shrink-0">
-            <WebtoonCard webtoon={webtoon} rank={index + 1} />
-          </div>
-        ))}
-      </div>
-
-      {scrollControls.left && (
-        <button
-          type="button"
-          onClick={() => scrollRankings(-1)}
-          aria-label="이전 순위 보기"
-          className="absolute -left-4 top-[38%] z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-ink-100/80 bg-white/90 text-ink-700 shadow-md backdrop-blur transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:-left-5"
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-        </button>
-      )}
-      {scrollControls.right && (
-        <button
-          type="button"
-          onClick={() => scrollRankings(1)}
-          aria-label="다음 순위 보기"
-          className="absolute -right-4 top-[38%] z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-ink-100/80 bg-white/90 text-ink-700 shadow-md backdrop-blur transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:-right-5"
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </button>
-      )}
-    </div>
-  )
-}
-
 export default function MainPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -204,6 +55,8 @@ export default function MainPage() {
   const [searchFocused, setSearchFocused] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
   const [top10, setTop10] = useState([])
+  const [top10Loading, setTop10Loading] = useState(true)
+  const [top10Error, setTop10Error] = useState('')
   const pageRef = useRef(null)
   const heroRef = useRef(null)
   const searchInputRef = useRef(null)
@@ -239,6 +92,29 @@ export default function MainPage() {
   }, [reduceMotion, searchFocused])
 
   useEffect(() => {
+    let cancelled = false
+
+    searchWebtoons({ page: 0, size: 10, sort: 'views' })
+      .then((page) => {
+        if (cancelled) return
+        setTop10((page?.content ?? []).map(toCardModel))
+        setTop10Error('')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setTop10([])
+        setTop10Error('TOP 10을 불러오지 못했어요.')
+      })
+      .finally(() => {
+        if (!cancelled) setTop10Loading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     const page = pageRef.current
     const hero = heroRef.current
     const content = top10Ref.current
@@ -247,6 +123,37 @@ export default function MainPage() {
     const root = document.documentElement
     const previousOverflowY = root.style.overflowY
     const transition = { active: false, frame: null, targetSection: null }
+    let wheelGesture = { direction: 0, distance: 0, lastTime: 0 }
+    let returnGestureArmed = false
+    let lastWheelDirection = 0
+    let lastWheelAt = 0
+    let wheelGestureResetTimer = null
+
+    const resetWheelGesture = () => {
+      wheelGesture = { direction: 0, distance: 0, lastTime: 0 }
+      returnGestureArmed = false
+      lastWheelDirection = 0
+      lastWheelAt = 0
+      if (wheelGestureResetTimer !== null) {
+        window.clearTimeout(wheelGestureResetTimer)
+        wheelGestureResetTimer = null
+      }
+    }
+
+    const recordWheelGesture = (deltaY, armReturn = false) => {
+      const now = performance.now()
+      lastWheelDirection = Math.sign(deltaY)
+      lastWheelAt = now
+      wheelGesture = advanceSheetWheelGesture(wheelGesture, deltaY, now)
+      if (armReturn && wheelGesture.triggered) returnGestureArmed = true
+
+      if (wheelGestureResetTimer !== null) window.clearTimeout(wheelGestureResetTimer)
+      wheelGestureResetTimer = window.setTimeout(
+        resetWheelGesture,
+        SHEET_WHEEL_GESTURE_IDLE_MS,
+      )
+      return wheelGesture.triggered
+    }
 
     const setScrollLocked = (locked) => {
       root.style.overflowY = locked ? 'hidden' : 'auto'
@@ -316,13 +223,97 @@ export default function MainPage() {
     const handleWheel = (event) => {
       const { hero: heroTop, content: contentTop } = getSectionTops()
       const current = window.scrollY
-      const inSheetTransitionZone = current > heroTop + 2 && current < contentTop - 2
-      const leavingHeroByWheel = current <= heroTop + 2
-      const closingContentByWheel = current <= contentTop + 2 && event.deltaY < 0
+      const deltaMultiplier =
+        event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1
+      const normalizedDeltaY = event.deltaY * deltaMultiplier
 
-      if (transition.active || inSheetTransitionZone || leavingHeroByWheel || closingContentByWheel) {
+      if (transition.active) {
         event.preventDefault()
+        return
       }
+
+      const intent = getSheetWheelIntent({
+        current,
+        heroTop,
+        contentTop,
+        deltaY: normalizedDeltaY,
+      })
+
+      if (intent.type === 'native') {
+        if (current > contentTop + 2 && normalizedDeltaY < 0) {
+          recordWheelGesture(normalizedDeltaY, true)
+        } else {
+          resetWheelGesture()
+        }
+        return
+      }
+
+      event.preventDefault()
+
+      if (intent.type === 'blocked') {
+        resetWheelGesture()
+        return
+      }
+
+      if (intent.type === 'repair') {
+        resetWheelGesture()
+        animateToSection(intent.destination)
+        return
+      }
+
+      if (intent.type === 'crossing') {
+        window.scrollTo({ top: intent.snapTop, behavior: 'auto' })
+        if (returnGestureArmed) {
+          resetWheelGesture()
+          animateToSection('hero')
+          return
+        }
+        if (intent.deltaY === 0) {
+          return
+        }
+      }
+
+      if (intent.deltaY < 0 && returnGestureArmed) {
+        resetWheelGesture()
+        animateToSection('hero')
+        return
+      }
+
+      const triggered = recordWheelGesture(intent.deltaY)
+      if (!triggered) return
+
+      resetWheelGesture()
+      animateToSection(intent.deltaY > 0 ? 'content' : 'hero')
+    }
+
+    const handleScroll = () => {
+      if (transition.active || sheetDragStateRef.current.pointerId !== null) return
+
+      const { hero: heroTop, content: contentTop } = getSectionTops()
+      const current = window.scrollY
+      const now = performance.now()
+      const hasRecentWheel = now - lastWheelAt <= SHEET_WHEEL_GESTURE_IDLE_MS
+      const inSheetTransitionZone = current > heroTop + 2 && current < contentTop - 2
+      const reachedContentTop = current >= contentTop - 2 && current <= contentTop + 2
+
+      if (reachedContentTop && returnGestureArmed && hasRecentWheel && lastWheelDirection < 0) {
+        resetWheelGesture()
+        animateToSection('hero')
+        return
+      }
+
+      if (!inSheetTransitionZone) return
+
+      const midpoint = heroTop + (contentTop - heroTop) / 2
+      const destination = hasRecentWheel
+        ? lastWheelDirection < 0
+          ? 'hero'
+          : 'content'
+        : current < midpoint
+          ? 'hero'
+          : 'content'
+      resetWheelGesture()
+      animateToSection(destination)
     }
 
     window.scrollTo({ top: getSectionTops().hero, behavior: 'auto' })
@@ -335,30 +326,17 @@ export default function MainPage() {
       lockAtHero: () => setScrollLocked(true),
     }
     window.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('scroll', handleScroll, { passive: true })
 
     return () => {
       window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('scroll', handleScroll)
+      resetWheelGesture()
       cancelTransition()
       sectionTransitionApiRef.current = null
       root.style.overflowY = previousOverflowY
     }
   }, [reduceMotion])
-
-  useEffect(() => {
-    let cancelled = false
-    getWebtoonRanking(10)
-      .then((data) => {
-        if (cancelled) return
-        const list = Array.isArray(data) ? data : data?.content ?? []
-        setTop10(list.map(toCardModel))
-      })
-      .catch(() => {
-        if (!cancelled) setTop10([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -650,8 +628,8 @@ export default function MainPage() {
           onLostPointerCapture={handleSheetLostPointerCapture}
           onDragStart={(event) => event.preventDefault()}
           aria-controls="home-top10"
-          aria-label="인기 작품 둘러보기. 위로 드래그하거나 클릭하세요."
-          title="위로 드래그하거나 클릭해서 인기 작품 둘러보기"
+          aria-label="인기 작품 둘러보기. 아래로 스크롤하거나 위로 드래그하거나 클릭하세요."
+          title="아래로 스크롤하거나 위로 드래그하거나 클릭해서 인기 작품 둘러보기"
           className="group absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-none cursor-grab select-none flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/85 px-4 py-2 whitespace-nowrap text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-brand-600 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:bottom-4"
         >
           <span
@@ -691,8 +669,8 @@ export default function MainPage() {
             onPointerCancel={finishSheetDragging}
             onLostPointerCapture={handleSheetLostPointerCapture}
             onDragStart={(event) => event.preventDefault()}
-            aria-label="검색 화면으로 내리기. 아래로 드래그하거나 클릭하세요."
-            title="아래로 드래그하거나 클릭해서 검색으로 돌아가기"
+            aria-label="검색 화면으로 내리기. 위로 스크롤하거나 아래로 드래그하거나 클릭하세요."
+            title="위로 스크롤하거나 아래로 드래그하거나 클릭해서 검색으로 돌아가기"
             className="group flex touch-none cursor-grab select-none flex-col items-center gap-1 rounded-2xl border border-white/70 bg-white/80 px-4 py-2 text-xs font-semibold text-ink-500 shadow-sm backdrop-blur-md transition hover:bg-white hover:text-brand-600 active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
             <span aria-hidden="true" className="h-1 w-10 rounded-full bg-ink-300/75 transition group-hover:bg-brand-300" />
@@ -725,10 +703,34 @@ export default function MainPage() {
               리뷰·조회 기준
             </span>
           </div>
-          {top10.length > 0 ? (
-            <Top10Slider items={top10} />
-          ) : (
-            <p className="py-8 text-center text-sm text-ink-400">인기 작품을 불러오는 중…</p>
+          {top10Loading && (
+            <div
+              className="flex gap-4 overflow-hidden px-1 pb-2"
+              aria-label="TOP 10을 불러오는 중"
+              aria-busy="true"
+            >
+              {Array.from({ length: 6 }, (_, index) => (
+                <div key={index} className="w-40 shrink-0 animate-pulse">
+                  <div className="aspect-[3/4] rounded-xl bg-ink-100" />
+                  <div className="mt-2 h-4 w-28 rounded bg-ink-100" />
+                  <div className="mt-1 h-3 w-12 rounded bg-ink-100" />
+                </div>
+              ))}
+            </div>
+          )}
+          {!top10Loading && top10Error && (
+            <p className="rounded-xl border border-ink-100 bg-white px-4 py-8 text-center text-sm text-ink-500">
+              {top10Error}
+            </p>
+          )}
+          {!top10Loading && !top10Error && (
+            <HorizontalWebtoonSlider
+              items={top10}
+              ariaLabel="TOP 10 웹툰 목록"
+              ranked
+              previousLabel="이전 순위 보기"
+              nextLabel="다음 순위 보기"
+            />
           )}
         </section>
 

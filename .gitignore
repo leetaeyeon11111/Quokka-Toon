@@ -1,3 +1,25 @@
 # Local design captures / drafts (not part of the app repo)
 design-drafts/
 .DS_Store
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Local database exports may contain production/user data
+database/backup/
+
+# Build output and dependencies
+front/node_modules/
+front/dist/
+backend/.gradle/
+backend/build/
+
+# Python AI runtime and generated search indexes
+ai/.venv/
+ai/*.pkl
+ai/*.faiss
+**/__pycache__/
+*.py[cod]
+models/

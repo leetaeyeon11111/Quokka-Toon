@@ -66,7 +66,7 @@ export default function TastePage() {
   useEffect(() => {
     let cancelled = false
     async function run() {
-      const topGenre = sourceWebtoons[0]?.genres?.[0] ?? topGenres[0]?.[0]
+      const topGenre = topGenres[0]?.[0] ?? sourceWebtoons[0]?.genres?.[0]
       if (!topGenre) {
         if (!cancelled) setRecommendations([])
         return

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import * as boardApi from '../api/board'
 import { createReport } from '../api/report'
@@ -10,6 +10,58 @@ import { useExperienceNotification } from '../hooks/useExperienceNotification'
 import { nicknameLevelClass } from '../lib/level'
 import { LevelBadge } from '../components/common/LevelBadge'
 import { loginHref } from '../lib/navigation'
+import { useDialog } from '../hooks/useDialog'
+
+function CommentComposer({ value, onChange, onEscape, placeholder, autoFocus = false, compact = false }) {
+  const fieldRef = useRef(null)
+
+  useEffect(() => {
+    const field = fieldRef.current
+    if (!field) return
+    field.style.height = 'auto'
+    field.style.height = `${Math.min(field.scrollHeight, 128)}px`
+  }, [value])
+
+  function handleKeyDown(event) {
+    if (event.key === 'Escape' && onEscape) {
+      event.preventDefault()
+      onEscape()
+      return
+    }
+    if (
+      event.key !== 'Enter'
+      || event.shiftKey
+      || event.nativeEvent.isComposing
+    ) return
+
+    event.preventDefault()
+    event.currentTarget.form?.requestSubmit()
+  }
+
+  return (
+    <div className="min-w-0 flex-1">
+      <textarea
+        ref={fieldRef}
+        autoFocus={autoFocus}
+        rows={1}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        minLength={5}
+        maxLength={1000}
+        className={`block max-h-32 w-full resize-none overflow-y-auto border border-ink-100 bg-ink-50 outline-none focus:border-brand-300 ${
+          compact
+            ? 'min-h-9 rounded-2xl px-4 py-2 text-xs'
+            : 'min-h-11 rounded-3xl px-4 py-2.5 text-sm'
+        }`}
+      />
+      <p className={`mt-1 px-3 text-ink-300 ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
+        Enter 등록 · Shift+Enter 줄바꿈
+      </p>
+    </div>
+  )
+}
 
 function CommentRow({ comment, onReplyClick, onReact, onReport, onDelete, children }) {
   return (
@@ -19,7 +71,7 @@ function CommentRow({ comment, onReplyClick, onReact, onReport, onDelete, childr
           🙂 <LevelBadge level={comment.authorLevel} /> <span className={nicknameLevelClass(comment.authorLevel)}>{comment.author}</span>{' '}
           <span className="text-xs font-normal text-ink-300">{comment.date}</span>
         </p>
-        <p className="mb-2 text-sm text-ink-700">{comment.text}</p>
+        <p className="mb-2 whitespace-pre-wrap break-words text-sm text-ink-700">{comment.text}</p>
         <div className="flex items-center gap-3 text-xs text-ink-500">
           <button type="button" onClick={() => onReact(comment.id)} className="hover:text-brand-500">
             👍 {comment.likes}
@@ -47,6 +99,7 @@ export default function BoardPostPage() {
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
   const { notifyExperience } = useExperienceNotification()
+  const { alert: showAlert, confirm: showConfirm } = useDialog()
 
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -99,7 +152,7 @@ export default function BoardPostPage() {
         myReaction: res.myReaction,
       }))
     } catch (err) {
-      alert(err.message ?? '처리에 실패했어요.')
+      showAlert(err.message ?? '처리에 실패했어요.')
     }
   }
 
@@ -114,7 +167,7 @@ export default function BoardPostPage() {
         ),
       }))
     } catch (err) {
-      alert(err.message ?? '처리에 실패했어요.')
+      showAlert(err.message ?? '처리에 실패했어요.')
     }
   }
 
@@ -122,7 +175,7 @@ export default function BoardPostPage() {
     e.preventDefault()
     const text = commentText.trim()
     if (text.length < 5 || text.length > 1000) {
-      alert('댓글은 공백을 제외하고 5~1,000자로 입력해주세요.')
+      showAlert('댓글은 공백을 제외하고 5~1,000자로 입력해주세요.')
       return
     }
     try {
@@ -131,14 +184,14 @@ export default function BoardPostPage() {
       notifyExperience(action.exp)
       setCommentText('')
     } catch (err) {
-      alert(err.message ?? '댓글 등록에 실패했어요.')
+      showAlert(err.message ?? '댓글 등록에 실패했어요.')
     }
   }
 
   async function submitReply(parentId) {
     const text = replyText.trim()
     if (text.length < 5 || text.length > 1000) {
-      alert('답글은 공백을 제외하고 5~1,000자로 입력해주세요.')
+      showAlert('답글은 공백을 제외하고 5~1,000자로 입력해주세요.')
       return
     }
     try {
@@ -148,7 +201,7 @@ export default function BoardPostPage() {
       setReplyText('')
       setReplyingTo(null)
     } catch (err) {
-      alert(err.message ?? '답글 등록에 실패했어요.')
+      showAlert(err.message ?? '답글 등록에 실패했어요.')
     }
   }
 
@@ -161,24 +214,34 @@ export default function BoardPostPage() {
     try {
       await createReport({ ...reportTarget, typeLabel })
       setReportTarget(null)
-      alert('신고가 접수됐어요.')
+      showAlert({ title: '신고 접수 완료', message: '신고가 정상적으로 접수됐어요.' })
     } catch (err) {
-      alert(err.message ?? '신고 접수에 실패했어요.')
+      showAlert(err.message ?? '신고 접수에 실패했어요.')
     }
   }
 
   async function handleDelete() {
-    if (!confirm('게시글을 삭제할까요?')) return
+    const confirmed = await showConfirm({
+      title: '게시글 삭제',
+      message: '삭제한 게시글은 복구할 수 없어요. 그대로 삭제할까요?',
+      confirmLabel: '삭제',
+    })
+    if (!confirmed) return
     try {
       await boardApi.deletePost(post.id)
       navigate(-1)
     } catch (err) {
-      alert(err.message ?? '삭제에 실패했어요.')
+      showAlert(err.message ?? '삭제에 실패했어요.')
     }
   }
 
   async function handleDeleteComment(commentId) {
-    if (!confirm('댓글을 삭제할까요?')) return
+    const confirmed = await showConfirm({
+      title: '댓글 삭제',
+      message: '이 댓글과 달린 답글을 함께 삭제할까요?',
+      confirmLabel: '삭제',
+    })
+    if (!confirmed) return
     try {
       await boardApi.deleteComment(commentId)
       setPost((prev) => ({
@@ -186,7 +249,7 @@ export default function BoardPostPage() {
         comments: prev.comments.filter((comment) => comment.id !== commentId && comment.parentId !== commentId),
       }))
     } catch (err) {
-      alert(err.message ?? '댓글 삭제에 실패했어요.')
+      showAlert(err.message ?? '댓글 삭제에 실패했어요.')
     }
   }
 
@@ -257,16 +320,13 @@ export default function BoardPostPage() {
       <p className="mb-3 text-sm font-bold text-ink-900">💬 댓글 {comments.length}</p>
 
       {isLoggedIn ? (
-        <form onSubmit={submitComment} className="mb-5 flex gap-2">
-          <input
+        <form onSubmit={submitComment} className="mb-5 flex items-start gap-2">
+          <CommentComposer
             value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
+            onChange={setCommentText}
             placeholder="댓글을 입력하세요…"
-            minLength={5}
-            maxLength={1000}
-            className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none focus:border-brand-300"
           />
-          <button type="submit" className="rounded-full bg-ink-900 px-5 py-2.5 text-sm font-semibold text-white">
+          <button type="submit" className="shrink-0 rounded-full bg-ink-900 px-5 py-2.5 text-sm font-semibold text-white">
             등록
           </button>
         </form>
@@ -282,7 +342,10 @@ export default function BoardPostPage() {
             onReact={handleReactComment}
             onReport={(cid) => handleReport('COMMENT', cid)}
             onDelete={handleDeleteComment}
-            onReplyClick={(cid) => setReplyingTo(cid === replyingTo ? null : cid)}
+            onReplyClick={(cid) => {
+              setReplyText('')
+              setReplyingTo(cid === replyingTo ? null : cid)
+            }}
           >
             <div className="mt-2 flex flex-col gap-2">
               {repliesOf(comment.id).map((reply) => (
@@ -292,7 +355,7 @@ export default function BoardPostPage() {
                       ↳ 🙂 <LevelBadge level={reply.authorLevel} /> <span className={nicknameLevelClass(reply.authorLevel)}>{reply.author}</span>{' '}
                       <span className="text-xs font-normal text-ink-300">{reply.date}</span>
                     </p>
-                    <p className="mb-1 text-sm text-ink-700">{reply.text}</p>
+                    <p className="mb-1 whitespace-pre-wrap break-words text-sm text-ink-700">{reply.text}</p>
                     <button
                       type="button"
                       onClick={() => handleReactComment(reply.id)}
@@ -321,24 +384,31 @@ export default function BoardPostPage() {
               ))}
 
               {replyingTo === comment.id && isLoggedIn && (
-                <div className="ml-8 flex gap-2 pl-4">
-                  <input
+                <form
+                  className="ml-8 flex items-start gap-2 pl-4"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    submitReply(comment.id)
+                  }}
+                >
+                  <CommentComposer
                     autoFocus
                     value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
+                    onChange={setReplyText}
+                    onEscape={() => {
+                      setReplyText('')
+                      setReplyingTo(null)
+                    }}
                     placeholder="답글을 입력하세요…"
-                    minLength={5}
-                    maxLength={1000}
-                    className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2 text-xs outline-none"
+                    compact
                   />
                   <button
-                    type="button"
-                    onClick={() => submitReply(comment.id)}
-                    className="rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white"
+                    type="submit"
+                    className="shrink-0 rounded-full bg-ink-900 px-4 py-2 text-xs font-semibold text-white"
                   >
                     등록
                   </button>
-                </div>
+                </form>
               )}
             </div>
           </CommentRow>

@@ -25,6 +25,7 @@ import PlatformLogo from '../components/webtoon/PlatformLogo'
 import { loginHref } from '../lib/navigation'
 import { platformButtonStyle } from '../lib/platformColors'
 import { platformLogoFrameClass } from '../lib/platformLogos'
+import { useDialog } from '../hooks/useDialog'
 
 const BASE_SECTIONS = [
   { id: 'info', label: '정보' },
@@ -59,6 +60,7 @@ export default function WebtoonDetailPage() {
   const { isLoggedIn } = useAuth()
   const { favorites, lifeWorks, toggleFavorite, toggleLifeWork, setAlarm } = useAppData()
   const { notifyExperience } = useExperienceNotification()
+  const { confirm: showConfirm } = useDialog()
 
   const [webtoon, setWebtoon] = useState(null)
   const [webtoonLoading, setWebtoonLoading] = useState(true)
@@ -338,7 +340,12 @@ export default function WebtoonDetailPage() {
   }
 
   async function handleDeleteReview(reviewId) {
-    if (!confirm('리뷰를 삭제할까요?')) return
+    const confirmed = await showConfirm({
+      title: '리뷰 삭제',
+      message: '삭제한 리뷰는 복구할 수 없어요. 그대로 삭제할까요?',
+      confirmLabel: '삭제',
+    })
+    if (!confirmed) return
     try {
       await reviewApi.deleteReview(reviewId)
       setReviews((current) => current.filter((review) => review.id !== reviewId))

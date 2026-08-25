@@ -1,0 +1,32 @@
+---
+description: Dev servers must reuse open ports; never kill or double-bind 8080/5173
+alwaysApply: true
+---
+
+# Dev servers — no port conflict
+
+Quokka-Toon local stack:
+
+| Service | Default port | Start (only if free) |
+|---------|--------------|----------------------|
+| Backend (Spring) | **8080** | `cd backend && ./gradlew bootRun` |
+| Frontend (Vite) | **5173** | `cd front && npm run dev` |
+
+DB is collaboration MySQL via `backend/secret.properties` (`DB_URL`), not local MySQL.
+
+## Before starting any server
+
+1. Run `bash scripts/check-dev-ports.sh` (or `lsof -nP -iTCP:8080 -sTCP:LISTEN` / `:5173`).
+2. **If the port is already LISTEN** → do **not** start another process. Reuse it. Tell the user it is already up.
+3. **Only start** when the needed port is free.
+4. **Never** `kill` / `kill -9` a process on 8080 or 5173 unless the user explicitly asks to stop/restart that server.
+5. Do **not** start long-lived `bootRun` / `npm run dev` inside agent tool shells if the user’s own terminal already has them — agent-spawned servers get aborted when the agent session ends and look like “servers keep dying.”
+
+## If you need the server and it is down
+
+- Prefer telling the user to start it in **their** terminal (keeps it alive).
+- If you must start it yourself: start only missing ports, leave occupied ones alone, and say clearly which PIDs/ports you started.
+
+## Port already in use error
+
+Do not switch to a random alternate port by default (Vite proxy expects 8080). Fix by reusing the existing listener or asking the user to stop their duplicate start — not by killing unknown processes.
