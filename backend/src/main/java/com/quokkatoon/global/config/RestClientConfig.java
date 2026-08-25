@@ -19,4 +19,18 @@ public class RestClientConfig {
                 .requestFactory(new SimpleClientHttpRequestFactory())
                 .build();
     }
+
+    // 웹툰 메타/바로보기 링크 제공 API(korea-webtoon-api) 전용 클라이언트.
+    // base-url 은 application.yaml 의 webtoon-api.base-url (환경변수 WEBTOON_API_URL 로 override).
+    // 외부 플랫폼(레진/리디/투믹스/탑툰)은 제목 검색·HTML 파싱을 거치므로 넉넉한 타임아웃을 둔다.
+    @Bean
+    public RestClient webtoonApiClient(@Value("${webtoon-api.base-url}") String baseUrl) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3_000);
+        factory.setReadTimeout(20_000);
+        return RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(factory)
+                .build();
+    }
 }

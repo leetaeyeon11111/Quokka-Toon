@@ -69,7 +69,7 @@ export default function FavoritesPage() {
     <MyPageShell>
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-ink-500">
-          카드마다 <span className="text-brand-500">★</span> 즐겨찾기 · <span className="text-brand-500">🔔</span> 알람 토글(켜짐=주황)
+          카드마다 <span className="text-brand-500">🔖</span> 북마크 · <span className="text-brand-500">🔔</span> 알람 토글(켜짐=주황)
         </p>
         <button
           type="button"
@@ -87,7 +87,7 @@ export default function FavoritesPage() {
           <span className="text-3xl" aria-hidden>
             🐿
           </span>
-          <p>아직 즐겨찾기한 작품이 없어요.</p>
+          <p>아직 북마크한 작품이 없어요.</p>
           <Link to="/webtoons" className="text-sm font-semibold text-brand-500 hover:underline">
             웹툰 둘러보러 가기
           </Link>
@@ -103,11 +103,22 @@ export default function FavoritesPage() {
               <div className="mt-1 flex items-center justify-between">
                 <button
                   type="button"
-                  aria-label="즐겨찾기 해제"
+                  aria-label="북마크 해제"
                   onClick={() => toggleFavorite(webtoon.id)}
-                  className="text-lg text-brand-500"
+                  className="text-brand-500"
                 >
-                  ★
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+                  </svg>
                 </button>
                 <button
                   type="button"

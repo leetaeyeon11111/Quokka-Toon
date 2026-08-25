@@ -114,7 +114,7 @@ export default function TastePage() {
 
       {sourceWebtoons.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-ink-100 bg-white py-16 text-center text-sm text-ink-500">
-          즐겨찾기하거나 인생작을 담으면 취향 리포트가 만들어져요.
+          북마크하거나 인생작을 담으면 취향 리포트가 만들어져요.
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -134,7 +134,7 @@ export default function TastePage() {
 
           <div className="rounded-2xl border border-ink-100 bg-white p-5">
             <p className="mb-1 text-sm font-bold text-ink-900">최애 태그</p>
-            <p className="mb-4 text-xs text-ink-500">즐겨찾기·인생작의 공통 태그예요.</p>
+            <p className="mb-4 text-xs text-ink-500">북마크·인생작의 공통 태그예요.</p>
             {topTags.length === 0 ? (
               <p className="py-2 text-xs text-ink-300">담은 작품에 태그 정보가 아직 없어요.</p>
             ) : (

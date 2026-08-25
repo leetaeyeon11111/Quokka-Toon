@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import * as adminReqApi from '../../api/adminRequest'
 import * as authApi from '../../api/auth'
@@ -8,15 +8,37 @@ import ProfileIconPicker from '../../components/mypage/ProfileIconPicker'
 import { levelLabel, nicknameLevelClass } from '../../lib/level'
 import { useDialog } from '../../hooks/useDialog'
 
-function EditableRow({ label, value, locked, onSave, mask, maxLength, hint }) {
+function EditableRow({ label, value, locked, onSave, mask, maxLength, hint, checkAvailability }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [availability, setAvailability] = useState('idle') // idle | checking | available | taken
+  const checkTimerRef = useRef(null)
 
   useEffect(() => {
     if (!editing) setDraft(value)
   }, [value, editing])
+
+  // 실시간 중복 확인: 입력 이벤트에서 디바운스(400ms)로 checkAvailability 호출.
+  function runAvailabilityCheck(rawValue) {
+    if (!checkAvailability) return
+    const next = String(rawValue ?? '').trim()
+    clearTimeout(checkTimerRef.current)
+    if (!next || next === value || (maxLength && next.length > maxLength)) {
+      setAvailability('idle')
+      return
+    }
+    setAvailability('checking')
+    checkTimerRef.current = setTimeout(async () => {
+      try {
+        const { available } = await checkAvailability(next)
+        setAvailability(available ? 'available' : 'taken')
+      } catch {
+        setAvailability('idle')
+      }
+    }, 400)
+  }
 
   async function handleSave() {
     const next = String(draft ?? '').trim()
@@ -31,6 +53,10 @@ function EditableRow({ label, value, locked, onSave, mask, maxLength, hint }) {
     if (next === value) {
       setEditing(false)
       setError('')
+      return
+    }
+    if (checkAvailability && availability === 'taken') {
+      setError(`이미 사용 중인 ${label}이에요.`)
       return
     }
     setSaving(true)
@@ -56,12 +82,23 @@ function EditableRow({ label, value, locked, onSave, mask, maxLength, hint }) {
               value={draft}
               maxLength={maxLength}
               onChange={(e) => {
-                setDraft(maxLength ? e.target.value.slice(0, maxLength) : e.target.value)
+                const next = maxLength ? e.target.value.slice(0, maxLength) : e.target.value
+                setDraft(next)
                 setError('')
+                runAvailabilityCheck(next)
               }}
               className="w-full max-w-xs rounded-full border border-ink-100 bg-ink-50 px-3 py-1.5 text-sm outline-none"
             />
             {hint && <p className="mt-1 text-xs text-ink-300">{hint}</p>}
+            {checkAvailability && availability === 'checking' && (
+              <p className="mt-1 text-xs text-ink-400">중복 확인 중…</p>
+            )}
+            {checkAvailability && availability === 'available' && (
+              <p className="mt-1 text-xs text-mint-500">사용 가능한 {label}이에요.</p>
+            )}
+            {checkAvailability && availability === 'taken' && (
+              <p className="mt-1 text-xs text-red-500">이미 사용 중인 {label}이에요.</p>
+            )}
             {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
           </>
         ) : (
@@ -76,7 +113,7 @@ function EditableRow({ label, value, locked, onSave, mask, maxLength, hint }) {
         <div className="flex shrink-0 gap-1.5">
           <button
             type="button"
-            disabled={saving}
+            disabled={saving || (checkAvailability && (availability === 'checking' || availability === 'taken'))}
             onClick={handleSave}
             className="rounded-full bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
           >
@@ -88,6 +125,7 @@ function EditableRow({ label, value, locked, onSave, mask, maxLength, hint }) {
             onClick={() => {
               setDraft(value)
               setError('')
+              setAvailability('idle')
               setEditing(false)
             }}
             className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-500"
@@ -101,6 +139,7 @@ function EditableRow({ label, value, locked, onSave, mask, maxLength, hint }) {
           onClick={() => {
             setDraft(value)
             setError('')
+            setAvailability('idle')
             setEditing(true)
           }}
           className="shrink-0 rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
@@ -340,6 +379,7 @@ function AdminListSection() {
 
 export default function InfoPage() {
   const { user, isAdmin, refresh } = useAuth()
+  const [showIconModal, setShowIconModal] = useState(false)
 
   if (!user) {
     return (
@@ -367,12 +407,37 @@ export default function InfoPage() {
             <div className="h-full rounded-full bg-brand-500" style={{ width: `${user.progressPercent ?? 0}%` }} />
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowIconModal(true)}
+          className="shrink-0 rounded-full border border-ink-100 px-4 py-2 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+        >
+          프로필 수정하기
+        </button>
       </div>
 
-      <div className="mb-6 rounded-2xl border border-ink-100 bg-white p-5">
-        <p className="mb-1 text-sm font-bold text-ink-900">프로필 아이콘</p>
-        <ProfileIconPicker selectedId={user.profileIconId} onSaved={() => refresh()} />
-      </div>
+      {showIconModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={() => setShowIconModal(false)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="mb-4 text-base font-bold text-ink-900">프로필 아이콘 선택</p>
+            <ProfileIconPicker
+              selectedId={user.profileIconId}
+              variant="modal"
+              onCancel={() => setShowIconModal(false)}
+              onSaved={() => {
+                refresh()
+                setShowIconModal(false)
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-ink-100 bg-white px-5">
         <p className="pt-4 text-sm font-bold text-ink-900">계정 관리</p>
@@ -381,6 +446,7 @@ export default function InfoPage() {
           value={user.nickname}
           maxLength={6}
           hint="최대 6글자"
+          checkAvailability={authApi.checkNickname}
           onSave={async (nickname) => {
             await authApi.updateNickname(nickname)
             await refresh()

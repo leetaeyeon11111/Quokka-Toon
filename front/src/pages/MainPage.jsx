@@ -13,6 +13,7 @@ import {
 } from '../lib/homeSheet'
 import { webtoonHref } from '../lib/navigation'
 import HorizontalWebtoonSlider from '../components/webtoon/HorizontalWebtoonSlider'
+import { getQuickPrompts } from '../api/quickPrompt'
 
 const PLACEHOLDER_QUERIES = [
   '비 오는 날 읽기 좋은 힐링 만화…',
@@ -21,7 +22,8 @@ const PLACEHOLDER_QUERIES = [
   '두뇌싸움이 짜릿한 다크 판타지…',
 ]
 
-const QUICK_PROMPTS = [
+// 백엔드(/api/quick-prompts)에서 못 불러올 때 쓰는 기본값. 관리자가 편집하면 API 값으로 대체된다.
+const DEFAULT_QUICK_PROMPTS = [
   { label: '비 오는 날 힐링', query: '비 오는 날 편안하게 읽기 좋은 힐링 웹툰' },
   { label: '설레는 로맨스', query: '서로 천천히 가까워지는 설레는 로맨스 웹툰' },
   { label: '빌런 참교육', query: '빌런을 시원하게 참교육하는 사이다 복수극' },
@@ -57,6 +59,7 @@ export default function MainPage() {
   const [top10, setTop10] = useState([])
   const [top10Loading, setTop10Loading] = useState(true)
   const [top10Error, setTop10Error] = useState('')
+  const [quickPrompts, setQuickPrompts] = useState(DEFAULT_QUICK_PROMPTS)
   const pageRef = useRef(null)
   const heroRef = useRef(null)
   const searchInputRef = useRef(null)
@@ -80,6 +83,15 @@ export default function MainPage() {
     syncPreference()
     media.addEventListener('change', syncPreference)
     return () => media.removeEventListener('change', syncPreference)
+  }, [])
+
+  // 추천 검색어 버튼: 관리자가 편집한 값을 백엔드에서 가져온다. 실패/빈 값이면 기본값 유지.
+  useEffect(() => {
+    getQuickPrompts()
+      .then((list) => {
+        if (Array.isArray(list) && list.length > 0) setQuickPrompts(list)
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -595,9 +607,9 @@ export default function MainPage() {
               className="mt-4 flex flex-wrap justify-center gap-2 [@media(max-height:720px)]:mt-2 [@media(max-height:600px)]:hidden"
               aria-label="추천 검색어 예시"
             >
-              {QUICK_PROMPTS.map((prompt) => (
+              {quickPrompts.map((prompt) => (
                 <button
-                  key={prompt.label}
+                  key={prompt.id ?? prompt.label}
                   type="button"
                   onClick={() => chooseQuickPrompt(prompt.query)}
                   aria-pressed={query === prompt.query}

@@ -416,10 +416,22 @@ export default function WebtoonDetailPage() {
               <button
                 type="button"
                 onClick={handleToggleFavorite}
-                aria-label="즐겨찾기"
-                className={`text-2xl ${favorited ? 'text-brand-500' : 'text-ink-300'}`}
+                aria-label="북마크"
+                title={favorited ? '북마크 해제' : '북마크'}
+                className={favorited ? 'text-brand-500' : 'text-ink-300'}
               >
-                {favorited ? '★' : '☆'}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  className="h-7 w-7"
+                  fill={favorited ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+                </svg>
               </button>
             </div>
           </div>
@@ -504,7 +516,7 @@ export default function WebtoonDetailPage() {
           </div>
           <MediaMixHeroLinks items={webtoon.mediaMix} />
           {!isLoggedIn && (
-            <p className="mt-2 text-xs text-ink-300">* 즐겨찾기·인생작 담기는 로그인 후 이용할 수 있어요.</p>
+            <p className="mt-2 text-xs text-ink-300">* 북마크·인생작 담기는 로그인 후 이용할 수 있어요.</p>
           )}
         </div>
       </div>

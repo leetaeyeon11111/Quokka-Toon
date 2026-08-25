@@ -27,7 +27,7 @@ function MenuLink({ to, onClose, children }) {
 }
 
 export default function HamburgerMenu({ onClose }) {
-  const { isLoggedIn, isAdmin, logout } = useAuth()
+  const { isLoggedIn, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const menuRef = useRef(null)
@@ -65,7 +65,7 @@ export default function HamburgerMenu({ onClose }) {
 
       <Section title="내서재">
         <MenuLink to="/mypage/favorites" onClose={onClose}>
-          즐겨찾기
+          북마크
         </MenuLink>
         <MenuLink to="/mypage/taste" onClose={onClose}>
           취향 리포트
@@ -105,22 +105,6 @@ export default function HamburgerMenu({ onClose }) {
         </MenuLink>
       </Section>
 
-      {isAdmin && (
-        <Section title="관리자">
-          <MenuLink to="/admin" onClose={onClose}>
-            신고함 / 문의게시판
-          </MenuLink>
-          <MenuLink to="/admin?tab=bans" onClose={onClose}>
-            벤 관리
-          </MenuLink>
-          <MenuLink to="/admin?tab=reportHistory" onClose={onClose}>
-            신고 완료 기록
-          </MenuLink>
-          <MenuLink to="/admin?tab=inquiryHistory" onClose={onClose}>
-            문의 완료 기록
-          </MenuLink>
-        </Section>
-      )}
 
       {isLoggedIn && (
         <div className="px-3 pt-1">

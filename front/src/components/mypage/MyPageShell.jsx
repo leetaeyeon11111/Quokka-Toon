@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import ProfileCard from './ProfileCard'
 
 const TABS = [
-  { to: '/mypage/favorites', label: '즐겨찾기' },
+  { to: '/mypage/favorites', label: '북마크' },
   { to: '/mypage/taste', label: '취향 리포트' },
   { to: '/mypage/posts', label: '내가 쓴 글' },
 ]
