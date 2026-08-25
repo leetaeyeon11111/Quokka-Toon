@@ -11,6 +11,9 @@ import InquiryDetailModal from '../../components/admin/InquiryDetailModal'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
 import { useDialog } from '../../hooks/useDialog'
 
+const REPORT_STATUS_TABS = ['미처리', '처리완료', '전체']
+const REPORT_STATUS_PARAM = { 미처리: 'PENDING', 처리완료: 'HANDLED', 전체: 'ALL' }
+
 function StatusTag({ done, children }) {
   return (
     <span
@@ -33,12 +36,19 @@ function ReportsTab({ historyOnly }) {
   const [detailTarget, setDetailTarget] = useState(null)
 
   useEffect(() => {
-    const loader = historyOnly ? adminApi.listHandledReports : adminApi.listReports
+    setLoading(true)
+    const loader = historyOnly
+      ? adminApi.listHandledReports
+      : () => adminApi.listReports(REPORT_STATUS_PARAM[statusFilter])
     loader()
       .then(setReports)
       .catch(() => setReports([]))
       .finally(() => setLoading(false))
-  }, [historyOnly])
+  }, [historyOnly, statusFilter])
+
+  function changeStatus(next) {
+    setStatusFilter(next)
+  }
 
   const filtered = useMemo(
     () => (typeFilter === '전체' ? reports : reports.filter((r) => r.type === typeFilter)),
@@ -66,30 +76,26 @@ function ReportsTab({ historyOnly }) {
   }
 
   function showReportDetail(report) {
-    showAlert({
-      title: report.title,
-      message: historyOnly
-        ? `작성자: ${report.author}\n게시판: ${report.board}\n상태: ${report.status}`
-        : `작성자: ${report.author}\n게시판: ${report.board}`,
-    })
+    setDetailTarget(report)
   }
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex gap-1.5">
-          {REPORT_STATUS_TABS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => changeStatus(s)}
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                statusFilter === s ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+          {!historyOnly &&
+            REPORT_STATUS_TABS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => changeStatus(s)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  statusFilter === s ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
         </div>
         <select
           value={typeFilter}
@@ -333,7 +339,7 @@ function InquiriesTab({ historyOnly }) {
                     )}
                     <button
                       type="button"
-                      onClick={() => showAlert({ title: inq.title, message: inq.content })}
+                      onClick={() => setDetailInquiry(inq)}
                       className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
                     >
                       보기
@@ -565,6 +571,7 @@ const TABS = [
   { id: 'reportHistory', label: '신고 완료 기록' },
   { id: 'inquiries', label: '문의게시판' },
   { id: 'inquiryHistory', label: '문의 완료 기록' },
+  { id: 'quickPrompts', label: '추천 검색어' },
 ]
 
 const TITLES = {
@@ -572,6 +579,7 @@ const TITLES = {
   reportHistory: '신고 완료 기록',
   inquiries: '문의게시판 관리',
   inquiryHistory: '문의 완료 기록',
+  quickPrompts: '메인 추천 검색어 관리',
 }
 
 export default function AdminConsolePage() {
@@ -609,6 +617,7 @@ export default function AdminConsolePage() {
       {tab === 'reportHistory' && <ReportsTab historyOnly />}
       {tab === 'inquiries' && <InquiriesTab historyOnly={false} />}
       {tab === 'inquiryHistory' && <InquiriesTab historyOnly />}
+      {tab === 'quickPrompts' && <QuickPromptsTab />}
     </div>
   )
 }
