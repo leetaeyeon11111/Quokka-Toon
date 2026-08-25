@@ -10,10 +10,6 @@ export default function ProfileIconPicker({ selectedId, onSaved, onCancel, varia
   const [error, setError] = useState('')
 
   useEffect(() => {
-    setPicked(selectedId ?? '')
-  }, [selectedId])
-
-  useEffect(() => {
     let cancelled = false
     authApi
       .listProfileIcons()

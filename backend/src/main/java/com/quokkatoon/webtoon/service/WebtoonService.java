@@ -12,12 +12,15 @@ import com.quokkatoon.webtoon.dto.WebtoonDetailResponse;
 import com.quokkatoon.webtoon.dto.WebtoonListItem;
 import com.quokkatoon.webtoon.entity.Webtoon;
 import com.quokkatoon.webtoon.repository.WebtoonRepository;
+import com.quokkatoon.webtoon.repository.WebtoonViewEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -32,9 +35,14 @@ public class WebtoonService {
 
     private static final String KAKAO_WEBTOON = "카카오웹툰";
     private static final String KAKAO_PAGE = "카카오페이지";
+    private static final ZoneId RANKING_ZONE = ZoneId.of("Asia/Seoul");
+    private static final long RANKING_CACHE_MILLIS = 10 * 60 * 1000L;
 
     private final WebtoonRepository webtoonRepository;
+    private final WebtoonViewEventRepository webtoonViewEventRepository;
     private final ReviewService reviewService;
+    private final Object rankingCacheLock = new Object();
+    private volatile RankingCache rankingCache;
 
     // 목록: 제목/플랫폼/장르/작가/태그 필터 (빈 문자열은 null 로 처리해 필터 해제).
     @Transactional(readOnly = true)
@@ -83,24 +91,55 @@ public class WebtoonService {
         return WebtoonDetailResponse.from(w, authors, genres, tags, platforms, mediaMix, demographics);
     }
 
-    /** 상세 페이지 진입 시 1회 호출 — 조회수 +1 후 갱신값 반환 */
+    /** 동일 사용자·작품의 조회는 한국 날짜 기준 하루 1회만 집계한다. */
     @Transactional
-    public long recordView(Long id) {
-        Webtoon w = webtoonRepository.findById(id)
+    public long recordView(Long id, Long userId, String visitorId) {
+        if (!webtoonRepository.existsById(id)) {
+            throw new BusinessException(ErrorCode.WEBTOON_NOT_FOUND);
+        }
+
+        LocalDateTime viewedAt = LocalDateTime.now(RANKING_ZONE);
+        int inserted = webtoonViewEventRepository.insertIfAbsent(
+                id,
+                WebtoonViewerKey.from(userId, visitorId),
+                viewedAt.toLocalDate(),
+                viewedAt);
+
+        if (inserted > 0) {
+            webtoonRepository.incrementViewCountById(id);
+        }
+        return webtoonRepository.findViewCountById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.WEBTOON_NOT_FOUND));
-        w.incrementViewCount();
-        return w.getViewCount();
     }
 
     @Transactional(readOnly = true)
     public List<WebtoonListItem> ranking(int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 30));
-        List<Webtoon> rows = webtoonRepository.findRanking(safeLimit);
-        Map<Long, Set<String>> namesById = platformNamesByWebtoon(rows);
-        Map<String, String> logoByName = platformLogos(List.of(KAKAO_WEBTOON, KAKAO_PAGE));
-        return rows.stream()
-                .map(w -> toListItem(w, null, namesById, logoByName))
-                .toList();
+        List<WebtoonListItem> snapshot = hotRankingSnapshot();
+        return List.copyOf(snapshot.subList(0, Math.min(safeLimit, snapshot.size())));
+    }
+
+    private List<WebtoonListItem> hotRankingSnapshot() {
+        long now = System.currentTimeMillis();
+        RankingCache cached = rankingCache;
+        if (cached != null && cached.expiresAtMillis() > now) return cached.items();
+
+        synchronized (rankingCacheLock) {
+            cached = rankingCache;
+            if (cached != null && cached.expiresAtMillis() > now) return cached.items();
+
+            List<Webtoon> rows = webtoonRepository.findHotRanking(30);
+            Map<Long, Set<String>> namesById = platformNamesByWebtoon(rows);
+            Map<String, String> logoByName = platformLogos(List.of(KAKAO_WEBTOON, KAKAO_PAGE));
+            List<WebtoonListItem> items = rows.stream()
+                    .map(w -> toListItem(w, null, namesById, logoByName))
+                    .toList();
+            rankingCache = new RankingCache(items, now + RANKING_CACHE_MILLIS);
+            return items;
+        }
+    }
+
+    private record RankingCache(List<WebtoonListItem> items, long expiresAtMillis) {
     }
 
     @Transactional

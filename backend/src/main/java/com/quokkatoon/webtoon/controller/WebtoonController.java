@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -57,7 +58,7 @@ public class WebtoonController {
         return ApiResponse.ok(webtoonService.popularTagNames(limit));
     }
 
-    // 홈 TOP N: 리뷰 수 → 조회수 → 최근 리뷰
+    // 홈 TOP N: 최근 7일 조회·리뷰·리뷰 좋아요에 시간 감쇠 적용
     @GetMapping("/ranking")
     public ApiResponse<List<WebtoonListItem>> ranking(
             @RequestParam(defaultValue = "10") int size) {
@@ -70,9 +71,12 @@ public class WebtoonController {
         return ApiResponse.ok(webtoonService.detail(id));
     }
 
-    // 조회수 +1: POST /api/webtoons/{id}/view
+    // 조회 기록: 동일 사용자·작품은 하루 1회만 반영
     @PostMapping("/{id}/view")
-    public ApiResponse<Long> recordView(@PathVariable Long id) {
-        return ApiResponse.ok(webtoonService.recordView(id));
+    public ApiResponse<Long> recordView(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long userId,
+            @RequestHeader(value = "X-Visitor-Id", required = false) String visitorId) {
+        return ApiResponse.ok(webtoonService.recordView(id, userId, visitorId));
     }
 }

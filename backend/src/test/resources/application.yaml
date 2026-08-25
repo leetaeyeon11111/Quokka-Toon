@@ -19,6 +19,12 @@ jwt:
 recommend:
   base-url: http://localhost:8000
 
+webtoon-api:
+  base-url: http://localhost:3000
+
+webtoon:
+  rating-backfill-enabled: false
+
 oauth:
   kakao:
     rest-key: test

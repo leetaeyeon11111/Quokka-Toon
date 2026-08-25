@@ -157,26 +157,22 @@ export default function WebtoonDetailPage() {
   const writers = roleAuthorLists.writers
   const artists = roleAuthorLists.artists
   const authorsForRole = authorRoleTab === 'artist' ? artists : writers
+  const currentWebtoonId = webtoon?.id
 
-  // 글/그림 탭 전환 시에만 선택 작가 맞춤 (칩 목록은 그대로)
-  useEffect(() => {
-    const list = authorRoleTab === 'artist' ? artists : writers
-    if (!list.length) {
-      setSelectedAuthor(null)
-      return
-    }
-    setSelectedAuthor((prev) => (prev && list.includes(prev) ? prev : list[0]))
-  }, [authorRoleTab, writers, artists])
+  function selectAuthorRole(role) {
+    const list = role === 'artist' ? artists : writers
+    setAuthorRoleTab(role)
+    setSelectedAuthor((prev) => (prev && list.includes(prev) ? prev : (list[0] ?? null)))
+    setOtherWorks([])
+  }
 
   // 추천: 선택한 글/그림 작가의 다른 작품
   useEffect(() => {
-    if (!webtoon || !selectedAuthor || selectedAuthor === '미상') {
-      setOtherWorks([])
+    if (!currentWebtoonId || !selectedAuthor || selectedAuthor === '미상') {
       return
     }
     let cancelled = false
-    const selfId = webtoon.id
-    setOtherWorks([])
+    const selfId = currentWebtoonId
     searchWebtoons({ author: selectedAuthor, size: 12 })
       .then((data) => {
         if (!cancelled) {
@@ -191,7 +187,7 @@ export default function WebtoonDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [webtoon?.id, selectedAuthor])
+  }, [currentWebtoonId, selectedAuthor])
 
   // 추천: 같은 장르(비슷한 작품)
   useEffect(() => {
@@ -571,7 +567,7 @@ export default function WebtoonDetailPage() {
             <div className="mb-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setAuthorRoleTab('writer')}
+                onClick={() => selectAuthorRole('writer')}
                 className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
                   authorRoleTab === 'writer'
                     ? 'border-brand-500 bg-brand-50 text-brand-600'
@@ -582,7 +578,7 @@ export default function WebtoonDetailPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setAuthorRoleTab('artist')}
+                onClick={() => selectAuthorRole('artist')}
                 className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
                   authorRoleTab === 'artist'
                     ? 'border-brand-500 bg-brand-50 text-brand-600'
@@ -606,7 +602,10 @@ export default function WebtoonDetailPage() {
                       type="button"
                       role="option"
                       aria-selected={selected}
-                      onClick={() => setSelectedAuthor(name)}
+                      onClick={() => {
+                        setSelectedAuthor(name)
+                        setOtherWorks([])
+                      }}
                       className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
                         selected
                           ? 'border-brand-500 bg-brand-50 text-brand-600 ring-1 ring-brand-500'

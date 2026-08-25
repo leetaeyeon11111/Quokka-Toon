@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FEATURE_PROMOS } from '../../data/featurePromos'
 import { useAuth } from '../../hooks/useAuth'
+import { readSessionValue, writeSessionValue } from '../../lib/sessionStorage'
 
 const LAST_PROMO_SLIDE_KEY = 'quokkatoon:last-promo-slide'
 const CAROUSEL_COPY_COUNT = 3
@@ -11,7 +12,7 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
   const { isLoggedIn } = useAuth()
   const slides = useMemo(() => FEATURE_PROMOS.filter((slide) => slide.enabled), [])
   const [index, setIndex] = useState(() => {
-    const savedSlideId = window.sessionStorage.getItem(LAST_PROMO_SLIDE_KEY)
+    const savedSlideId = readSessionValue(LAST_PROMO_SLIDE_KEY)
     const savedIndex = slides.findIndex((slide) => slide.id === savedSlideId)
     return savedIndex >= 0 ? savedIndex : 0
   })
@@ -75,7 +76,7 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
   }, [autoPlaying, index, paused, reducedMotion, slides.length])
 
   useEffect(() => {
-    window.sessionStorage.setItem(LAST_PROMO_SLIDE_KEY, slides[index].id)
+    if (slides[index]) writeSessionValue(LAST_PROMO_SLIDE_KEY, slides[index].id)
   }, [index, slides])
 
   useEffect(

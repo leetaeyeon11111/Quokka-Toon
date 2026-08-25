@@ -1,18 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import { searchWebtoons } from '../api/webtoon'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
+import { getWebtoonRanking } from '../api/webtoon'
 import { getQuickPrompts } from '../api/quickPrompt'
-import { TEAM_PICK_IDS } from '../data/teamPicks'
+import {
+  drawTeamPick,
+  FALLBACK_TEAM_PICK_IDS,
+  reviewedTeamPickIds,
+  TEAM_PICK_DRAW_STATE_KEY,
+} from '../data/teamPicks'
 import { toCardModel } from '../lib/webtoon'
 import FeaturePromoCarousel from '../components/home/ContinuousFeaturePromoCarousel'
 import FloatingQuokkas from '../components/home/FloatingQuokkas'
 import {
   advanceSheetWheelGesture,
+  getSheetKeyboardDestination,
   getSheetSnapDestination,
   getSheetWheelIntent,
   SHEET_WHEEL_GESTURE_IDLE_MS,
+  shouldUnlockSheetScroll,
 } from '../lib/homeSheet'
 import { webtoonHref } from '../lib/navigation'
+import { normalizeQuickPrompts } from '../lib/quickPrompts'
+import { readSessionValue, writeSessionValue } from '../lib/sessionStorage'
 import HorizontalWebtoonSlider from '../components/webtoon/HorizontalWebtoonSlider'
 
 const PLACEHOLDER_QUERIES = [
@@ -50,6 +59,7 @@ function getSiteHeaderHeight() {
 export default function MainPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const navigationType = useNavigationType()
   const [query, setQuery] = useState('')
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [diceRolling, setDiceRolling] = useState(false)
@@ -59,6 +69,7 @@ export default function MainPage() {
   const [top10, setTop10] = useState([])
   const [top10Loading, setTop10Loading] = useState(true)
   const [top10Error, setTop10Error] = useState('')
+  const [teamPickIds, setTeamPickIds] = useState(FALLBACK_TEAM_PICK_IDS)
   const [quickPrompts, setQuickPrompts] = useState(DEFAULT_QUICK_PROMPTS)
   const pageRef = useRef(null)
   const heroRef = useRef(null)
@@ -75,11 +86,16 @@ export default function MainPage() {
     moved: false,
     suppressClick: false,
   })
-  const focusAiSearchRef = useRef(null)
+  const reduceMotionRef = useRef(false)
+  const initialNavigationTypeRef = useRef(navigationType)
+  const focusTimerRef = useRef(null)
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const syncPreference = () => setReduceMotion(media.matches)
+    const syncPreference = () => {
+      reduceMotionRef.current = media.matches
+      setReduceMotion(media.matches)
+    }
     syncPreference()
     media.addEventListener('change', syncPreference)
     return () => media.removeEventListener('change', syncPreference)
@@ -89,7 +105,8 @@ export default function MainPage() {
   useEffect(() => {
     getQuickPrompts()
       .then((list) => {
-        if (Array.isArray(list) && list.length > 0) setQuickPrompts(list)
+        const normalized = normalizeQuickPrompts(list)
+        if (normalized.length > 0) setQuickPrompts(normalized)
       })
       .catch(() => {})
   }, [])
@@ -106,10 +123,10 @@ export default function MainPage() {
   useEffect(() => {
     let cancelled = false
 
-    searchWebtoons({ page: 0, size: 10, sort: 'views' })
-      .then((page) => {
+    getWebtoonRanking(10)
+      .then((webtoons) => {
         if (cancelled) return
-        setTop10((page?.content ?? []).map(toCardModel))
+        setTop10((webtoons ?? []).map(toCardModel))
         setTop10Error('')
       })
       .catch(() => {
@@ -119,6 +136,24 @@ export default function MainPage() {
       })
       .finally(() => {
         if (!cancelled) setTop10Loading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    getWebtoonRanking(100)
+      .then((webtoons) => {
+        if (cancelled) return
+        const reviewedIds = reviewedTeamPickIds(webtoons)
+        if (reviewedIds.length > 0) setTeamPickIds(reviewedIds)
+      })
+      .catch(() => {
+        // 랭킹 API 실패 시에도 리뷰가 확인된 기본 후보를 유지한다.
       })
 
     return () => {
@@ -207,7 +242,7 @@ export default function MainPage() {
       const start = window.scrollY
       const distance = target - start
 
-      if (reduceMotion || Math.abs(distance) < 2) {
+      if (reduceMotionRef.current || Math.abs(distance) < 2) {
         finishAt(section)
         return
       }
@@ -238,6 +273,9 @@ export default function MainPage() {
       const deltaMultiplier =
         event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1
       const normalizedDeltaY = event.deltaY * deltaMultiplier
+
+      // 뒤로가기가 콘텐츠 위치를 복원한 경우, 히어로에서 걸었던 스크롤 잠금을 먼저 푼다.
+      if (shouldUnlockSheetScroll({ current, contentTop })) setScrollLocked(false)
 
       if (transition.active) {
         event.preventDefault()
@@ -308,6 +346,8 @@ export default function MainPage() {
       const inSheetTransitionZone = current > heroTop + 2 && current < contentTop - 2
       const reachedContentTop = current >= contentTop - 2 && current <= contentTop + 2
 
+      if (shouldUnlockSheetScroll({ current, contentTop })) setScrollLocked(false)
+
       if (reachedContentTop && returnGestureArmed && hasRecentWheel && lastWheelDirection < 0) {
         resetWheelGesture()
         animateToSection('hero')
@@ -328,8 +368,37 @@ export default function MainPage() {
       animateToSection(destination)
     }
 
-    window.scrollTo({ top: getSectionTops().hero, behavior: 'auto' })
-    setScrollLocked(true)
+    const handleKeyDown = (event) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return
+      if (
+        event.target instanceof Element &&
+        event.target.closest('input, textarea, select, button, a, [contenteditable="true"]')
+      ) {
+        return
+      }
+
+      const { hero: heroTop, content: contentTop } = getSectionTops()
+      const destination = getSheetKeyboardDestination({
+        current: window.scrollY,
+        heroTop,
+        contentTop,
+        key: event.key,
+        shiftKey: event.shiftKey,
+      })
+      if (!destination) return
+
+      event.preventDefault()
+      resetWheelGesture()
+      animateToSection(destination)
+    }
+
+    const initialTops = getSectionTops()
+    if (initialNavigationTypeRef.current === 'POP') {
+      setScrollLocked(window.scrollY < initialTops.content - 2)
+    } else {
+      window.scrollTo({ top: initialTops.hero, behavior: 'auto' })
+      setScrollLocked(true)
+    }
     sectionTransitionApiRef.current = {
       animateTo: animateToSection,
       cancel: cancelTransition,
@@ -339,16 +408,18 @@ export default function MainPage() {
     }
     window.addEventListener('wheel', handleWheel, { passive: false })
     window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('keydown', handleKeyDown)
 
     return () => {
       window.removeEventListener('wheel', handleWheel)
       window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('keydown', handleKeyDown)
       resetWheelGesture()
       cancelTransition()
       sectionTransitionApiRef.current = null
       root.style.overflowY = previousOverflowY
     }
-  }, [reduceMotion])
+  }, [])
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -362,32 +433,46 @@ export default function MainPage() {
     navigate(`/recommend?q=${encodeURIComponent(trimmedQuery)}&mode=ai`)
   }
 
-  // Math.random()은 순수하지 않으므로 렌더 중이 아닌 클릭(이벤트 핸들러) 시점에 고른다.
   function goToTeamPick() {
-    if (TEAM_PICK_IDS.length === 0) return
-    const id = TEAM_PICK_IDS[Math.floor(Math.random() * TEAM_PICK_IDS.length)]
+    if (teamPickIds.length === 0) return
+    let previousState = {}
+    try {
+      previousState = JSON.parse(readSessionValue(TEAM_PICK_DRAW_STATE_KEY) ?? '{}')
+    } catch {
+      // 손상된 세션 값은 버리고 새 순서를 만든다.
+    }
+    const { id, state } = drawTeamPick(teamPickIds, previousState)
+    if (!id) return
+    writeSessionValue(TEAM_PICK_DRAW_STATE_KEY, JSON.stringify(state))
     navigate(webtoonHref({ id }))
   }
 
-  function focusAiSearch() {
+  const focusAiSearch = useCallback(() => {
     sectionTransitionApiRef.current?.animateTo('hero')
-    window.setTimeout(
+    if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current)
+    focusTimerRef.current = window.setTimeout(
       () => searchInputRef.current?.focus({ preventScroll: true }),
       reduceMotion ? 0 : 440,
     )
-  }
-  focusAiSearchRef.current = focusAiSearch
+  }, [reduceMotion])
+
+  useEffect(
+    () => () => {
+      if (focusTimerRef.current !== null) window.clearTimeout(focusTimerRef.current)
+    },
+    [],
+  )
 
   // 헤더/햄버거 "AI 추천 검색" → 메인 히어로 검색창으로 포커스
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     if (params.get('focus') !== 'ai') return undefined
     const timer = window.setTimeout(() => {
-      focusAiSearchRef.current?.()
+      focusAiSearch()
       navigate('/', { replace: true })
     }, 50)
     return () => window.clearTimeout(timer)
-  }, [location.search, navigate])
+  }, [focusAiSearch, location.search, navigate])
 
   function chooseQuickPrompt(prompt) {
     setQuery(prompt)
@@ -715,11 +800,8 @@ export default function MainPage() {
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="flex items-center gap-1.5 text-lg font-bold text-ink-900">
-              🔥 TOP 10
+              🔥 지금 핫한 작품
             </h2>
-            <span className="rounded-full border border-ink-100 bg-white/70 px-2.5 py-1 text-[11px] font-semibold text-ink-500">
-              리뷰·조회 기준
-            </span>
           </div>
           {top10Loading && (
             <div

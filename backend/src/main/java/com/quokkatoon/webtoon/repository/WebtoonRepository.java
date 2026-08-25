@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
 
@@ -193,7 +194,7 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
             """, nativeQuery = true)
     List<Object[]> findMediaMixLinks(@Param("id") Long id);
 
-    // 홈 TOP N: 리뷰 수 → 조회수 → 최근 리뷰 시각
+    // 안정적인 누적 인기 폴백: 리뷰 수 → 조회수 → 최근 리뷰 시각
     @Query(value = """
             SELECT w.* FROM webtoon w
             WHERE w.thumbnail_url <> ''
@@ -205,6 +206,72 @@ public interface WebtoonRepository extends JpaRepository<Webtoon, Long> {
             LIMIT :limit
             """, nativeQuery = true)
     List<Webtoon> findRanking(@Param("limit") int limit);
+
+    // 홈 핫 랭킹: 최근 7일의 일 고유 조회·리뷰·리뷰 좋아요에 72시간 반감기를 적용한다.
+    // 발표 전 초기 통계(webtoon_hot_seed)도 동일한 점수로 계산되며 7일 뒤 자연스럽게 제외된다.
+    @Query(value = """
+            WITH recent_hot_score AS (
+              SELECT activity.webtoon_id, SUM(activity.weighted_score) AS hot_score
+              FROM (
+                SELECT v.webtoon_id,
+                       POWER(0.5,
+                         GREATEST(TIMESTAMPDIFF(SECOND, v.viewed_at,
+                           DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR)), 0) / 259200.0) AS weighted_score
+                FROM webtoon_view_event v
+                WHERE v.viewed_at >= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR) - INTERVAL 7 DAY
+
+                UNION ALL
+
+                SELECT r.webtoon_id,
+                       8 * POWER(0.5,
+                         GREATEST(TIMESTAMPDIFF(SECOND, r.created_at,
+                           DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR)), 0) / 259200.0)
+                FROM review r
+                WHERE r.is_deleted = 0
+                  AND r.created_at >= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR) - INTERVAL 7 DAY
+
+                UNION ALL
+
+                SELECT liked_review.webtoon_id,
+                       2 * POWER(0.5,
+                         GREATEST(TIMESTAMPDIFF(SECOND, rl.created_at,
+                           DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR)), 0) / 259200.0)
+                FROM review_like rl
+                JOIN review liked_review ON liked_review.review_id = rl.review_id
+                WHERE liked_review.is_deleted = 0
+                  AND rl.created_at >= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR) - INTERVAL 7 DAY
+
+                UNION ALL
+
+                SELECT seed.webtoon_id,
+                       (seed.unique_views + 8 * seed.review_count + 2 * seed.review_like_count)
+                       * POWER(0.5,
+                         GREATEST(TIMESTAMPDIFF(SECOND,
+                           TIMESTAMP(seed.stat_date, '12:00:00'),
+                           DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR)), 0) / 259200.0)
+                FROM webtoon_hot_seed seed
+                WHERE seed.stat_date >= DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 9 HOUR)) - INTERVAL 6 DAY
+              ) activity
+              GROUP BY activity.webtoon_id
+            )
+            SELECT w.* FROM webtoon w
+            LEFT JOIN recent_hot_score score ON score.webtoon_id = w.webtoon_id
+            WHERE w.thumbnail_url <> ''
+              AND w.title NOT LIKE '%테스트%'
+            ORDER BY COALESCE(score.hot_score, 0) DESC,
+              w.rating_count DESC,
+              w.view_count DESC,
+              w.webtoon_id DESC
+            LIMIT :limit
+            """, nativeQuery = true)
+    List<Webtoon> findHotRanking(@Param("limit") int limit);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Webtoon w set w.viewCount = w.viewCount + 1 where w.id = :id")
+    int incrementViewCountById(@Param("id") Long id);
+
+    @Query("select w.viewCount from Webtoon w where w.id = :id")
+    Optional<Long> findViewCountById(@Param("id") Long id);
 
     // 기동 시 1회: review 테이블 → webtoon.rating_count / rating_avg 동기화
     @Modifying

@@ -16,10 +16,6 @@ function EditableRow({ label, value, locked, onSave, mask, maxLength, hint, chec
   const [availability, setAvailability] = useState('idle') // idle | checking | available | taken
   const checkTimerRef = useRef(null)
 
-  useEffect(() => {
-    if (!editing) setDraft(value)
-  }, [value, editing])
-
   // 실시간 중복 확인: 입력 이벤트에서 디바운스(400ms)로 checkAvailability 호출.
   function runAvailabilityCheck(rawValue) {
     if (!checkAvailability) return

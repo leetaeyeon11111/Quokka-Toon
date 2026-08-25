@@ -52,6 +52,7 @@ class ReviewServiceReactionTest {
         User author = User.builder().email("writer@test.com").passwordHash("x").nickname("writer").build();
         ReflectionTestUtils.setField(author, "id", 3L);
         Webtoon webtoon = mock(Webtoon.class);
+        when(webtoon.getId()).thenReturn(7L);
         when(users.findByIdForUpdate(3L)).thenReturn(Optional.of(author));
         when(webtoons.findById(7L)).thenReturn(Optional.of(webtoon));
         when(reviews.findByUserIdAndWebtoonId(3L, 7L)).thenReturn(Optional.empty());
@@ -105,12 +106,16 @@ class ReviewServiceReactionTest {
         ExperienceService experience = mock(ExperienceService.class);
         User author = User.builder().email("delete@test.com").passwordHash("x").nickname("delete").build();
         ReflectionTestUtils.setField(author, "id", 21L);
-        Review review = Review.builder().user(author).rating(4)
+        Webtoon webtoon = mock(Webtoon.class);
+        when(webtoon.getId()).thenReturn(17L);
+        Review review = Review.builder().webtoon(webtoon).user(author).rating(4)
                 .content("a sufficiently long review to delete").build();
         ReflectionTestUtils.setField(review, "id", 29L);
         when(reviews.findByIdForUpdate(29L)).thenReturn(Optional.of(review));
+        WebtoonRepository webtoons = mock(WebtoonRepository.class);
+        when(webtoons.findById(17L)).thenReturn(Optional.of(webtoon));
         ReviewService service = new ReviewService(reviews, likes, mock(UserRepository.class),
-                mock(WebtoonRepository.class), experience);
+                webtoons, experience);
 
         service.delete(29L, 21L);
 

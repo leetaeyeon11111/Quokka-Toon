@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAppData } from '../../hooks/useAppData'
-import { listMyPosts } from '../../api/board'
+import { listMyComments, listMyPosts } from '../../api/board'
 import { listMyReviews } from '../../api/review'
+import { coverGradientFor } from '../../lib/webtoon'
 import MyPageShell from '../../components/mypage/MyPageShell'
 import { StarsDisplay } from '../../components/common/Stars'
 
@@ -51,7 +51,7 @@ function CommentRow({ comment }) {
       <p className="text-sm text-ink-900">{comment.text}</p>
       <div className="flex items-center gap-3 text-xs text-ink-400">
         <span>👍 {comment.likes}</span>
-        <span>{comment.date ?? formatDate(comment.createdAt)}</span>
+        <span>{comment.date}</span>
       </div>
     </Link>
   )
@@ -87,22 +87,19 @@ function ReviewRow({ review }) {
 }
 
 export default function PostsPage() {
-  const { posts } = useAppData()
   const [tab, setTab] = useState('posts')
   const [myPosts, setMyPosts] = useState([])
-  const [myReviews, setMyReviews] = useState([])
-  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [myComments, setMyComments] = useState([])
+  const [myReviews, setMyReviews] = useState(null)
 
   useEffect(() => {
     listMyPosts().then(setMyPosts).catch(() => setMyPosts([]))
     listMyComments().then(setMyComments).catch(() => setMyComments([]))
-    listMyReviews().then(setMyReviews).catch(() => setMyReviews([]))
   }, [])
 
   useEffect(() => {
-    if (tab !== 'reviews') return
+    if (tab !== 'reviews' || myReviews !== null) return
     let cancelled = false
-    setReviewsLoading(true)
     listMyReviews()
       .then((data) => {
         if (!cancelled) setMyReviews(Array.isArray(data) ? data : [])
@@ -110,18 +107,10 @@ export default function PostsPage() {
       .catch(() => {
         if (!cancelled) setMyReviews([])
       })
-      .finally(() => {
-        if (!cancelled) setReviewsLoading(false)
-      })
     return () => {
       cancelled = true
     }
-  }, [tab])
-
-  const myCommentPosts = useMemo(
-    () => posts.filter((p) => p.comments.some((c) => c.isMine)),
-    [posts],
-  )
+  }, [tab, myReviews])
 
   return (
     <MyPageShell>
@@ -156,36 +145,14 @@ export default function PostsPage() {
           ))}
 
         {tab === 'reviews' &&
-          (reviewsLoading ? (
+          (myReviews === null ? (
             <p className="py-10 text-center text-sm text-ink-500">리뷰를 불러오는 중…</p>
           ) : myReviews.length === 0 ? (
             <p className="py-10 text-center text-sm text-ink-500">아직 작성한 리뷰가 없어요.</p>
           ) : (
             <div className="flex flex-col gap-3">
               {myReviews.map((review) => (
-                <Link
-                  key={review.id}
-                  to={`/webtoons/${review.webtoonId}`}
-                  className="flex gap-3 rounded-xl border border-ink-100 p-3 hover:bg-ink-50"
-                >
-                  {review.thumbnailUrl ? (
-                    <img
-                      src={review.thumbnailUrl}
-                      alt=""
-                      className="h-14 w-11 shrink-0 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="h-14 w-11 shrink-0 rounded bg-ink-100" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 text-sm font-bold text-ink-900">
-                      {review.webtoonTitle}{' '}
-                      <StarsDisplay rating={review.rating} size="text-xs" />
-                    </p>
-                    <p className="truncate text-sm text-ink-700">"{review.text}"</p>
-                    <p className="text-xs text-ink-300">👍 {review.likes}</p>
-                  </div>
-                </Link>
+                <ReviewRow key={review.id} review={review} />
               ))}
             </div>
           ))}
