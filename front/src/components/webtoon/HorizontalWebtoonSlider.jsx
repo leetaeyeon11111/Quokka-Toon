@@ -55,8 +55,6 @@ export default function HorizontalWebtoonSlider({
       startScrollLeft: trackRef.current?.scrollLeft ?? 0,
       moved: false,
     }
-    setIsDragging(true)
-    event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   function handlePointerMove(event) {
@@ -64,7 +62,16 @@ export default function HorizontalWebtoonSlider({
     if (!track || dragState.current.pointerId !== event.pointerId) return
 
     const distance = event.clientX - dragState.current.startX
-    if (Math.abs(distance) > 8) dragState.current.moved = true
+    if (Math.abs(distance) > 8 && !dragState.current.moved) {
+      dragState.current.moved = true
+      setIsDragging(true)
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId)
+      } catch {
+        /* 포인터 캡처 불가 환경에서는 현재 요소 안에서만 드래그한다. */
+      }
+    }
+    if (!dragState.current.moved) return
     track.scrollLeft = dragState.current.startScrollLeft - distance
   }
 

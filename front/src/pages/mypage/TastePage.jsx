@@ -158,13 +158,8 @@ export default function TastePage() {
 
       {recommendations.length > 0 && (
         <div className="mt-8">
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3">
             <p className="text-sm font-bold text-ink-900">최애 장르 기반 추천</p>
-            {topGenres[0]?.[0] && (
-              <span className="rounded-full border border-ink-100 bg-white px-2.5 py-1 text-[11px] font-semibold text-ink-500">
-                {topGenres[0][0]} 기반
-              </span>
-            )}
           </div>
           <HorizontalWebtoonSlider
             items={recommendations}

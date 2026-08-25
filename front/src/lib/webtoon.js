@@ -39,6 +39,9 @@ export function toCardModel(item) {
     ageRating: item.ageRating,
     isAdult: item.ageRating === '19',
     ratingAvg: rating > 0 ? rating : null,
+    stats: {
+      views: Number(item.viewCount) || 0,
+    },
   }
 }
 

@@ -51,10 +51,13 @@ public class WebtoonController {
         return ApiResponse.ok(webtoonService.detail(id));
     }
 
-    // 정렬 키 → DB 컬럼 (조회수/평점은 현재 0이라 latest 가 기본)
+    // 정렬 키 → DB 컬럼
     private Sort sortOf(String sort) {
         return switch (sort) {
-            case "views" -> Sort.by(Sort.Direction.DESC, "view_count");
+            case "views" -> Sort.by(
+                    Sort.Order.desc("view_count"),
+                    Sort.Order.desc("webtoon_id")
+            );
             case "rating" -> Sort.by(Sort.Direction.DESC, "rating_avg");
             case "bookmark" -> Sort.by(Sort.Direction.DESC, "bookmark_count");
             default -> Sort.by(Sort.Direction.DESC, "webtoon_id");

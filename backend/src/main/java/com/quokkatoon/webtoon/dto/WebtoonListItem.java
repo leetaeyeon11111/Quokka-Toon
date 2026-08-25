@@ -12,6 +12,7 @@ public record WebtoonListItem(
         String platformName,
         String mainGenre,
         String ageRating,
+        long viewCount,
         BigDecimal ratingAvg
 ) {
     public static WebtoonListItem from(Webtoon w) {
@@ -22,6 +23,7 @@ public record WebtoonListItem(
                 w.getPlatform() != null ? w.getPlatform().getName() : null,
                 w.getMainGenre() != null ? w.getMainGenre().getName() : null,
                 w.getAgeRating(),
+                w.getViewCount(),
                 w.getRatingAvg()
         );
     }

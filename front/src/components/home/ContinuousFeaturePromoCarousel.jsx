@@ -397,18 +397,6 @@ export default function ContinuousFeaturePromoCarousel({ onStartAi, onOpenTeamPi
             </button>
           ))}
         </div>
-
-        {!reducedMotion && (
-          <button
-            type="button"
-            onClick={() => setAutoPlaying((playing) => !playing)}
-            aria-label={autoPlaying ? '기능 소개 자동 넘김 일시정지' : '기능 소개 자동 넘김 재생'}
-            aria-pressed={!autoPlaying}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-xs font-bold text-ink-700 shadow-sm ring-1 ring-ink-100 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-          >
-            <span aria-hidden>{autoPlaying ? '❚❚' : '▶'}</span>
-          </button>
-        )}
       </div>
       <p className="sr-only" aria-live="polite">
         {slides[index].eyebrow}: {slides[index].title.replace('\n', ' ')}
