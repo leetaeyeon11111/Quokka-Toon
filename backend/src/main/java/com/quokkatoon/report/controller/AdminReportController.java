@@ -18,10 +18,11 @@ public class AdminReportController {
 
     private final ReportService reportService;
 
-    // 미처리 신고 목록
+    // 신고 목록. status = PENDING(기본, 미처리) | HANDLED(처리완료) | ALL
     @GetMapping
-    public ApiResponse<List<ReportResponse>> list() {
-        return ApiResponse.ok(reportService.getPending());
+    public ApiResponse<List<ReportResponse>> list(
+            @RequestParam(required = false, defaultValue = "PENDING") String status) {
+        return ApiResponse.ok(reportService.getByStatus(status));
     }
 
     // 신고 반려

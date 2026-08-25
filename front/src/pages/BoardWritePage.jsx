@@ -5,10 +5,12 @@ import { listWebtoons } from '../api/webtoon'
 import { useAuth } from '../hooks/useAuth'
 import { StarsInput } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
+import { useExperienceNotification } from '../hooks/useExperienceNotification'
 
 export default function BoardWritePage() {
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
+  const { notifyExperience } = useExperienceNotification()
 
   const [board, setBoard] = useState('free')
   const [webtoons, setWebtoons] = useState([])
@@ -31,19 +33,29 @@ export default function BoardWritePage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!title.trim() || !content.trim()) return
+    const normalizedTitle = title.trim()
+    const normalizedContent = content.trim()
+    if (normalizedTitle.length < 2 || normalizedTitle.length > 200) {
+      setError('제목은 공백을 제외하고 2~200자로 입력해주세요.')
+      return
+    }
+    if (normalizedContent.length < 20 || normalizedContent.length > 10000) {
+      setError('본문은 공백을 제외하고 20~10,000자로 입력해주세요.')
+      return
+    }
     setError('')
     setSubmitting(true)
 
     try {
-      const postId = await createPost({
+      const action = await createPost({
         board,
         webtoonId: board === 'webtoon' && webtoonId ? Number(webtoonId) : null,
-        title: title.trim(),
-        content: content.trim(),
+        title: normalizedTitle,
+        content: normalizedContent,
         rating: board === 'webtoon' && rating > 0 ? rating : null,
       })
-      navigate(`/board/post/${postId}`)
+      notifyExperience(action.exp)
+      navigate(`/board/post/${action.result}`)
     } catch (err) {
       setError(err.message ?? '등록에 실패했어요.')
       setSubmitting(false)
@@ -74,11 +86,11 @@ export default function BoardWritePage() {
         </div>
 
         {board === 'webtoon' && (
-          <div className="flex items-center gap-3 rounded-xl border border-ink-100 bg-ink-50 p-3">
+          <div className="flex flex-col gap-3 rounded-xl border border-ink-100 bg-ink-50 p-3">
             <select
               value={webtoonId}
               onChange={(e) => setWebtoonId(e.target.value)}
-              className="flex-1 rounded-full border border-ink-100 bg-white px-3 py-2 text-sm outline-none"
+              className="w-full min-w-0 rounded-full border border-ink-100 bg-white px-3 py-2 text-sm outline-none"
             >
               <option value="">웹툰 선택</option>
               {webtoons.map((w) => (
@@ -87,7 +99,10 @@ export default function BoardWritePage() {
                 </option>
               ))}
             </select>
-            <StarsInput value={rating} onChange={setRating} />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-ink-500">평점</span>
+              <StarsInput value={rating} onChange={setRating} />
+            </div>
           </div>
         )}
 
@@ -95,6 +110,8 @@ export default function BoardWritePage() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="제목을 입력해주세요."
+          minLength={2}
+          maxLength={200}
           className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
         />
         <textarea
@@ -102,6 +119,8 @@ export default function BoardWritePage() {
           onChange={(e) => setContent(e.target.value)}
           placeholder="내용을 입력해주세요."
           rows={8}
+          minLength={20}
+          maxLength={10000}
           className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
         />
 

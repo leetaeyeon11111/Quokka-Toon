@@ -6,6 +6,9 @@ import com.quokkatoon.global.jwt.JwtProvider;
 import com.quokkatoon.user.dto.*;
 import com.quokkatoon.user.entity.User;
 import com.quokkatoon.user.repository.UserRepository;
+import com.quokkatoon.level.dto.LevelProgressResponse;
+import com.quokkatoon.level.service.AttendanceService;
+import com.quokkatoon.level.service.ExperienceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,6 +21,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final AttendanceService attendanceService;
+    private final ExperienceService experienceService;
 
     // STEP 1: 이메일 중복 확인
     @Transactional(readOnly = true)
@@ -69,10 +74,12 @@ public class AuthService {
     }
 
     // 현재 로그인한 회원 정보 조회 (GET /api/auth/me)
-    @Transactional(readOnly = true)
+    @Transactional
     public UserResponse getMe(Long userId) {
+        attendanceService.processFirstMeCallOfDay(userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        return UserResponse.from(user);
+        LevelProgressResponse progress = experienceService.getProgress(userId);
+        return UserResponse.from(user, progress);
     }
 }

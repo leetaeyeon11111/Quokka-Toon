@@ -1,21 +1,65 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getWebtoonById } from '../../data/webtoons'
 import { useAppData } from '../../hooks/useAppData'
+import { fetchWebtoonModelsByIds } from '../../lib/webtoon'
 import MyPageShell from '../../components/mypage/MyPageShell'
 import AlarmModal from '../../components/mypage/AlarmModal'
+
+function Thumb({ webtoon }) {
+  const [imgOk, setImgOk] = useState(true)
+  const showImage = webtoon.thumbnailUrl && imgOk && !webtoon.isAdult
+  return (
+    <div
+      className="relative aspect-[3/4] w-full overflow-hidden rounded-lg"
+      style={{ background: webtoon.coverGradient }}
+    >
+      {showImage && (
+        <img
+          src={webtoon.thumbnailUrl}
+          alt=""
+          loading="lazy"
+          onError={() => setImgOk(false)}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      )}
+      {webtoon.isAdult && (
+        <div className="absolute inset-0 flex items-center justify-center bg-ink-900/80 text-2xl">
+          🐿
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function FavoritesPage() {
   const { favorites, toggleFavorite, setAlarm } = useAppData()
   const [sortDesc, setSortDesc] = useState(true)
   const [alarmTarget, setAlarmTarget] = useState(null)
+  const [webtoons, setWebtoons] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const favoriteIds = useMemo(() => Object.keys(favorites), [favorites])
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      const models = await fetchWebtoonModelsByIds(favoriteIds)
+      if (!cancelled) {
+        setWebtoons(models)
+        setLoading(false)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [favoriteIds])
 
   const items = useMemo(() => {
-    const list = Object.entries(favorites)
-      .map(([id, meta]) => ({ webtoon: getWebtoonById(id), meta }))
-      .filter((item) => item.webtoon)
-    return sortDesc ? list.reverse() : list
-  }, [favorites, sortDesc])
+    const list = webtoons.map((webtoon) => ({ webtoon, meta: favorites[webtoon.id] ?? {} }))
+    return sortDesc ? [...list].reverse() : list
+  }, [webtoons, favorites, sortDesc])
 
   return (
     <MyPageShell>
@@ -32,7 +76,9 @@ export default function FavoritesPage() {
         </button>
       </div>
 
-      {items.length === 0 ? (
+      {loading ? (
+        <p className="py-20 text-center text-sm text-ink-500">불러오는 중…</p>
+      ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ink-100 bg-white py-20 text-center text-ink-500">
           <span className="text-3xl" aria-hidden>
             🐿
@@ -47,10 +93,7 @@ export default function FavoritesPage() {
           {items.map(({ webtoon, meta }) => (
             <div key={webtoon.id} className="rounded-xl border border-ink-100 bg-white p-2">
               <Link to={`/webtoons/${webtoon.id}`}>
-                <div
-                  className="aspect-[3/4] w-full rounded-lg"
-                  style={{ background: webtoon.coverGradient }}
-                />
+                <Thumb webtoon={webtoon} />
                 <p className="mt-2 truncate text-sm font-semibold text-ink-900">{webtoon.title}</p>
               </Link>
               <div className="mt-1 flex items-center justify-between">

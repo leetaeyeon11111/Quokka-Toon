@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listPosts } from '../api/board'
 import { StarsDisplay } from '../components/common/Stars'
+import { nicknameLevelClass } from '../lib/level'
+import { LevelBadge } from '../components/common/LevelBadge'
 
 const TABS = [
   { key: 'all', label: '전체게시판', to: '/board' },
@@ -70,6 +72,12 @@ export default function BoardListPage({ boardType = 'all' }) {
 
   return (
     <div className="px-6 py-10">
+      <div className="mb-5">
+        <h1 className="text-xl font-bold text-ink-900">
+          {TABS.find((tab) => tab.key === boardType)?.label ?? '게시판'}
+        </h1>
+        <p className="mt-1 text-sm text-ink-500">웹툰 이야기와 취향을 자유롭게 나눠보세요.</p>
+      </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2">
           {TABS.map((tab) => (
@@ -129,7 +137,18 @@ export default function BoardListPage({ boardType = 'all' }) {
         ) : error ? (
           <p className="py-16 text-center text-sm text-red-500">{error}</p>
         ) : paged.length === 0 ? (
-          <p className="py-16 text-center text-sm text-ink-500">게시글이 없어요.</p>
+          <div className="flex flex-col items-center gap-3 py-16 text-center text-sm text-ink-500">
+            <p>{keyword.trim() ? `'${keyword.trim()}' 검색 결과가 없어요.` : '아직 게시글이 없어요.'}</p>
+            {keyword.trim() && (
+              <button
+                type="button"
+                onClick={() => setKeyword('')}
+                className="rounded-full border border-ink-100 px-4 py-2 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+              >
+                검색어 지우기
+              </button>
+            )}
+          </div>
         ) : (
           paged.map((post, i) => (
             <Link
@@ -152,7 +171,10 @@ export default function BoardListPage({ boardType = 'all' }) {
                 )}
               </span>
               <span>{post.rating ? <StarsDisplay rating={post.rating} size="text-xs" /> : <span className="text-xs text-ink-200">-</span>}</span>
-              <span className="text-xs text-ink-500">{post.author}</span>
+              <span className="flex items-center gap-1 text-xs font-semibold">
+                <LevelBadge level={post.authorLevel} />
+                <span className={`truncate ${nicknameLevelClass(post.authorLevel)}`}>{post.author}</span>
+              </span>
               <span className="text-xs text-ink-500">{post.date}</span>
             </Link>
           ))

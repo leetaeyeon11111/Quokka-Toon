@@ -10,14 +10,14 @@ export function StarsDisplay({ rating, size = 'text-sm' }) {
 
 export function StarsInput({ value, onChange }) {
   return (
-    <span className="text-lg text-brand-500">
+    <span className="inline-flex shrink-0 items-center text-lg text-brand-500">
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
           type="button"
           aria-label={`${n}점`}
           onClick={() => onChange(n)}
-          className="cursor-pointer"
+          className="cursor-pointer leading-none"
         >
           {n <= value ? '★' : '☆'}
         </button>

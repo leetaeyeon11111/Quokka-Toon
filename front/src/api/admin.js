@@ -5,6 +5,7 @@ import { formatDate } from '../lib/date'
 import {
   INQUIRY_CATEGORY_TO_LABEL,
   INQUIRY_STATUS_TO_LABEL,
+  REPORT_STATUS_TO_LABEL,
   REPORT_TYPE_TO_LABEL,
 } from './labels'
 
@@ -15,6 +16,7 @@ function mapInquiry(inq) {
     category: INQUIRY_CATEGORY_TO_LABEL[inq.category] ?? inq.category,
     status: INQUIRY_STATUS_TO_LABEL[inq.status] ?? inq.status,
     date: formatDate(inq.createdAt),
+    answeredDate: inq.answeredAt ? formatDate(inq.answeredAt) : '',
   }
 }
 
@@ -36,12 +38,15 @@ function mapReport(r) {
   return {
     ...r,
     type: REPORT_TYPE_TO_LABEL[r.type] ?? r.type,
+    status: REPORT_STATUS_TO_LABEL[r.status] ?? r.status,
     when: formatDate(r.createdAt),
+    handledDate: r.handledAt ? formatDate(r.handledAt) : '',
   }
 }
 
-export async function listReports() {
-  const list = await api.get('/api/admin/reports')
+/** status: 'PENDING'(기본) | 'HANDLED' | 'ALL' */
+export async function listReports(status = 'PENDING') {
+  const list = await api.get(`/api/admin/reports?status=${status}`)
   return list.map(mapReport)
 }
 

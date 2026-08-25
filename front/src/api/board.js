@@ -42,13 +42,17 @@ export function deletePost(id) {
 
 /** 댓글/대댓글 등록 → 생성된 댓글 */
 export async function addComment(postId, { text, parentId = null }) {
-  const c = await api.post(`/api/board/${postId}/comments`, { text, parentId })
-  return mapComment(c)
+  const action = await api.post(`/api/board/${postId}/comments`, { text, parentId })
+  return { ...action, result: mapComment(action.result) }
 }
 
 /** 게시글 추천/비추천(1인 1표 토글) → { likes, dislikes, myReaction } */
 export function reactPost(id, kind = 'like') {
   return api.post(`/api/board/${id}/react?kind=${kind}`)
+}
+
+export function deleteComment(commentId) {
+  return api.delete(`/api/board/comments/${commentId}`)
 }
 
 /** 댓글 좋아요 토글 → { likes, liked } */

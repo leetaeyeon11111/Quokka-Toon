@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"require.resolve\\('playwright'\\)\")",
+      "Bash(npm ls *)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(mkdir -p /c/Users/dodo4/AppData/Local/Temp/claude/c--jjwkdt-quakatoon-front/3cb07433-4ae7-40d9-b317-9edf21793ede/scratchpad)",
+      "Read(//c/Users/dodo4/AppData/Local/Temp/claude/c--jjwkdt-quakatoon-front/3cb07433-4ae7-40d9-b317-9edf21793ede/**)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(npx playwright *)",
+      "Bash(node verify.js)",
+      "Bash(powershell -NoProfile -Command \"Get-NetTCPConnection -LocalPort 5183 -State Listen | Select-Object -ExpandProperty OwningProcess\")",
+      "Bash(powershell -NoProfile -Command \"Stop-Process -Id 39188 -Force\")",
+      "Bash(curl -s -o /dev/null -w \"port check: %{http_code}\\\\n\" http://localhost:5183/)",
+      "Bash(npm run *)",
+      "Bash(timeout 20 bash -c 'until curl -sf http://localhost:5183 >/dev/null; do sleep 1; done')",
+      "Bash(node verify2.js)",
+      "Bash(git ls-remote *)"
+    ]
+  }
+}

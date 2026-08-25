@@ -6,13 +6,18 @@ import { useAuth } from '../hooks/useAuth'
 import { StarsDisplay } from '../components/common/Stars'
 import PlaceholderPage from '../components/common/PlaceholderPage'
 import ReportModal from '../components/board/ReportModal'
+import { useExperienceNotification } from '../hooks/useExperienceNotification'
+import { nicknameLevelClass } from '../lib/level'
+import { LevelBadge } from '../components/common/LevelBadge'
+import { loginHref } from '../lib/navigation'
 
-function CommentRow({ comment, onReplyClick, onReact, onReport, children }) {
+function CommentRow({ comment, onReplyClick, onReact, onReport, onDelete, children }) {
   return (
     <div>
       <div className="rounded-xl border border-ink-100 bg-white p-3">
         <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink-900">
-          🙂 {comment.author} <span className="text-xs font-normal text-ink-300">{comment.date}</span>
+          🙂 <LevelBadge level={comment.authorLevel} /> <span className={nicknameLevelClass(comment.authorLevel)}>{comment.author}</span>{' '}
+          <span className="text-xs font-normal text-ink-300">{comment.date}</span>
         </p>
         <p className="mb-2 text-sm text-ink-700">{comment.text}</p>
         <div className="flex items-center gap-3 text-xs text-ink-500">
@@ -25,6 +30,11 @@ function CommentRow({ comment, onReplyClick, onReact, onReport, children }) {
           <button type="button" onClick={() => onReport(comment.id)} className="hover:text-red-500">
             🚩 신고
           </button>
+          {comment.mine && (
+            <button type="button" onClick={() => onDelete(comment.id)} className="hover:text-red-500">
+              삭제
+            </button>
+          )}
         </div>
       </div>
       {children}
@@ -36,6 +46,7 @@ export default function BoardPostPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { isLoggedIn } = useAuth()
+  const { notifyExperience } = useExperienceNotification()
 
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -70,7 +81,7 @@ export default function BoardPostPage() {
 
   function requireLogin() {
     if (!isLoggedIn) {
-      alert('로그인 후 이용할 수 있어요.')
+      navigate(loginHref(`/board/post/${id}`))
       return false
     }
     return true
@@ -79,7 +90,8 @@ export default function BoardPostPage() {
   async function handleReactPost(kind) {
     if (!requireLogin()) return
     try {
-      const res = await boardApi.reactPost(post.id, kind)
+      const action = await boardApi.reactPost(post.id, kind)
+      const res = action.result
       setPost((prev) => ({
         ...prev,
         likes: res.likes,
@@ -108,10 +120,15 @@ export default function BoardPostPage() {
 
   async function submitComment(e) {
     e.preventDefault()
-    if (!commentText.trim()) return
+    const text = commentText.trim()
+    if (text.length < 5 || text.length > 1000) {
+      alert('댓글은 공백을 제외하고 5~1,000자로 입력해주세요.')
+      return
+    }
     try {
-      const created = await boardApi.addComment(post.id, { text: commentText.trim() })
-      setPost((prev) => ({ ...prev, comments: [...prev.comments, created] }))
+      const action = await boardApi.addComment(post.id, { text })
+      setPost((prev) => ({ ...prev, comments: [...prev.comments, action.result] }))
+      notifyExperience(action.exp)
       setCommentText('')
     } catch (err) {
       alert(err.message ?? '댓글 등록에 실패했어요.')
@@ -119,10 +136,15 @@ export default function BoardPostPage() {
   }
 
   async function submitReply(parentId) {
-    if (!replyText.trim()) return
+    const text = replyText.trim()
+    if (text.length < 5 || text.length > 1000) {
+      alert('답글은 공백을 제외하고 5~1,000자로 입력해주세요.')
+      return
+    }
     try {
-      const created = await boardApi.addComment(post.id, { text: replyText.trim(), parentId })
-      setPost((prev) => ({ ...prev, comments: [...prev.comments, created] }))
+      const action = await boardApi.addComment(post.id, { text, parentId })
+      setPost((prev) => ({ ...prev, comments: [...prev.comments, action.result] }))
+      notifyExperience(action.exp)
       setReplyText('')
       setReplyingTo(null)
     } catch (err) {
@@ -155,6 +177,19 @@ export default function BoardPostPage() {
     }
   }
 
+  async function handleDeleteComment(commentId) {
+    if (!confirm('댓글을 삭제할까요?')) return
+    try {
+      await boardApi.deleteComment(commentId)
+      setPost((prev) => ({
+        ...prev,
+        comments: prev.comments.filter((comment) => comment.id !== commentId && comment.parentId !== commentId),
+      }))
+    } catch (err) {
+      alert(err.message ?? '댓글 삭제에 실패했어요.')
+    }
+  }
+
   if (loading) {
     return <p className="py-24 text-center text-sm text-ink-500">불러오는 중…</p>
   }
@@ -164,13 +199,20 @@ export default function BoardPostPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10">
+      <button
+        type="button"
+        onClick={() => navigate(post.board === 'free' ? '/board/free' : '/board/webtoon')}
+        className="mb-4 text-sm font-semibold text-ink-500 hover:text-brand-500"
+      >
+        ← 게시판으로 돌아가기
+      </button>
       <span className="mb-3 inline-block rounded-full bg-ink-50 px-3 py-1 text-xs font-semibold text-ink-500">
         #{post.board === 'free' ? '자유게시판' : post.board === 'webtoon' ? '웹툰게시판' : '전체게시판'}
         {post.webtoonTag && ` · ${post.webtoonTag}`}
       </span>
       <h1 className="mb-2 text-xl font-bold text-ink-900">{post.title}</h1>
       <div className="mb-5 flex items-center gap-3 text-xs text-ink-500">
-        <span>👤 {post.author}</span>
+        <span className="inline-flex items-center gap-1">👤 <LevelBadge level={post.authorLevel} /> <span className={nicknameLevelClass(post.authorLevel)}>{post.author}</span></span>
         <span>🗓 {post.date}</span>
         {post.rating && <StarsDisplay rating={post.rating} size="text-xs" />}
         {post.mine && (
@@ -188,25 +230,29 @@ export default function BoardPostPage() {
         <button
           type="button"
           onClick={() => handleReactPost('like')}
-          className="rounded-full bg-brand-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600"
+          aria-label={isLoggedIn ? `추천 ${post.likes}` : '로그인 후 추천 가능'}
+          className={`rounded-full px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'bg-brand-500 text-white hover:bg-brand-600' : 'bg-ink-100 text-ink-500'}`}
         >
           👍 추천 {post.likes}
         </button>
         <button
           type="button"
           onClick={() => handleReactPost('dislike')}
-          className="rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:bg-ink-50"
+          className={`rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'text-ink-700 hover:bg-ink-50' : 'bg-ink-50 text-ink-300'}`}
         >
           👎 비추천 {post.dislikes}
         </button>
         <button
           type="button"
           onClick={() => handleReport('POST', post.id)}
-          className="rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50"
+          className={`rounded-full border border-ink-100 px-5 py-2.5 text-sm font-semibold ${isLoggedIn ? 'text-red-500 hover:bg-red-50' : 'bg-ink-50 text-ink-300'}`}
         >
           🚩 신고
         </button>
       </div>
+      {!isLoggedIn && (
+        <p className="-mt-5 mb-8 text-xs text-ink-500">추천·비추천·신고는 로그인 후 이용할 수 있어요.</p>
+      )}
 
       <p className="mb-3 text-sm font-bold text-ink-900">💬 댓글 {comments.length}</p>
 
@@ -216,6 +262,8 @@ export default function BoardPostPage() {
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
             placeholder="댓글을 입력하세요…"
+            minLength={5}
+            maxLength={1000}
             className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none focus:border-brand-300"
           />
           <button type="submit" className="rounded-full bg-ink-900 px-5 py-2.5 text-sm font-semibold text-white">
@@ -233,6 +281,7 @@ export default function BoardPostPage() {
             comment={comment}
             onReact={handleReactComment}
             onReport={(cid) => handleReport('COMMENT', cid)}
+            onDelete={handleDeleteComment}
             onReplyClick={(cid) => setReplyingTo(cid === replyingTo ? null : cid)}
           >
             <div className="mt-2 flex flex-col gap-2">
@@ -240,7 +289,8 @@ export default function BoardPostPage() {
                 <div key={reply.id} className="ml-8 border-l border-ink-100 pl-4">
                   <div className="rounded-xl bg-ink-50 p-3">
                     <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink-900">
-                      ↳ 🙂 {reply.author} <span className="text-xs font-normal text-ink-300">{reply.date}</span>
+                      ↳ 🙂 <LevelBadge level={reply.authorLevel} /> <span className={nicknameLevelClass(reply.authorLevel)}>{reply.author}</span>{' '}
+                      <span className="text-xs font-normal text-ink-300">{reply.date}</span>
                     </p>
                     <p className="mb-1 text-sm text-ink-700">{reply.text}</p>
                     <button
@@ -250,6 +300,22 @@ export default function BoardPostPage() {
                     >
                       👍 {reply.likes}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleReport('COMMENT', reply.id)}
+                      className="ml-3 text-xs text-ink-500 hover:text-red-500"
+                    >
+                      🚩 신고
+                    </button>
+                    {reply.mine && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteComment(reply.id)}
+                        className="ml-3 text-xs text-red-400 hover:text-red-600"
+                      >
+                        삭제
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -261,6 +327,8 @@ export default function BoardPostPage() {
                     value={replyText}
                     onChange={(e) => setReplyText(e.target.value)}
                     placeholder="답글을 입력하세요…"
+                    minLength={5}
+                    maxLength={1000}
                     className="flex-1 rounded-full border border-ink-100 bg-ink-50 px-4 py-2 text-xs outline-none"
                   />
                   <button

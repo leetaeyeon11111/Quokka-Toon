@@ -23,6 +23,7 @@
 
 html {
   color-scheme: light;
+  --site-header-height: 4rem;
 }
 
 body {
@@ -48,4 +49,50 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.level-nickname-max {
+  color: #b45309;
+  background: linear-gradient(90deg, #d1501e, #b7791f);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 메인페이지에서 자유롭게 돌아다니는 쿼카 */
+.floating-quokka {
+  position: fixed;
+  pointer-events: none;
+  will-change: transform;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.12));
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+/* 각 쿼카는 화면 가장자리(상단·하단) 영역에만 머물러 서로 동선이 겹치지 않고
+   가운데 정렬된 히어로 문구를 가리지 않는다. */
+@keyframes quokka-roam-tl {
+  0%   { transform: translate(0, 0) rotate(-6deg); }
+  25%  { transform: translate(14vw, 4vh) rotate(5deg); }
+  50%  { transform: translate(27vw, 1vh) rotate(-4deg); }
+  75%  { transform: translate(10vw, 5vh) rotate(6deg); }
+  100% { transform: translate(0, 0) rotate(-6deg); }
+}
+@keyframes quokka-roam-tr {
+  0%   { transform: translate(0, 0) rotate(5deg); }
+  30%  { transform: translate(12vw, 3vh) rotate(-5deg); }
+  55%  { transform: translate(23vw, -2vh) rotate(6deg); }
+  80%  { transform: translate(8vw, 4vh) rotate(-4deg); }
+  100% { transform: translate(0, 0) rotate(5deg); }
+}
+@keyframes quokka-roam-bottom {
+  0%   { transform: translate(0, 0) rotate(-4deg); }
+  30%  { transform: translate(16vw, -3vh) rotate(6deg); }
+  60%  { transform: translate(30vw, 2vh) rotate(-6deg); }
+  85%  { transform: translate(12vw, -1vh) rotate(4deg); }
+  100% { transform: translate(0, 0) rotate(-4deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .floating-quokka {
+    animation: none !important;
+  }
 }

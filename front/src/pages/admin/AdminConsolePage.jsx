@@ -4,21 +4,34 @@ import { INQUIRY_CATEGORIES } from '../../data/inquiries'
 import * as adminApi from '../../api/admin'
 import { useAuth } from '../../hooks/useAuth'
 import BanModal from '../../components/admin/BanModal'
+import ReportDetailModal from '../../components/admin/ReportDetailModal'
+import InquiryDetailModal from '../../components/admin/InquiryDetailModal'
 import PlaceholderPage from '../../components/common/PlaceholderPage'
+
+const REPORT_STATUS_TABS = ['미처리', '처리완료', '전체']
+const REPORT_STATUS_PARAM = { 미처리: 'PENDING', 처리완료: 'HANDLED', 전체: 'ALL' }
 
 function ReportsTab() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState('전체')
+  const [statusFilter, setStatusFilter] = useState('미처리')
   const [banTarget, setBanTarget] = useState(null)
+  const [detailTarget, setDetailTarget] = useState(null)
 
   useEffect(() => {
     adminApi
-      .listReports()
+      .listReports(REPORT_STATUS_PARAM[statusFilter])
       .then(setReports)
       .catch(() => setReports([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [statusFilter])
+
+  function changeStatus(s) {
+    if (s === statusFilter) return
+    setLoading(true)
+    setStatusFilter(s)
+  }
 
   const filtered = useMemo(
     () => (typeFilter === '전체' ? reports : reports.filter((r) => r.type === typeFilter)),
@@ -48,6 +61,20 @@ function ReportsTab() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="flex gap-1.5">
+          {REPORT_STATUS_TABS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => changeStatus(s)}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                statusFilter === s ? 'bg-ink-900 text-white' : 'border border-ink-100 text-ink-500'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
@@ -60,7 +87,7 @@ function ReportsTab() {
             </option>
           ))}
         </select>
-        <span className="ml-auto text-sm font-semibold text-ink-500">미처리 {filtered.length}건</span>
+        <span className="ml-auto text-sm font-semibold text-ink-500">{filtered.length}건</span>
       </div>
 
       {loading ? (
@@ -78,33 +105,48 @@ function ReportsTab() {
                   <span className="mr-2 rounded-full border border-red-300 px-2 py-0.5 text-[11px] font-semibold text-red-500">
                     {report.type}
                   </span>
+                  {report.status !== '미처리' && (
+                    <span className="mr-2 rounded-full bg-mint-100 px-2 py-0.5 text-[11px] font-semibold text-mint-500">
+                      {report.status}
+                    </span>
+                  )}
                   <span className="text-sm font-semibold text-ink-900">{report.title}</span>
                   <p className="mt-1 text-xs text-ink-500">
                     작성자 {report.author} · {report.when} · {report.board}
                   </p>
+                  {report.status !== '미처리' && (
+                    <p className="mt-0.5 text-xs text-ink-400">
+                      처리: {report.handledByName ?? '알 수 없음'}
+                      {report.handledDate ? ` · ${report.handledDate}` : ''}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 gap-1.5">
                   <button
                     type="button"
-                    onClick={() => alert(`[${report.title}]\n작성자: ${report.author}\n게시판: ${report.board}`)}
+                    onClick={() => setDetailTarget(report)}
                     className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
                   >
                     보기
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleResolve(report.id)}
-                    className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
-                  >
-                    반려
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBanTarget(report)}
-                    className="rounded-full bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800"
-                  >
-                    🚫 작성자 벤
-                  </button>
+                  {report.status === '미처리' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleResolve(report.id)}
+                        className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
+                      >
+                        반려
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBanTarget(report)}
+                        className="rounded-full bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800"
+                      >
+                        🚫 작성자 벤
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -114,6 +156,9 @@ function ReportsTab() {
 
       {banTarget && (
         <BanModal report={banTarget} onClose={() => setBanTarget(null)} onConfirm={handleBan} />
+      )}
+      {detailTarget && (
+        <ReportDetailModal report={detailTarget} onClose={() => setDetailTarget(null)} />
       )}
     </div>
   )
@@ -127,6 +172,7 @@ function InquiriesTab() {
   const [keyword, setKeyword] = useState('')
   const [openReply, setOpenReply] = useState(null)
   const [draftAnswer, setDraftAnswer] = useState('')
+  const [detailInquiry, setDetailInquiry] = useState(null)
 
   useEffect(() => {
     adminApi
@@ -247,7 +293,7 @@ function InquiriesTab() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => alert(inq.content)}
+                    onClick={() => setDetailInquiry(inq)}
                     className="rounded-full border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50"
                   >
                     보기
@@ -282,6 +328,10 @@ function InquiriesTab() {
             </div>
           ))}
         </div>
+      )}
+
+      {detailInquiry && (
+        <InquiryDetailModal inquiry={detailInquiry} onClose={() => setDetailInquiry(null)} />
       )}
     </div>
   )

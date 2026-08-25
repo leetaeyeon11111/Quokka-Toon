@@ -5,6 +5,7 @@ import com.quokkatoon.report.entity.Report;
 import java.time.LocalDateTime;
 
 // 관리자 신고함 한 줄. title/board/author 는 서비스가 대상 글/댓글에서 조회해 채운다.
+// handledByName/handledAt 는 처리 내역(담당자·처리시각) — 미처리면 null.
 public record ReportResponse(
         Long id,
         String type,
@@ -15,9 +16,12 @@ public record ReportResponse(
         String title,       // 대상 글 제목 or 댓글 내용 일부
         String board,       // '자유게시판' | '웹툰게시판' | '댓글'
         String status,
+        String handledByName,   // 처리한 관리자 닉네임 (미처리 null)
+        LocalDateTime handledAt,
         LocalDateTime createdAt
 ) {
-    public static ReportResponse of(Report r, String author, String title, String board) {
+    public static ReportResponse of(Report r, String author, String title, String board,
+                                    String handledByName) {
         return new ReportResponse(
                 r.getId(),
                 r.getReportType().name(),
@@ -28,6 +32,8 @@ public record ReportResponse(
                 title,
                 board,
                 r.getStatus().name(),
+                handledByName,
+                r.getHandledAt(),
                 r.getCreatedAt()
         );
     }

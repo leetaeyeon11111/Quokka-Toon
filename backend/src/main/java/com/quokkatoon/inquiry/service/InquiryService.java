@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -74,15 +75,26 @@ public class InquiryService {
         inquiryRepository.deleteById(inquiryId);
     }
 
-    // 문의 목록 + 답변을 한 번에 매핑 (N+1 방지)
+    // 문의 목록 + 답변(+처리 관리자 닉네임)을 한 번에 매핑 (N+1 방지)
     private List<InquiryResponse> toResponses(List<Inquiry> inquiries, Long currentUserId) {
         if (inquiries.isEmpty()) return List.of();
         List<Long> ids = inquiries.stream().map(Inquiry::getId).toList();
-        Map<Long, String> answers = answerRepository.findByInquiryIdIn(ids).stream()
-                .collect(Collectors.toMap(InquiryAnswer::getInquiryId, InquiryAnswer::getContent,
+        Map<Long, InquiryAnswer> answers = answerRepository.findByInquiryIdIn(ids).stream()
+                .collect(Collectors.toMap(InquiryAnswer::getInquiryId, Function.identity(),
                         (a, b) -> a));
+        // 답변 관리자 닉네임 일괄 조회
+        Set<Long> adminIds = answers.values().stream()
+                .map(InquiryAnswer::getAdminId)
+                .collect(Collectors.toSet());
+        Map<Long, String> adminNames = adminIds.isEmpty() ? Map.of()
+                : userRepository.findAllById(adminIds).stream()
+                        .collect(Collectors.toMap(User::getId, User::getNickname));
         return inquiries.stream()
-                .map(inq -> InquiryResponse.of(inq, answers.get(inq.getId()), currentUserId))
+                .map(inq -> {
+                    InquiryAnswer answer = answers.get(inq.getId());
+                    String answeredByName = answer == null ? null : adminNames.get(answer.getAdminId());
+                    return InquiryResponse.of(inq, answer, answeredByName, currentUserId);
+                })
                 .toList();
     }
 }

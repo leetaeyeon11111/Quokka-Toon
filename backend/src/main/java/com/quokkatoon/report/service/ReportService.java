@@ -14,6 +14,10 @@ import com.quokkatoon.report.repository.ReportRepository;
 import com.quokkatoon.report.repository.UserBanRepository;
 import com.quokkatoon.user.entity.User;
 import com.quokkatoon.user.repository.UserRepository;
+import com.quokkatoon.level.service.ExperienceService;
+import com.quokkatoon.review.entity.Review;
+import com.quokkatoon.review.repository.ReviewLikeRepository;
+import com.quokkatoon.review.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +34,9 @@ public class ReportService {
     private final PostRepository postRepository;
     private final CommentRepository commentRepository;
     private final UserRepository userRepository;
+    private final ReviewRepository reviewRepository;
+    private final ReviewLikeRepository reviewLikeRepository;
+    private final ExperienceService experienceService;
 
     // 사용자: 신고 접수. 대상 글/댓글의 작성자를 피신고자로 기록.
     @Transactional
@@ -53,6 +60,19 @@ public class ReportService {
         return reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.PENDING).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    // 관리자: 상태별 신고 목록. status = PENDING(기본) | HANDLED(처리완료) | ALL
+    @Transactional(readOnly = true)
+    public List<ReportResponse> getByStatus(String status) {
+        String key = status == null ? "PENDING" : status.trim().toUpperCase();
+        List<Report> reports = switch (key) {
+            case "HANDLED" -> reportRepository.findByStatusInOrderByCreatedAtDesc(
+                    List.of(ReportStatus.RESOLVED, ReportStatus.REJECTED));
+            case "ALL" -> reportRepository.findAllByOrderByCreatedAtDesc();
+            default -> reportRepository.findByStatusOrderByCreatedAtDesc(ReportStatus.PENDING);
+        };
+        return reports.stream().map(this::toResponse).toList();
     }
 
     // 관리자: 신고 반려 처리
@@ -82,9 +102,7 @@ public class ReportService {
                 .deleteContent(req.deletePost())
                 .build());
 
-        if (req.deletePost() && report.getTargetType() == ReportTargetType.POST) {
-            postRepository.findById(report.getTargetId()).ifPresent(Post::softDelete);
-        }
+        if (req.deletePost()) deleteReportedContent(report);
 
         report.handle(ReportStatus.RESOLVED, adminId);
     }
@@ -100,7 +118,11 @@ public class ReportService {
                     .map(c -> c.getUser().getId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
         }
-        // REVIEW 등은 아직 미지원
+        if (targetType == ReportTargetType.REVIEW) {
+            return reviewRepository.findById(targetId)
+                    .map(r -> r.getUser().getId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.REVIEW_NOT_FOUND));
+        }
         throw new BusinessException(ErrorCode.INVALID_REQUEST);
     }
 
@@ -124,12 +146,50 @@ public class ReportService {
                 title = content.length() > 40 ? content.substring(0, 40) + "…" : content;
                 board = "댓글";
             }
+        } else if (r.getTargetType() == ReportTargetType.REVIEW) {
+            Review review = reviewRepository.findById(r.getTargetId()).orElse(null);
+            if (review != null) {
+                author = review.getUser().getNickname();
+                String content = review.getContent();
+                title = content.length() > 40 ? content.substring(0, 40) + "…" : content;
+                board = "정식 리뷰";
+            }
         }
-        return ReportResponse.of(r, author, title, board);
+
+        // 처리 내역: 처리한 관리자 닉네임 (미처리면 null)
+        String handledByName = r.getHandledBy() == null ? null
+                : userRepository.findById(r.getHandledBy()).map(User::getNickname).orElse(null);
+
+        return ReportResponse.of(r, author, title, board, handledByName);
     }
 
     private Report getReport(Long reportId) {
         return reportRepository.findById(reportId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+    }
+
+    private void deleteReportedContent(Report report) {
+        if (report.getTargetType() == ReportTargetType.POST) {
+            Post post = postRepository.findById(report.getTargetId()).orElse(null);
+            if (post == null || post.isDeleted()) return;
+            post.softDelete();
+            experienceService.reverseAllForReference("POST", post.getId());
+            for (Comment comment : commentRepository.findByPostIdOrderByCreatedAtAsc(post.getId())) {
+                if (!comment.isDeleted()) comment.softDelete();
+                experienceService.reverseAllForReference("COMMENT", comment.getId());
+            }
+        } else if (report.getTargetType() == ReportTargetType.COMMENT) {
+            Comment comment = commentRepository.findById(report.getTargetId()).orElse(null);
+            if (comment == null || comment.isDeleted()) return;
+            comment.softDelete();
+            comment.getPost().decreaseComment();
+            experienceService.reverseAllForReference("COMMENT", comment.getId());
+        } else if (report.getTargetType() == ReportTargetType.REVIEW) {
+            Review review = reviewRepository.findById(report.getTargetId()).orElse(null);
+            if (review == null || review.isDeleted()) return;
+            review.softDelete();
+            reviewLikeRepository.deleteAllByReviewId(review.getId());
+            experienceService.reverseAllForReference("REVIEW", review.getId());
+        }
     }
 }

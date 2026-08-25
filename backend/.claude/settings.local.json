@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew.bat bootRun --no-daemon)",
+      "Bash(powershell -Command \"Test-NetConnection -ComputerName 3.35.156.61 -Port 3306\")",
+      "Bash(\"/c/Program Files/MySQL/MySQL Shell 8.0/bin/mysqlsh.exe\" --uri=\"quokka:Kdt12345678@@3.35.156.61:3306/quokkatoon\" --sql -e \"SELECT 1;\")",
+      "Bash(\"/c/Program Files/MySQL/MySQL Shell 8.0/bin/mysqlsh.exe\" --host=3.35.156.61 --port=3306 --user=quokka --password='Kdt12345678@' --schema=quokkatoon --sql -e \"SELECT 1;\")",
+      "Bash(tee /tmp/boot2.log)",
+      "Bash(\"/c/Program Files/MySQL/MySQL Shell 8.0/bin/mysqlsh.exe\" --host=3.35.156.61 --port=3306 --user=quokka --password='Kdt12345678@' --schema=quokkatoon --sql -e \"SHOW VARIABLES LIKE '%timeout%'; SHOW VARIABLES LIKE 'max_connections'; SHOW PROCESSLIST;\")",
+      "Bash(\"/c/Program Files/MySQL/MySQL Shell 8.0/bin/mysqlsh.exe\" --host=3.35.156.61 --port=3306 --user=quokka --password='Kdt12345678@' --schema=quokkatoon --sql -e \"SELECT COUNT\\(*\\) AS total_conns FROM information_schema.processlist WHERE user='quokka';\")",
+      "Bash(tee /tmp/boot3.log)"
+    ]
+  }
+}

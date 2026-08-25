@@ -16,6 +16,12 @@ export const INQUIRY_STATUS_TO_LABEL = {
   DONE: '답변완료',
 }
 
+export const REPORT_STATUS_TO_LABEL = {
+  PENDING: '미처리',
+  RESOLVED: '처리완료',
+  REJECTED: '반려',
+}
+
 export const REPORT_TYPE_TO_ENUM = {
   '스팸/광고': 'SPAM',
   '욕설/비방': 'ABUSE',
