@@ -11,11 +11,14 @@
 ## 1. 환경 설정
 
 ```bash
-# Python 3.11 + venv 권장
-pip install pymysql pandas sqlalchemy sentence-transformers faiss-cpu google-genai
+# Python 3.12 + venv 권장 (시스템 python3=3.14면 패키지 호환이 깨질 수 있음)
+cd ai
+python3.12 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 
 # 환경변수
-set GEMINI_API_KEY=<Gemini 키>          # LLM 생성 기능에 필요 (없으면 폴백 동작)
+export GEMINI_API_KEY=<Gemini 키>  # LLM 생성 기능에 필요 (없으면 폴백 동작)
 # DB 접속은 스크립트 실행 시 getpass로 비밀번호 입력 (저장 안 함)
 ```
 
@@ -73,11 +76,15 @@ python search_demo.py --reason "환생 복수 무협"   # 추천이유+동적rad
 ### Spring 연동용 API 실행
 
 필수 모델 파일 `models/webtoon_index.faiss`, `models/webtoon_meta.pkl`을 준비한 뒤
-프로젝트 루트에서 실행한다.
+**프로젝트 루트**에서 실행한다. (`ai/` 안에서 `uvicorn ai.api:app`을 치면 모듈을 못 찾는다.)
 
 ```bash
-pip install -r ai/requirements.txt
+# 한 번만: ai/.venv 생성 + requirements 설치 (위 1절)
+source ai/.venv/bin/activate
 uvicorn ai.api:app --host 0.0.0.0 --port 8000
+
+# 또는
+./ai/run.sh
 ```
 
 - 상태 확인: `GET http://localhost:8000/health`

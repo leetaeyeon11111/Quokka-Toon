@@ -104,9 +104,10 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6">
-            <div className="relative mb-4 text-center text-xs text-ink-300">
-              <span className="relative z-10 bg-white px-3">간편 로그인</span>
-              <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-ink-100" />
+            <div className="mb-4 flex items-center gap-3 text-xs text-ink-300">
+              <span className="h-px flex-1 bg-ink-100" aria-hidden />
+              <span>간편 로그인</span>
+              <span className="h-px flex-1 bg-ink-100" aria-hidden />
             </div>
             <div className="flex justify-center gap-3">
               <button

@@ -3,6 +3,7 @@ uvicorn[standard]
 numpy
 faiss-cpu
 sentence-transformers
+joblib
 pymysql
 pandas
 sqlalchemy

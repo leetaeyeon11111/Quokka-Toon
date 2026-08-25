@@ -81,8 +81,8 @@ export default function WebtoonCard({ webtoon, showPlatform = true, rank, sort, 
             </span>
           </div>
         )}
-        {showPlatform && platformName && !isAdult && (
-          <span className="absolute left-2 top-2 rounded-full bg-white/85 px-2 py-0.5 text-[11px] font-medium text-ink-700">
+        {showPlatform && platformName && (
+          <span className="absolute left-2 top-2 z-10 rounded-full bg-white/85 px-2 py-0.5 text-[11px] font-medium text-ink-700">
             {platformName}
           </span>
         )}

@@ -13,9 +13,10 @@ export function ResultGridSkeleton({ count = 12 }) {
 }
 
 const ERROR_QUOKKA = '/error_quokka.png'
+const DEFAULT_QUOKKA = '/icons/quokka-emoji.png'
 
 export function ResultMessage({
-  icon = '🐿',
+  icon,
   imageSrc,
   imageAlt = '',
   tone = 'default',
@@ -24,7 +25,7 @@ export function ResultMessage({
   actionLabel,
   onAction,
 }) {
-  const illustration = imageSrc ?? (tone === 'error' ? ERROR_QUOKKA : null)
+  const illustration = imageSrc ?? (tone === 'error' ? ERROR_QUOKKA : DEFAULT_QUOKKA)
 
   return (
     <div className="flex flex-col items-center rounded-3xl border border-ink-100 bg-white px-6 py-16 text-center shadow-sm">

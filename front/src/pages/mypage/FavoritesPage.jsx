@@ -5,6 +5,8 @@ import { fetchWebtoonModelsByIds } from '../../lib/webtoon'
 import MyPageShell from '../../components/mypage/MyPageShell'
 import AlarmModal from '../../components/mypage/AlarmModal'
 import AdultCoverMark from '../../components/common/AdultCoverMark'
+import BookmarkIcon from '../../components/common/BookmarkIcon'
+import BellIcon from '../../components/common/BellIcon'
 
 function Thumb({ webtoon }) {
   const [imgOk, setImgOk] = useState(true)
@@ -69,7 +71,7 @@ export default function FavoritesPage() {
     <MyPageShell>
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-ink-500">
-          카드마다 <span className="text-brand-500">🔖</span> 북마크 · <span className="text-brand-500">🔔</span> 알람 토글(켜짐=주황)
+          카드마다 <span className="inline-flex align-middle text-brand-500"><BookmarkIcon filled className="h-3.5 w-3.5" /></span> 북마크 · <span className="inline-flex align-middle text-brand-500"><BellIcon filled className="h-3.5 w-3.5" /></span> 알람 토글(켜짐=주황)
         </p>
         <button
           type="button"
@@ -84,9 +86,12 @@ export default function FavoritesPage() {
         <p className="py-20 text-center text-sm text-ink-500">불러오는 중…</p>
       ) : items.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ink-100 bg-white py-20 text-center text-ink-500">
-          <span className="text-3xl" aria-hidden>
-            🐿
-          </span>
+          <img
+            src="/icons/quokka-emoji.png"
+            alt=""
+            aria-hidden
+            className="h-14 w-14 object-contain"
+          />
           <p>아직 북마크한 작품이 없어요.</p>
           <Link to="/webtoons" className="text-sm font-semibold text-brand-500 hover:underline">
             웹툰 둘러보러 가기
@@ -105,29 +110,18 @@ export default function FavoritesPage() {
                   type="button"
                   aria-label="북마크 해제"
                   onClick={() => toggleFavorite(webtoon.id)}
-                  className="text-brand-500"
+                  className="inline-flex items-center justify-center text-brand-500"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    className="h-5 w-5"
-                    fill="currentColor"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-                  </svg>
+                  <BookmarkIcon filled className="h-5 w-5" />
                 </button>
                 <button
                   type="button"
                   aria-label="알람 설정"
                   onClick={() => setAlarmTarget(webtoon)}
-                  className="text-lg text-brand-500"
+                  className="inline-flex items-center justify-center text-brand-500"
                   title={meta.alarmFreq}
                 >
-                  🔔
+                  <BellIcon filled className="h-5 w-5" />
                 </button>
               </div>
             </div>

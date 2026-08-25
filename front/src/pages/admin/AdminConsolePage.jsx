@@ -502,6 +502,7 @@ function BansTab() {
 }
 
 function QuickPromptsTab() {
+  const { alert: showAlert, confirm: showConfirm } = useDialog()
   const [prompts, setPrompts] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -521,7 +522,7 @@ function QuickPromptsTab() {
 
   async function handleSave(p) {
     if (!p.label.trim() || !p.query.trim()) {
-      alert('버튼 글씨와 검색어를 모두 입력해주세요.')
+      showAlert('버튼 글씨와 검색어를 모두 입력해주세요.')
       return
     }
     setBusy(true)
@@ -532,27 +533,32 @@ function QuickPromptsTab() {
         sortOrder: Number(p.sortOrder) || 0,
       })
       setPrompts((prev) => prev.map((x) => (x.id === p.id ? updated : x)))
-      alert('저장했어요.')
+      showAlert('저장했어요.')
     } catch (err) {
-      alert(err.message ?? '저장에 실패했어요.')
+      showAlert(err.message ?? '저장에 실패했어요.')
     } finally {
       setBusy(false)
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('이 추천 검색어를 삭제할까요?')) return
+    const confirmed = await showConfirm({
+      title: '추천 검색어 삭제',
+      message: '이 추천 검색어를 삭제할까요?',
+      confirmLabel: '삭제',
+    })
+    if (!confirmed) return
     try {
       await adminApi.deleteQuickPrompt(id)
       setPrompts((prev) => prev.filter((p) => p.id !== id))
     } catch (err) {
-      alert(err.message ?? '삭제에 실패했어요.')
+      showAlert(err.message ?? '삭제에 실패했어요.')
     }
   }
 
   async function handleAdd() {
     if (!draft.label.trim() || !draft.query.trim()) {
-      alert('버튼 글씨와 검색어를 모두 입력해주세요.')
+      showAlert('버튼 글씨와 검색어를 모두 입력해주세요.')
       return
     }
     setBusy(true)
@@ -565,7 +571,7 @@ function QuickPromptsTab() {
       setPrompts((prev) => [...prev, created])
       setDraft({ label: '', query: '', sortOrder: '' })
     } catch (err) {
-      alert(err.message ?? '추가에 실패했어요.')
+      showAlert(err.message ?? '추가에 실패했어요.')
     } finally {
       setBusy(false)
     }

@@ -11,7 +11,12 @@ export default function ProfileAvatar({
   }
   return (
     <div className={`${box} flex items-center justify-center ${emojiClass}`} aria-hidden={!alt}>
-      🐿
+      <img
+        src="/icons/quokka-emoji.png"
+        alt=""
+        className="h-[70%] w-[70%] object-contain"
+        aria-hidden="true"
+      />
     </div>
   )
 }

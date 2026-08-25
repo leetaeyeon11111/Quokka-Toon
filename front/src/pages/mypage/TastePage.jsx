@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { searchWebtoons } from '../../api/webtoon'
 import { fetchWebtoonModelsByIds, toCardModel } from '../../lib/webtoon'
+import { rankTasteTags } from '../../lib/tasteTags'
 import { useAppData } from '../../hooks/useAppData'
 import MyPageShell from '../../components/mypage/MyPageShell'
 import WebtoonCardCarousel from '../../components/webtoon/WebtoonCardCarousel'
@@ -57,9 +58,14 @@ export default function TastePage() {
   const topTags = useMemo(() => {
     const counts = new Map()
     sourceWebtoons.forEach((w) =>
-      w.tags.forEach((tag) => counts.set(tag.name, (counts.get(tag.name) ?? 0) + 1)),
+      (w.tags ?? []).forEach((tag) => {
+        const name = typeof tag === 'string' ? tag : tag?.name
+        if (!name) return
+        counts.set(name, (counts.get(name) ?? 0) + 1)
+      }),
     )
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5)
+    // 완결·기다무·연재/요일 등 메타 태그는 최애 태그 TOP에서 제외
+    return rankTasteTags(counts, 5)
   }, [sourceWebtoons])
 
   // 최애 장르 기반 추천 (실 DB)

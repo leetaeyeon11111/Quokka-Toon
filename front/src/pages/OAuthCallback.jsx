@@ -61,7 +61,12 @@ export default function OAuthCallback({ provider }) {
         </>
       ) : (
         <>
-          <span className="mb-3 animate-pulse text-4xl" aria-hidden>🐿</span>
+          <img
+            src="/icons/quokka-emoji.png"
+            alt=""
+            aria-hidden
+            className="mb-3 h-14 w-14 animate-pulse object-contain"
+          />
           <p className="text-sm text-ink-500">로그인 처리 중…</p>
         </>
       )}

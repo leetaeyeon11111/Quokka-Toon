@@ -1,4 +1,4 @@
-import { MEDIA_TYPE_ICON, MEDIA_TYPE_LABEL } from '../../data/mediaMix'
+import { collectWatchLinks, MEDIA_TYPE_ICON, MEDIA_TYPE_LABEL } from '../../data/mediaMix'
 import { namuWikiButtonStyle } from '../../lib/platformColors'
 
 function groupByType(items) {
@@ -15,17 +15,38 @@ function groupByType(items) {
   ].map((type) => ({ type, items: groups[type] }))
 }
 
+function resolveHeroNamuUrl(items) {
+  const withUrl = (items || []).filter((i) => i.namuWikiUrl)
+  if (!withUrl.length) return null
+  const main = withUrl.find((i) => {
+    try {
+      const path = decodeURIComponent((i.namuWikiUrl.split('/w/')[1] || '').split('?')[0])
+      return path && !path.includes('(')
+    } catch {
+      return false
+    }
+  })
+  if (main) return main.namuWikiUrl
+  const raw = (items[0]?.mediaTitle || '')
+    .replace(/\s*\d+\s*기.*$/, '')
+    .replace(/\(TVA\).*$/i, '')
+    .trim()
+  if (raw) return `https://namu.wiki/w/${encodeURIComponent(raw)}`
+  return withUrl[0].namuWikiUrl
+}
+
 export function MediaMixHeroLinks({ items }) {
   if (!items?.length) return null
-  const namu = items.find((item) => item.namuWikiUrl)
-  const watches = items.flatMap((item) => item.watchLinks ?? [])
-  if (!namu && !watches.length) return null
+  const namuUrl = resolveHeroNamuUrl(items)
+  // 영화·애니·시즌이 각각 같은 OTT 링크를 갖고 있어도 버튼은 서비스당 1개만
+  const watches = collectWatchLinks(items)
+  if (!namuUrl && !watches.length) return null
 
   return (
     <div className="mt-2 flex flex-wrap gap-2">
-      {namu && (
+      {namuUrl && (
         <a
-          href={namu.namuWikiUrl}
+          href={namuUrl}
           target="_blank"
           rel="noreferrer"
           style={namuWikiButtonStyle()}
@@ -36,7 +57,7 @@ export function MediaMixHeroLinks({ items }) {
       )}
       {watches.map((link) => (
         <a
-          key={link.url}
+          key={`${link.label}-${link.url}`}
           href={link.url}
           target="_blank"
           rel="noreferrer"

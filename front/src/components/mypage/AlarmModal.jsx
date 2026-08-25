@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Modal from '../common/Modal'
+import BellIcon from '../common/BellIcon'
 
 const PRESETS = ['1주', '2주', '4주', '사용자 지정']
 
@@ -8,7 +9,11 @@ export default function AlarmModal({ webtoon, currentFreq, onSave, onClose }) {
   const [customDay, setCustomDay] = useState('월')
 
   return (
-    <Modal title="알람 설정" icon="🔔" onClose={onClose}>
+    <Modal
+      title="알람 설정"
+      icon={<BellIcon filled className="h-5 w-5 text-brand-500" />}
+      onClose={onClose}
+    >
       <p className="mb-4 text-sm text-ink-500">
         <span className="font-semibold text-ink-900">{webtoon?.title}</span> 새 회차 알람을 언제 받을까요?
       </p>

@@ -17,6 +17,8 @@ import GenderPieChart from '../components/webtoon/GenderPieChart'
 import AlarmModal from '../components/mypage/AlarmModal'
 import ReportModal from '../components/board/ReportModal'
 import { StarsDisplay, StarsInput } from '../components/common/Stars'
+import BookmarkIcon from '../components/common/BookmarkIcon'
+import BellIcon from '../components/common/BellIcon'
 import PlaceholderPage from '../components/common/PlaceholderPage'
 import AdultCoverMark from '../components/common/AdultCoverMark'
 import AiSummaryMark from '../components/common/AiSummaryMark'
@@ -60,7 +62,7 @@ export default function WebtoonDetailPage() {
   const { isLoggedIn } = useAuth()
   const { favorites, lifeWorks, toggleFavorite, toggleLifeWork, setAlarm } = useAppData()
   const { notifyExperience } = useExperienceNotification()
-  const { confirm: showConfirm } = useDialog()
+  const { alert: showAlert, confirm: showConfirm } = useDialog()
 
   const [webtoon, setWebtoon] = useState(null)
   const [webtoonLoading, setWebtoonLoading] = useState(true)
@@ -368,9 +370,9 @@ export default function WebtoonDetailPage() {
     try {
       await createReport({ ...reportTarget, typeLabel })
       setReportTarget(null)
-      alert('신고가 접수됐어요.')
+      showAlert({ title: '신고 접수 완료', message: '신고가 정상적으로 접수됐어요.' })
     } catch (error) {
-      alert(error.message ?? '신고 접수에 실패했어요.')
+      showAlert(error.message ?? '신고 접수에 실패했어요.')
     }
   }
 
@@ -408,9 +410,9 @@ export default function WebtoonDetailPage() {
                   type="button"
                   onClick={() => setShowAlarm(true)}
                   aria-label="알람 설정"
-                  className="text-xl text-brand-500"
+                  className="inline-flex items-center justify-center p-0.5 text-brand-500"
                 >
-                  🔔
+                  <BellIcon filled className="h-6 w-6" />
                 </button>
               )}
               <button
@@ -418,20 +420,9 @@ export default function WebtoonDetailPage() {
                 onClick={handleToggleFavorite}
                 aria-label="북마크"
                 title={favorited ? '북마크 해제' : '북마크'}
-                className={favorited ? 'text-brand-500' : 'text-ink-300'}
+                className={`inline-flex items-center justify-center p-0.5 ${favorited ? 'text-brand-500' : 'text-ink-300'}`}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  className="h-7 w-7"
-                  fill={favorited ? 'currentColor' : 'none'}
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
-                </svg>
+                <BookmarkIcon filled={favorited} className="h-6 w-6" />
               </button>
             </div>
           </div>

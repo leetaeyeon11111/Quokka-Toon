@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { searchWebtoons } from '../api/webtoon'
+import { getQuickPrompts } from '../api/quickPrompt'
 import { TEAM_PICK_IDS } from '../data/teamPicks'
 import { toCardModel } from '../lib/webtoon'
 import FeaturePromoCarousel from '../components/home/ContinuousFeaturePromoCarousel'
@@ -13,7 +14,6 @@ import {
 } from '../lib/homeSheet'
 import { webtoonHref } from '../lib/navigation'
 import HorizontalWebtoonSlider from '../components/webtoon/HorizontalWebtoonSlider'
-import { getQuickPrompts } from '../api/quickPrompt'
 
 const PLACEHOLDER_QUERIES = [
   '비 오는 날 읽기 좋은 힐링 만화…',
@@ -505,7 +505,13 @@ export default function MainPage() {
         <div className="mx-auto w-full max-w-3xl rounded-[2rem] border border-white/70 bg-white/70 px-6 py-8 text-center shadow-[0_22px_70px_rgba(28,26,31,0.08)] backdrop-blur-md sm:px-10 sm:py-10">
           <div>
             <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-300/60 bg-white/75 px-3 py-1.5 text-xs font-bold text-brand-700 shadow-sm backdrop-blur [@media(max-height:720px)]:mb-2 [@media(max-height:720px)]:py-1">
-              <span aria-hidden>✨</span> AI 자연어 추천
+              <img
+                src="/icons/quokka-emoji-sm.png"
+                alt=""
+                aria-hidden
+                className="h-4 w-4 object-contain"
+              />{' '}
+              AI 자연어 추천
             </p>
             <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-ink-900 [@media(max-height:720px)]:text-2xl sm:text-4xl lg:text-5xl">
               오늘 보고 싶은 느낌을
