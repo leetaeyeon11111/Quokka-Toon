@@ -18,7 +18,7 @@ import 'reflect-metadata';
 import { getNaverWebtoonList } from '../modules/naver';
 import { getNaverWebtoonInfo } from '../modules/naver/functions/naverApi';
 import {
-  PLATFORM_NAME_MAP,
+  PLATFORM_ID_MAP,
   SOURCE_MAP,
   toAgeRating,
   toPublishDay,
@@ -30,7 +30,7 @@ import {
 } from './mapper';
 
 const PROVIDER = 'NAVER';
-const PLATFORM_NAME = PLATFORM_NAME_MAP[PROVIDER]; // '네이버웹툰'
+const PLATFORM_ID = PLATFORM_ID_MAP[PROVIDER]; // '네이버웹툰'
 const SOURCE = SOURCE_MAP[PROVIDER]; // 'naver'
 const SAMPLE_COUNT = 5;
 
@@ -54,7 +54,7 @@ async function main() {
       source_key: sourceKey,
       title: w.title,
       product_name: w.title,
-      platform_name: PLATFORM_NAME,
+      platform_id: PLATFORM_ID,
       thumbnail_url: toThumbnailUrl(w.thumbnail),
       external_url: w.url || '',
       age_rating: toAgeRating(w.ageGrade),

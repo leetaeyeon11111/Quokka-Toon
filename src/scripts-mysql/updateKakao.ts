@@ -18,7 +18,7 @@ import { MysqlDataSource } from './mysqlDataSource';
 import { getKakaoWebtoonList } from '../modules/kakao'; // 기존 크롤러 (경로 확인)
 import { getContentProfile } from '../modules/kakao/functions/kakaoApi'; // 상세 API (경로 확인)
 import {
-  PLATFORM_NAME_MAP,
+  PLATFORM_ID_MAP,
   SOURCE_MAP,
   toAgeRating,
   toPublishDay,
@@ -30,7 +30,7 @@ import {
 } from './mapper';
 
 const PROVIDER = 'KAKAO';
-const PLATFORM_NAME = PLATFORM_NAME_MAP[PROVIDER]; // '카카오웹툰'
+const PLATFORM_ID = PLATFORM_ID_MAP[PROVIDER]; // '카카오웹툰'
 const SOURCE = SOURCE_MAP[PROVIDER]; // 'kakao'
 const TAG_SOURCE = 'kakao';
 
@@ -39,8 +39,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function loadExistingNames(): Promise<Set<string>> {
   const rows: { product_name: string }[] = await MysqlDataSource.query(
-    `SELECT product_name FROM webtoon WHERE platform_name = ?`,
-    [PLATFORM_NAME],
+    `SELECT product_name FROM webtoon WHERE platform_id = ?`,
+    [PLATFORM_ID],
   );
   const set = new Set<string>();
   for (const r of rows) {
@@ -121,7 +121,7 @@ async function main() {
       await MysqlDataSource.transaction(async (manager) => {
         const insertRes = await manager.query(
           `INSERT INTO webtoon
-             (source, source_key, title, product_name, platform_name,
+             (source, source_key, title, product_name, platform_id,
               thumbnail_url, external_url, age_rating, serial_status,
               is_completed, publish_day, collected_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
@@ -130,7 +130,7 @@ async function main() {
             sourceKey,
             title,
             title,
-            PLATFORM_NAME,
+            PLATFORM_ID,
             toThumbnailUrl(w.thumbnail),
             w.url || '',
             toAgeRating(w.ageGrade),

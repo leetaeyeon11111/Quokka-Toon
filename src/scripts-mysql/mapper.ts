@@ -2,11 +2,11 @@
  * NormalizedWebtoon(크롤러 결과) → MySQL webtoon 테이블 컬럼 매핑 유틸
  */
 
-// 크롤러 provider → MySQL platform_name
-export const PLATFORM_NAME_MAP: Record<string, string> = {
-  NAVER: '네이버웹툰',
-  KAKAO: '카카오웹툰',
-  KAKAO_PAGE: '카카오페이지',
+// 크롤러 provider → platform_id (platform 테이블 기준)
+export const PLATFORM_ID_MAP: Record<string, number> = {
+  NAVER: 1,        // 네이버웹툰
+  KAKAO: 23,       // 카카오웹툰
+  KAKAO_PAGE: 2,   // 카카오페이지
 };
 
 // 크롤러 provider → webtoon.source (짧은 식별자)
