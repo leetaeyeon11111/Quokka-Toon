@@ -11,7 +11,7 @@ import * as reviewApi from '../api/review'
 import { nicknameLevelClass } from '../lib/level'
 import { LevelBadge } from '../components/common/LevelBadge'
 import ProfileAvatar from '../components/common/ProfileAvatar'
-import WebtoonCard from '../components/webtoon/WebtoonCard'
+import WebtoonCardCarousel from '../components/webtoon/WebtoonCardCarousel'
 import Tag from '../components/webtoon/Tag'
 import ScrollSpyNav from '../components/webtoon/ScrollSpyNav'
 import GenderPieChart from '../components/webtoon/GenderPieChart'
@@ -46,14 +46,21 @@ function SectionCard({ id, title, children }) {
   )
 }
 
-function HorizontalRow({ items, emptyText }) {
+function HorizontalRow({
+  items,
+  emptyText,
+  ariaLabel = '웹툰 목록',
+  prevLabel = '이전 작품 보기',
+  nextLabel = '다음 작품 보기',
+}) {
   if (!items.length) return <p className="text-sm text-ink-300">{emptyText}</p>
   return (
-    <div className="no-scrollbar flex gap-4 overflow-x-auto pb-1">
-      {items.map((w) => (
-        <WebtoonCard key={w.id} webtoon={w} />
-      ))}
-    </div>
+    <WebtoonCardCarousel
+      items={items}
+      ariaLabel={ariaLabel}
+      prevLabel={prevLabel}
+      nextLabel={nextLabel}
+    />
   )
 }
 
@@ -524,7 +531,7 @@ export default function WebtoonDetailPage() {
 
       {/* 본문 + 스크롤스파이 */}
       <div className="mt-10 flex items-start gap-6">
-        <div className="flex flex-1 flex-col gap-6">
+        <div className="flex min-w-0 w-full flex-1 flex-col gap-6">
           <SectionCard id="info" title="정보">
             <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-ink-50 p-4">
@@ -631,10 +638,19 @@ export default function WebtoonDetailPage() {
                     ? `${selectedAuthor} 작가의 다른 작품이 아직 없어요.`
                     : '같은 작가의 다른 작품이 아직 없어요.'
                 }
+                ariaLabel="글/그림 작가의 다른 작품 목록"
+                prevLabel="이전 작가 작품 보기"
+                nextLabel="다음 작가 작품 보기"
               />
             </div>
             <p className="mb-2 text-sm font-bold text-ink-900">비슷한 작품</p>
-            <HorizontalRow items={similarWorks} emptyText="비슷한 작품을 찾지 못했어요." />
+            <HorizontalRow
+              items={similarWorks}
+              emptyText="비슷한 작품을 찾지 못했어요."
+              ariaLabel="비슷한 작품 목록"
+              prevLabel="이전 비슷한 작품 보기"
+              nextLabel="다음 비슷한 작품 보기"
+            />
           </SectionCard>
 
           {webtoon.demographics && <SectionCard id="stats" title="성별 통계">

@@ -96,11 +96,11 @@ export default function WebtoonCardCarousel({
   if (!items.length) return null
 
   return (
-    <div className="group relative w-full">
+    <div className="group relative min-w-0 w-full">
       <div
         ref={trackRef}
         aria-label={ariaLabel}
-        className={`no-scrollbar flex gap-4 overflow-x-auto pb-1 [touch-action:pan-y] ${
+        className={`no-scrollbar flex min-w-0 gap-4 overflow-x-auto pb-1 [touch-action:pan-y] ${
           isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'
         }`}
         onPointerDown={handlePointerDown}
