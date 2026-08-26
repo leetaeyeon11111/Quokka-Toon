@@ -5,11 +5,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /** 기동 시 review → webtoon.rating_count / rating_avg 1회 동기화. */
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "webtoon.rating-backfill-enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class WebtoonRatingBackfillRunner implements ApplicationRunner {
 

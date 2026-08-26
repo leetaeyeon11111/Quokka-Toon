@@ -39,17 +39,14 @@ function SearchLoading() {
 export default function WebtoonSearchPicker({ value, onChange }) {
   const [keyword, setKeyword] = useState('')
   const [candidates, setCandidates] = useState([])
-  const [picking, setPicking] = useState(!value)
+  const [picking, setPicking] = useState(false)
   const [searching, setSearching] = useState(false)
-
-  useEffect(() => {
-    if (value) setPicking(false)
-  }, [value])
+  const isPicking = picking || !value
 
   useEffect(() => {
     let cancelled = false
     async function search() {
-      if (!picking || !keyword.trim()) {
+      if (!isPicking || !keyword.trim()) {
         if (!cancelled) {
           setCandidates([])
           setSearching(false)
@@ -66,15 +63,14 @@ export default function WebtoonSearchPicker({ value, onChange }) {
         if (!cancelled) setSearching(false)
       }
     }
-    if (picking && keyword.trim()) setSearching(true)
     const timer = setTimeout(search, 250)
     return () => {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [picking, keyword])
+  }, [isPicking, keyword])
 
-  if (!picking && value) {
+  if (!isPicking && value) {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-ink-100 bg-white px-3 py-2">
         <MiniThumb webtoon={value} className="h-12 w-9 shrink-0 rounded" />
@@ -100,7 +96,10 @@ export default function WebtoonSearchPicker({ value, onChange }) {
       <input
         autoFocus
         value={keyword}
-        onChange={(e) => setKeyword(e.target.value)}
+        onChange={(e) => {
+          setKeyword(e.target.value)
+          setSearching(Boolean(e.target.value.trim()))
+        }}
         placeholder="작품명 검색"
         className="mb-2 w-full rounded-full border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none"
       />

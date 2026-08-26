@@ -2,8 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   advanceSheetWheelGesture,
+  getSheetKeyboardDestination,
   getSheetSnapDestination,
   getSheetWheelIntent,
+  shouldUnlockSheetScroll,
 } from '../src/lib/homeSheet.js'
 
 test('collapsed sheet opens after crossing one quarter and otherwise returns to hero', () => {
@@ -107,5 +109,26 @@ test('wheel intent repairs an invalid middle position instead of trapping it', (
   assert.deepEqual(
     getSheetWheelIntent({ current: 40, heroTop: 0, contentTop: 900, deltaY: 100 }),
     { type: 'repair', destination: 'content' },
+  )
+})
+
+test('history-restored content positions release the hero scroll lock', () => {
+  assert.equal(shouldUnlockSheetScroll({ current: 900, contentTop: 900 }), true)
+  assert.equal(shouldUnlockSheetScroll({ current: 1200, contentTop: 900 }), true)
+  assert.equal(shouldUnlockSheetScroll({ current: 0, contentTop: 900 }), false)
+})
+
+test('keyboard paging moves between the locked hero and content boundary', () => {
+  assert.equal(
+    getSheetKeyboardDestination({ current: 0, heroTop: 0, contentTop: 900, key: 'PageDown' }),
+    'content',
+  )
+  assert.equal(
+    getSheetKeyboardDestination({ current: 900, heroTop: 0, contentTop: 900, key: 'ArrowUp' }),
+    'hero',
+  )
+  assert.equal(
+    getSheetKeyboardDestination({ current: 1200, heroTop: 0, contentTop: 900, key: 'PageUp' }),
+    null,
   )
 })

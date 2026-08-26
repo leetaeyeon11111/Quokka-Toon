@@ -28,11 +28,11 @@ export default function LoginPage() {
   const safeReturnTo = returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : ''
 
   async function routeAfterAuth() {
-    let ban = null
+    let ban
     try {
       ban = await authApi.getBanStatus()
     } catch {
-      ban = null
+      return false
     }
     if (ban?.banned) {
       saveBanStatus(ban)
@@ -52,10 +52,25 @@ export default function LoginPage() {
   useEffect(() => {
     if (authLoading || !isLoggedIn || justLoggedIn) return undefined
     let cancelled = false
-    routeAfterAuth().then((wasBanned) => {
-      if (cancelled || wasBanned) return
-      if (safeReturnTo) navigate(safeReturnTo, { replace: true })
-    })
+    authApi
+      .getBanStatus()
+      .then((ban) => {
+        if (cancelled) return
+        if (ban?.banned) {
+          saveBanStatus(ban)
+          emitBanned(ban)
+          if (safeReturnTo && isBanOkReturn(safeReturnTo)) {
+            navigate(safeReturnTo, { replace: true })
+          } else {
+            navigate('/banned', { replace: true, state: { ban } })
+          }
+          return
+        }
+        if (safeReturnTo) navigate(safeReturnTo, { replace: true })
+      })
+      .catch(() => {
+        if (!cancelled && safeReturnTo) navigate(safeReturnTo, { replace: true })
+      })
     return () => {
       cancelled = true
     }

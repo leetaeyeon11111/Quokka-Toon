@@ -77,7 +77,6 @@ export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
         if (!cancelled) setSearching(false)
       }
     }
-    if (picking && keyword.trim()) setSearching(true)
     const timer = setTimeout(search, 250)
     return () => {
       cancelled = true
@@ -131,7 +130,10 @@ export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
           <input
             autoFocus
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            onChange={(e) => {
+              setKeyword(e.target.value)
+              setSearching(Boolean(e.target.value.trim()))
+            }}
             placeholder="작품명 검색"
             className="mb-3 w-full rounded-full border border-ink-100 bg-ink-50 px-4 py-2.5 text-sm outline-none"
           />

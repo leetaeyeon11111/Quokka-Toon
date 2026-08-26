@@ -1,6 +1,7 @@
 // 웹툰 API 모듈. (/api/webtoons)
 
 import { api } from './client'
+import { getVisitorId } from '../lib/visitor'
 
 /** 웹툰 목록 (글쓰기 웹툰 선택 등). Page 응답에서 content 배열만 반환 */
 export async function listWebtoons({ size = 100 } = {}) {
@@ -35,10 +36,12 @@ export async function getWebtoon(id) {
 
 /** 상세 페이지 진입 시 조회수 +1 (갱신된 viewCount 반환) */
 export async function recordWebtoonView(id) {
-  return api.post(`/api/webtoons/${id}/view`, undefined, { auth: false })
+  return api.post(`/api/webtoons/${id}/view`, undefined, {
+    headers: { 'X-Visitor-Id': getVisitorId() },
+  })
 }
 
-/** 홈 TOP N 랭킹 (리뷰 수 → 조회수 → 최근 리뷰) */
+/** 홈 TOP N 랭킹 (최근 7일 조회·리뷰·리뷰 좋아요, 시간 감쇠) */
 export async function getWebtoonRanking(size = 10) {
   return api.get(`/api/webtoons/ranking?size=${size}`, { auth: false })
 }

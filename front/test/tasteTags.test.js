@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { isTasteReportNoiseTag, rankTasteTags } from '../src/lib/tasteTags.js'
+import { isTasteMetaTag, isTasteReportNoiseTag, rankTasteTags } from '../src/lib/tasteTags.js'
 
-describe('isTasteReportNoiseTag', () => {
+describe('taste tag metadata filtering', () => {
   it('excludes completion and wait-free style tags', () => {
     assert.equal(isTasteReportNoiseTag('완결'), true)
     assert.equal(isTasteReportNoiseTag('완결드라마'), true)
@@ -11,15 +11,17 @@ describe('isTasteReportNoiseTag', () => {
     assert.equal(isTasteReportNoiseTag('기다리면무료'), true)
   })
 
-  it('excludes serial / price / age / weekday meta tags', () => {
+  it('excludes serial, price, age and weekday meta tags', () => {
     assert.equal(isTasteReportNoiseTag('연재중'), true)
     assert.equal(isTasteReportNoiseTag('휴재'), true)
     assert.equal(isTasteReportNoiseTag('무료'), true)
+    assert.equal(isTasteReportNoiseTag('부분유료'), true)
     assert.equal(isTasteReportNoiseTag('19금'), true)
     assert.equal(isTasteReportNoiseTag('신작'), true)
     assert.equal(isTasteReportNoiseTag('독점'), true)
     assert.equal(isTasteReportNoiseTag('월요웹툰'), true)
-    assert.equal(isTasteReportNoiseTag('화요웹툰'), true)
+    assert.equal(isTasteReportNoiseTag('월요일 연재'), true)
+    assert.equal(isTasteMetaTag('매주 금요일 연재'), true)
   })
 
   it('keeps genuine taste tags', () => {
@@ -50,5 +52,22 @@ describe('rankTasteTags', () => {
       ranked.map(([name]) => name),
       ['회귀', '사이다', '로맨스', '힐링', '복수'],
     )
+  })
+
+  it('excludes non-positive counts and sorts ties consistently', () => {
+    const counts = new Map([
+      ['완결', 9],
+      ['월요일 연재', 8],
+      ['로맨스', 0],
+      ['힐링', 5],
+      ['성장물', 6],
+      ['복수', 5],
+    ])
+
+    assert.deepEqual(rankTasteTags(counts, 3), [
+      ['성장물', 6],
+      ['복수', 5],
+      ['힐링', 5],
+    ])
   })
 })

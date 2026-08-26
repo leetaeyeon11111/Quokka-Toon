@@ -94,3 +94,32 @@ export function getSheetWheelIntent({ current, heroTop, contentTop, deltaY }) {
 
   return { type: 'native' }
 }
+
+export function shouldUnlockSheetScroll({ current, contentTop }) {
+  return (
+    Number.isFinite(current) &&
+    Number.isFinite(contentTop) &&
+    current >= contentTop - SHEET_POSITION_EPSILON
+  )
+}
+
+export function getSheetKeyboardDestination({
+  current,
+  heroTop,
+  contentTop,
+  key,
+  shiftKey = false,
+}) {
+  if (![current, heroTop, contentTop].every(Number.isFinite)) return null
+
+  const atHero = current <= heroTop + SHEET_POSITION_EPSILON
+  const atContentTop =
+    current >= contentTop - SHEET_POSITION_EPSILON &&
+    current <= contentTop + SHEET_POSITION_EPSILON
+  const movesForward = key === 'PageDown' || key === 'ArrowDown' || (key === ' ' && !shiftKey)
+  const movesBackward = key === 'PageUp' || key === 'ArrowUp' || (key === ' ' && shiftKey)
+
+  if (atHero && movesForward) return 'content'
+  if (atContentTop && movesBackward) return 'hero'
+  return null
+}

@@ -20,11 +20,6 @@ export default function BanGuard() {
   const navigate = useNavigate()
   const location = useLocation()
   const handlingRef = useRef(false)
-  const navigateRef = useRef(navigate)
-  const pathRef = useRef(location.pathname)
-
-  navigateRef.current = navigate
-  pathRef.current = location.pathname
 
   useEffect(() => {
     function goBanned(ban) {
@@ -34,14 +29,14 @@ export default function BanGuard() {
         if (ban) saveBanStatus(ban)
         return
       }
-      if (isBanAllowedPath(pathRef.current)) {
+      if (isBanAllowedPath(location.pathname)) {
         if (ban) saveBanStatus(ban)
         return
       }
       handlingRef.current = true
       const payload = ban ?? { banned: true }
       saveBanStatus(payload)
-      navigateRef.current('/banned', { replace: true, state: { ban: payload } })
+      navigate('/banned', { replace: true, state: { ban: payload } })
       window.setTimeout(() => {
         handlingRef.current = false
       }, 0)
@@ -54,12 +49,12 @@ export default function BanGuard() {
     window.addEventListener(BAN_EVENT, onBanned)
 
     const cached = loadBanStatus()
-    if (cached?.banned && getToken() && !isBanAllowedPath(pathRef.current)) {
+    if (cached?.banned && getToken() && !isBanAllowedPath(location.pathname)) {
       goBanned(cached)
     }
 
     return () => window.removeEventListener(BAN_EVENT, onBanned)
-  }, [])
+  }, [location.pathname, navigate])
 
   useEffect(() => {
     if (isBanAllowedPath(location.pathname)) return undefined

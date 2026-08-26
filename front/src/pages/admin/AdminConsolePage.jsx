@@ -36,7 +36,6 @@ function ReportsTab({ historyOnly }) {
   const [detailTarget, setDetailTarget] = useState(null)
 
   useEffect(() => {
-    setLoading(true)
     const loader = historyOnly
       ? adminApi.listHandledReports
       : () => adminApi.listReports(REPORT_STATUS_PARAM[statusFilter])
@@ -47,6 +46,7 @@ function ReportsTab({ historyOnly }) {
   }, [historyOnly, statusFilter])
 
   function changeStatus(next) {
+    setLoading(true)
     setStatusFilter(next)
   }
 
@@ -405,19 +405,22 @@ function BansTab() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
 
-  async function reload() {
-    setLoading(true)
-    try {
-      setBans(await adminApi.listBannedUsers())
-    } catch {
-      setBans([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
-    reload()
+    let cancelled = false
+    adminApi
+      .listBannedUsers()
+      .then((data) => {
+        if (!cancelled) setBans(data)
+      })
+      .catch(() => {
+        if (!cancelled) setBans([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   async function handleUnban(user) {
@@ -459,7 +462,14 @@ function BansTab() {
             <span className="text-sm font-semibold text-ink-500">정지 {bans.length}명</span>
             <button
               type="button"
-              onClick={reload}
+              onClick={() => {
+                setLoading(true)
+                adminApi
+                  .listBannedUsers()
+                  .then(setBans)
+                  .catch(() => setBans([]))
+                  .finally(() => setLoading(false))
+              }}
               className="text-xs font-semibold text-brand-600 hover:underline"
             >
               새로고침

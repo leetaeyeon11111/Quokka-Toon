@@ -7,26 +7,9 @@
 const STATUS_EXACT = new Set(['완결', '완결작', '완결됨', '연재중', '연재', '연재작', '휴재'])
 const AGE_EXACT = new Set(['19금', '성인', '성인물', '청소년이용불가', '전연령', '전체이용가', '전체이용'])
 const MEDIA_EXACT = new Set(['드라마화', '드라마원작', '애니화', '애니메이션화', '영화화', '게임화'])
-const PRICE_EXACT = new Set(['무료', '완결무료', '유료'])
+const PRICE_EXACT = new Set(['무료', '완결무료', '유료', '부분유료'])
 
-/** 요일·시즌 연재 슬롯 (월요웹툰, 화요웹툰 …) */
-const WEEKDAY_EXACT = new Set([
-  '월요웹툰',
-  '화요웹툰',
-  '수요웹툰',
-  '목요웹툰',
-  '금요웹툰',
-  '토요웹툰',
-  '일요웹툰',
-  '매일웹툰',
-  '월요',
-  '화요',
-  '수요',
-  '목요',
-  '금요',
-  '토요',
-  '일요',
-])
+const WEEKDAY_EXACT = new Set(['매일웹툰'])
 
 const PLATFORM_META_EXACT = new Set([
   '신작',
@@ -39,11 +22,12 @@ const PLATFORM_META_EXACT = new Set([
   '넥스큐브',
 ])
 
-/** 부분 일치(포함)로 제외 — 기다무, 기다리면무료 등 */
 const META_CONTAINS = ['기다무', '기다리면']
-
-/** 정규식 노이즈 (연도 태그 등) */
-const META_REGEX = [/^\d{4}$/, /평점/]
+const META_REGEX = [
+  /^\d{4}$/,
+  /평점/,
+  /^(매주)?(월|화|수|목|금|토|일)요일?(웹툰|연재)?$/,
+]
 
 function normalizeTagName(name) {
   return String(name ?? '')
@@ -51,11 +35,7 @@ function normalizeTagName(name) {
     .replace(/\s+/g, '')
 }
 
-/**
- * 취향 리포트 최애 태그에 넣으면 안 되는 메타/노이즈 태그인가?
- * @param {string} tagName
- * @returns {boolean}
- */
+/** 취향 리포트 최애 태그에 넣으면 안 되는 메타/노이즈 태그인가? */
 export function isTasteReportNoiseTag(tagName) {
   const tag = normalizeTagName(tagName)
   if (!tag) return true
@@ -69,20 +49,22 @@ export function isTasteReportNoiseTag(tagName) {
   if (tag.startsWith('완결')) return true
 
   if (META_CONTAINS.some((part) => tag.includes(part))) return true
-  if (META_REGEX.some((re) => re.test(tag))) return true
+  if (META_REGEX.some((pattern) => pattern.test(tag))) return true
 
   return false
 }
 
-/**
- * 태그 카운트 Map/entries에서 노이즈를 빼고 count 내림차순 TOP N.
- * @param {Iterable<[string, number]>} entries
- * @param {number} [top=5]
- * @returns {[string, number][]}
- */
-export function rankTasteTags(entries, top = 5) {
+// jh 쪽에서 사용하던 이름도 호환한다.
+export const isTasteMetaTag = isTasteReportNoiseTag
+
+/** 태그 카운트 Map/entries에서 노이즈를 빼고 count 내림차순 TOP N. */
+export function rankTasteTags(counts, limit = 5) {
+  const entries = counts?.entries?.() ?? counts ?? []
   return [...entries]
-    .filter(([name]) => !isTasteReportNoiseTag(name))
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, top)
+    .filter(([name, count]) => !isTasteReportNoiseTag(name) && Number(count) > 0)
+    .sort(([nameA, countA], [nameB, countB]) => {
+      const countDifference = Number(countB) - Number(countA)
+      return countDifference || String(nameA).localeCompare(String(nameB), 'ko')
+    })
+    .slice(0, Math.max(0, limit))
 }
