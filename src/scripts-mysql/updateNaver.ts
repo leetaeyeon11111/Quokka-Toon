@@ -164,11 +164,13 @@ async function main() {
 
         // 태그 가져오기 (상세 API)
         let tags: string[] = [];
+        let summary: string | null = null;
         try {
           const { data } = await getNaverWebtoonInfo(titleId);
           tags = (data?.curationTagList || [])
             .map((t: any) => (t?.tagName || '').trim())
             .filter(Boolean);
+            summary = data?.synopsis || null;
         } catch (e: any) {
           // 태그 실패해도 웹툰은 이미 들어감. 태그만 빈 채로.
           console.warn(`   ⚠️ 태그 실패: ${e.message || e}`);
@@ -203,6 +205,14 @@ async function main() {
             );
             genreInserted++;
           }
+        }
+
+        // 줄거리 저장
+        if (summary) {
+          await manager.query(
+            `UPDATE webtoon SET summary = ? WHERE webtoon_id = ?`,
+            [summary, newWebtoonId],
+          );
         }
 
         // 작가 저장 (author 확보 → webtoon_author 연결, role별)

@@ -143,11 +143,13 @@ async function main() {
 
         // 태그 가져오기 (seoKeywords, 앞의 # 제거)
         let tags: string[] = [];
+        let summary: string | null = null;
         try {
           const { data } = await getContentProfile(contentId);
           tags = (data?.data?.seoKeywords || [])
             .map((k: string) => (k || '').replace(/^#/, '').trim())
             .filter(Boolean);
+            summary = data?.data?.synopsis || null;
         } catch (e: any) {
           console.warn(`   ⚠️ 태그 실패: ${e.message || e}`);
         }
@@ -180,6 +182,14 @@ async function main() {
             genreInserted++;
           }
         }
+        // 줄거리 저장
+        if (summary) {
+          await manager.query(
+            `UPDATE webtoon SET summary = ? WHERE webtoon_id = ?`,
+            [summary, newWebtoonId],
+          );
+        }
+
 
         // 작가 저장 (첫=WRITER, 나머지=ARTIST)
         const authorRoles = parseAuthors(w.authors);
