@@ -1,22 +1,66 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import * as authApi from '../api/auth'
 import { useAuth } from '../hooks/useAuth'
 import { goKakaoAuthorize, goNaverAuthorize } from '../api/social'
 import { useDialog } from '../hooks/useDialog'
+import { emitBanned, saveBanStatus } from '../lib/ban'
+
+const BAN_OK_RETURN = ['/inquiry', '/banned']
+
+function isBanOkReturn(path) {
+  return BAN_OK_RETURN.some((p) => path === p || path.startsWith(`${p}/`))
+}
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { login, isLoggedIn, user } = useAuth()
+  const { login, isLoggedIn, user, loading: authLoading } = useAuth()
   const { alert: showAlert } = useDialog()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [justLoggedIn, setJustLoggedIn] = useState(false)
+  const [bannedSession, setBannedSession] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const returnTo = searchParams.get('returnTo')
   const safeReturnTo = returnTo?.startsWith('/') && !returnTo.startsWith('//') ? returnTo : ''
+
+  async function routeAfterAuth() {
+    let ban = null
+    try {
+      ban = await authApi.getBanStatus()
+    } catch {
+      ban = null
+    }
+    if (ban?.banned) {
+      saveBanStatus(ban)
+      emitBanned(ban)
+      setBannedSession(true)
+      if (safeReturnTo && isBanOkReturn(safeReturnTo)) {
+        navigate(safeReturnTo, { replace: true })
+      } else {
+        navigate('/banned', { replace: true, state: { ban } })
+      }
+      return true
+    }
+    return false
+  }
+
+  // 이미 로그인된 정지 계정이 /login 에 들어오면 문의·정지 안내로 보낸다.
+  useEffect(() => {
+    if (authLoading || !isLoggedIn || justLoggedIn) return undefined
+    let cancelled = false
+    routeAfterAuth().then((wasBanned) => {
+      if (cancelled || wasBanned) return
+      if (safeReturnTo) navigate(safeReturnTo, { replace: true })
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount/session only
+  }, [authLoading, isLoggedIn])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -32,12 +76,19 @@ export default function LoginPage() {
     setSubmitting(true)
     try {
       await login(email.trim(), password)
+      const wasBanned = await routeAfterAuth()
+      if (wasBanned) return
       if (safeReturnTo) {
         navigate(safeReturnTo, { replace: true })
       } else {
         setJustLoggedIn(true)
       }
     } catch (err) {
+      if (err?.code === 'USER_BANNED') {
+        emitBanned(err.data ?? { banned: true })
+        navigate('/banned', { replace: true, state: { ban: err.data ?? { banned: true } } })
+        return
+      }
       setError(err.message ?? '로그인에 실패했어요.')
     } finally {
       setSubmitting(false)
@@ -55,7 +106,7 @@ export default function LoginPage() {
     }
   }
 
-  const showSuccess = justLoggedIn || isLoggedIn
+  const showSuccess = !bannedSession && (justLoggedIn || isLoggedIn)
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-14">

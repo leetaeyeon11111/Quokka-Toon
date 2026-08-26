@@ -1,9 +1,18 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 
-export default function PlaceholderPage({ title, description, showDemoLogin = false, showBack = false }) {
+export default function PlaceholderPage({
+  title,
+  description,
+  showDemoLogin = false,
+  /** 로그인 CTA 목적지. 예: `/login?returnTo=%2Finquiry` */
+  loginTo = null,
+  showBack = false,
+}) {
   const { isLoggedIn } = useAuth()
   const navigate = useNavigate()
+  const loginHref = loginTo || '/login'
+  const offerLogin = showDemoLogin || Boolean(loginTo)
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center gap-4 px-6 py-24 text-center">
@@ -16,15 +25,15 @@ export default function PlaceholderPage({ title, description, showDemoLogin = fa
       <h1 className="text-2xl font-bold text-ink-900">{title}</h1>
       <p className="text-ink-500">{description ?? '요청한 내용을 표시할 수 없어요.'}</p>
 
-      {showDemoLogin && !isLoggedIn && (
+      {offerLogin && !isLoggedIn && (
         <Link
-          to="/login"
+          to={loginHref}
           className="mt-2 rounded-full bg-ink-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-ink-700"
         >
           로그인 하러 가기 →
         </Link>
       )}
-      {showDemoLogin && isLoggedIn && (
+      {offerLogin && isLoggedIn && (
         <p className="text-sm text-mint-500">로그인 상태입니다. 헤더에서 프로필을 확인해보세요.</p>
       )}
 

@@ -90,7 +90,15 @@ export default function LifeWorksModal({ lifeWorks, onToggle, onClose }) {
       {!picking ? (
         <>
           {works.length === 0 ? (
-            <p className="py-6 text-center text-sm text-ink-500">아직 담은 인생작이 없어요.</p>
+            <div className="flex flex-col items-center gap-2 py-8 text-center text-sm text-ink-500">
+              <img
+                src="/icons/quokka-emoji.png"
+                alt=""
+                aria-hidden
+                className="h-16 w-16 object-contain"
+              />
+              <p>아직 담은 인생작이 없어요.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-4 gap-3">
               {works.map((w) => (

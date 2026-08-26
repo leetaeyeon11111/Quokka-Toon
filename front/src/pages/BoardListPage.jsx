@@ -4,6 +4,7 @@ import { listPosts } from '../api/board'
 import { StarsDisplay } from '../components/common/Stars'
 import { nicknameLevelClass } from '../lib/level'
 import { LevelBadge } from '../components/common/LevelBadge'
+import ProfileAvatar from '../components/common/ProfileAvatar'
 import { ResultMessage } from '../components/common/ResultState'
 
 const TABS = [
@@ -182,7 +183,13 @@ export default function BoardListPage({ boardType = 'all' }) {
                 )}
               </span>
               <span>{post.rating ? <StarsDisplay rating={post.rating} size="text-xs" /> : <span className="text-xs text-ink-200">-</span>}</span>
-              <span className="flex items-center gap-1 text-xs font-semibold">
+              <span className="flex min-w-0 items-center gap-1 text-xs font-semibold">
+                <ProfileAvatar
+                  src={post.authorProfileImageUrl}
+                  alt=""
+                  sizeClass="h-5 w-5"
+                  emojiClass="text-[10px]"
+                />
                 <LevelBadge level={post.authorLevel} />
                 <span className={`truncate ${nicknameLevelClass(post.authorLevel)}`}>{post.author}</span>
               </span>

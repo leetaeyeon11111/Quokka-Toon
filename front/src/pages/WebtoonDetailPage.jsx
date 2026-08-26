@@ -10,6 +10,7 @@ import { useExperienceNotification } from '../hooks/useExperienceNotification'
 import * as reviewApi from '../api/review'
 import { nicknameLevelClass } from '../lib/level'
 import { LevelBadge } from '../components/common/LevelBadge'
+import ProfileAvatar from '../components/common/ProfileAvatar'
 import WebtoonCard from '../components/webtoon/WebtoonCard'
 import Tag from '../components/webtoon/Tag'
 import ScrollSpyNav from '../components/webtoon/ScrollSpyNav'
@@ -719,7 +720,13 @@ export default function WebtoonDetailPage() {
               {visibleReviews.map((review) => (
                 <div key={review.id} className="rounded-xl border border-ink-100 p-3">
                   <div className="mb-1 flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-sm font-semibold">
+                    <span className="flex items-center gap-1.5 text-sm font-semibold">
+                      <ProfileAvatar
+                        src={review.authorProfileImageUrl}
+                        alt=""
+                        sizeClass="h-6 w-6"
+                        emojiClass="text-xs"
+                      />
                       <LevelBadge level={review.authorLevel} />
                       <span className={nicknameLevelClass(review.authorLevel)}>{review.user}</span>
                     </span>

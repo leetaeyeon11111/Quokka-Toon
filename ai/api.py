@@ -2,8 +2,14 @@
 
 import os
 import sys
+
+# Before faiss/torch: OpenMP duplicate + MPS races crash on Apple Silicon.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+os.environ.setdefault("QUOKKA_ENCODER_DEVICE", "cpu")
+
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import lru_cache
 from threading import Lock
 from typing import Any
 
@@ -30,6 +36,8 @@ META_FILE = "webtoon_meta.pkl"
 SEARCH_INDEX_FILES = ("webtoon_index.faiss", "webtoon_tfidf.joblib")
 LLM_WORKERS = max(1, int(os.environ.get("QUOKKA_LLM_WORKERS", "4")))
 _enrichment_lock = Lock()
+_pipeline_lock = Lock()
+_pipeline: Pipeline | None = None
 
 
 class RecommendRequest(BaseModel):
@@ -76,13 +84,20 @@ def _search_engine() -> str | None:
     return None
 
 
-@lru_cache(maxsize=1)
 def get_pipeline() -> Pipeline:
-    missing = _missing_model_files()
-    if missing:
-        joined = ", ".join(missing)
-        raise RuntimeError(f"필수 AI 모델 파일이 없습니다: {joined}")
-    return Pipeline()
+    """Load Pipeline once. Lock avoids concurrent SentenceTransformer init (MPS crash)."""
+    global _pipeline
+    if _pipeline is not None:
+        return _pipeline
+    with _pipeline_lock:
+        if _pipeline is not None:
+            return _pipeline
+        missing = _missing_model_files()
+        if missing:
+            joined = ", ".join(missing)
+            raise RuntimeError(f"필수 AI 모델 파일이 없습니다: {joined}")
+        _pipeline = Pipeline()
+        return _pipeline
 
 
 def _score(value: Any) -> int:

@@ -24,6 +24,10 @@ import AdminConsolePage from './pages/admin/AdminConsolePage'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import AiSummaryMarkMockPage from './pages/AiSummaryMarkMockPage'
 import AiSearchMockPage from './pages/AiSearchMockPage'
+import MediaMixButtonMockPage from './pages/MediaMixButtonMockPage'
+import HeaderProfileMockPage from './pages/HeaderProfileMockPage'
+import HeaderLogoMockPage from './pages/HeaderLogoMockPage'
+import BannedPage from './pages/BannedPage'
 
 function App() {
   return (
@@ -35,11 +39,15 @@ function App() {
         <Route path="/webtoons/:id" element={<WebtoonDetailPage />} />
         <Route path="/dev/ai-summary-mark" element={<AiSummaryMarkMockPage />} />
         <Route path="/dev/ai-search" element={<AiSearchMockPage />} />
+        <Route path="/dev/media-mix-buttons" element={<MediaMixButtonMockPage />} />
+        <Route path="/dev/header-profile" element={<HeaderProfileMockPage />} />
+        <Route path="/dev/header-logo" element={<HeaderLogoMockPage />} />
 
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/oauth/kakao/callback" element={<OAuthCallback provider="kakao" />} />
         <Route path="/oauth/naver/callback" element={<OAuthCallback provider="naver" />} />
+        <Route path="/banned" element={<BannedPage />} />
         <Route path="/inquiry" element={<InquiryPage />} />
 
         <Route path="/mypage/favorites" element={<ProtectedRoute><FavoritesPage /></ProtectedRoute>} />

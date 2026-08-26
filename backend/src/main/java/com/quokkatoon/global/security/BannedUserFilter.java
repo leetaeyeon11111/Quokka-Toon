@@ -18,7 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Set;
 
-/** JWT 인증 후 정지 계정의 API 호출을 차단한다. ban-status 는 예외. */
+/** JWT 인증 후 정지 계정의 API 호출을 차단한다. ban-status·문의·세션 조회는 예외. */
 public class BannedUserFilter extends OncePerRequestFilter {
 
     private static final Set<String> EXEMPT_PREFIXES = Set.of(
@@ -27,7 +27,9 @@ public class BannedUserFilter extends OncePerRequestFilter {
             "/api/auth/signup",
             "/api/auth/check-email",
             "/api/auth/check-nickname",
-            "/api/auth/social/"
+            "/api/auth/social/",
+            // 정지 계정도 본인 문의 조회·등록은 허용 (관리자 API 는 /api/admin 이라 여기 안 걸림)
+            "/api/inquiries"
     );
 
     private final UserRepository userRepository;
@@ -43,8 +45,7 @@ public class BannedUserFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        String uri = request.getRequestURI();
-        if (isExempt(uri)) {
+        if (isExempt(request)) {
             chain.doFilter(request, response);
             return;
         }
@@ -69,8 +70,15 @@ public class BannedUserFilter extends OncePerRequestFilter {
                 ApiResponse.fail(ErrorCode.USER_BANNED.getMessage(), ErrorCode.USER_BANNED.name(), ban));
     }
 
-    private boolean isExempt(String uri) {
+    private boolean isExempt(HttpServletRequest request) {
+        String uri = request.getRequestURI();
         if (uri == null) return false;
+
+        // 세션 복원용 프로필 조회만 허용 (닉네임·아이콘 변경 PATCH 는 차단)
+        if ("/api/auth/me".equals(uri) && "GET".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
+
         for (String prefix : EXEMPT_PREFIXES) {
             if (uri.startsWith(prefix)) return true;
         }

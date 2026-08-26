@@ -106,7 +106,7 @@ export default function BoardWritePage() {
           placeholder="제목을 입력해주세요."
           minLength={2}
           maxLength={200}
-          className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
+          className="min-w-0 w-full break-all rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
         />
         <textarea
           value={content}
@@ -115,7 +115,7 @@ export default function BoardWritePage() {
           rows={8}
           minLength={20}
           maxLength={10000}
-          className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
+          className="min-w-0 w-full break-all [overflow-wrap:anywhere] rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none focus:border-brand-300"
         />
 
         {error && <p className="text-xs text-red-500">{error}</p>}

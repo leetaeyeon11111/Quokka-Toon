@@ -1,6 +1,7 @@
 package com.quokkatoon.board.dto;
 
 import com.quokkatoon.board.entity.Post;
+import com.quokkatoon.user.profile.ProfileImages;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +14,7 @@ public record PostListItem(
         Integer rating,
         String author,
         int authorLevel,
+        String authorProfileImageUrl,
         int likes,
         int dislikes,
         long commentCount,
@@ -27,6 +29,7 @@ public record PostListItem(
                 post.getRating(),
                 post.getUser().getNickname(),
                 post.getUser().getLevel(),
+                ProfileImages.forUser(post.getUser()),
                 post.getLikeCount(),
                 post.getDislikeCount(),
                 post.getCommentCount(),

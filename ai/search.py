@@ -11,14 +11,27 @@
 import json
 import os
 import pickle
-import numpy as np
+from threading import Lock
+
+# Must be set before faiss/torch/OpenMP load — duplicate libomp SIGSEGVs on macOS.
+os.environ.setdefault('KMP_DUPLICATE_LIB_OK', 'TRUE')
+os.environ.setdefault('OMP_NUM_THREADS', '1')
+os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
+
 import joblib
+import numpy as np
 
 MODEL_NAME = 'BM-K/KoSimCSE-roberta-multitask'
+# Apple Silicon MPS + concurrent uvicorn requests → torch SIGSEGV. Keep encoder on CPU.
+ENCODER_DEVICE = os.environ.get('QUOKKA_ENCODER_DEVICE', 'cpu')
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(HERE)
 DATA_DIR = os.environ.get('QUOKKA_DATA_DIR', os.path.join(HERE, 'data'))
 MODELS_DIR = os.environ.get('QUOKKA_MODELS_DIR', os.path.join(PROJECT_ROOT, 'models'))
+
+# Serialize encode: SentenceTransformer/torch are not safe under concurrent races.
+_encode_lock = Lock()
+
 
 # 신조어 사전
 try:
@@ -37,24 +50,57 @@ class WebtoonSearcher:
         with open(meta_path, 'rb') as f:
             self.meta = pickle.load(f)
 
+        self.mode = None
         if os.path.isfile(faiss_path):
-            import faiss
-            from sentence_transformers import SentenceTransformer
+            try:
+                # Load torch/ST BEFORE faiss — importing faiss first can SIGSEGV with libomp.
+                from sentence_transformers import SentenceTransformer
+                import torch
 
-            self.mode = 'faiss'
-            # The project ships/uses a locally cached encoder. Avoid a network
-            # version check on every API startup (and work in offline demos).
-            self.model = SentenceTransformer(MODEL_NAME, local_files_only=True)
-            self.index = faiss.read_index(faiss_path)
-            count = self.index.ntotal
-        elif os.path.isfile(tfidf_path):
+                if ENCODER_DEVICE == 'cpu':
+                    try:
+                        torch.set_default_device('cpu')
+                    except Exception:
+                        pass
+                    # Avoid accidental MPS even if ST internals probe availability.
+                    try:
+                        torch.backends.mps.is_available = lambda: False  # type: ignore[method-assign]
+                    except Exception:
+                        pass
+
+                # Prefer offline cache; if missing, allow one download then stay local.
+                try:
+                    self.model = SentenceTransformer(
+                        MODEL_NAME, device=ENCODER_DEVICE, local_files_only=True
+                    )
+                except Exception as local_exc:
+                    print(f'로컬 임베딩 모델 없음 → 다운로드 시도 ({local_exc.__class__.__name__})')
+                    self.model = SentenceTransformer(
+                        MODEL_NAME, device=ENCODER_DEVICE, local_files_only=False
+                    )
+                self.model.to(ENCODER_DEVICE)
+
+                import faiss
+
+                self.mode = 'faiss'
+                self.index = faiss.read_index(faiss_path)
+                count = self.index.ntotal
+            except Exception as faiss_exc:
+                print(f'FAISS 엔진 로딩 실패 → TF-IDF 폴백 시도: {faiss_exc}')
+
+        if self.mode is None and os.path.isfile(tfidf_path):
             self.mode = 'tfidf'
             payload = joblib.load(tfidf_path)
             self.vectorizer = payload['vectorizer']
             self.matrix = payload['matrix']
             count = self.matrix.shape[0]
-        else:
-            raise FileNotFoundError('FAISS 또는 TF-IDF 검색 인덱스가 없습니다.')
+
+        if self.mode is None:
+            raise FileNotFoundError(
+                '검색 엔진을 준비하지 못했습니다. '
+                'models/webtoon_index.faiss + HuggingFace 모델(BM-K/KoSimCSE-roberta-multitask) '
+                '또는 models/webtoon_tfidf.joblib 이 필요합니다.'
+            )
         print(f'준비 완료({self.mode}): {count:,}개 웹툰')
 
     def _preprocess(self, query):
@@ -77,7 +123,13 @@ class WebtoonSearcher:
         if self.mode == 'faiss':
             import faiss
 
-            q_emb = self.model.encode([q])
+            with _encode_lock:
+                q_emb = self.model.encode(
+                    [q],
+                    convert_to_numpy=True,
+                    show_progress_bar=False,
+                )
+            q_emb = np.ascontiguousarray(q_emb, dtype=np.float32)
             faiss.normalize_L2(q_emb)
             scores, idxs = self.index.search(q_emb, candidate_count)
             score_pairs = zip(scores[0], idxs[0])

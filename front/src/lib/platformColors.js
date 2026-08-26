@@ -44,8 +44,29 @@ export const PLATFORM_COLORS = {
 /** 나무위키 브랜드 그린 */
 export const NAMU_WIKI_COLOR = { bg: '#00A495', fg: '#ffffff', border: '#00A495' }
 
+/** OTT / 시청 서비스 브랜드 색 (미디어믹스 버튼용) */
+export const WATCH_SERVICE_COLORS = {
+  'Disney+': { bg: '#113CCF', fg: '#ffffff' },
+  Netflix: { bg: '#E50914', fg: '#ffffff' },
+  TVING: { bg: '#FF153C', fg: '#ffffff' },
+  Wavve: { bg: '#1C64F2', fg: '#ffffff' },
+  왓챠: { bg: '#FF0558', fg: '#ffffff' },
+  쿠팡플레이: { bg: '#DE0815', fg: '#ffffff' },
+  카카오TV: { bg: '#FEE500', fg: '#191919' },
+  나무위키: NAMU_WIKI_COLOR,
+}
+
 export function platformButtonStyle(name) {
   const c = (name && PLATFORM_COLORS[name]) || DEFAULT
+  return {
+    backgroundColor: c.bg,
+    color: c.fg,
+    borderColor: c.border || c.bg,
+  }
+}
+
+export function watchServiceButtonStyle(label) {
+  const c = (label && WATCH_SERVICE_COLORS[label]) || DEFAULT
   return {
     backgroundColor: c.bg,
     color: c.fg,
@@ -58,5 +79,14 @@ export function namuWikiButtonStyle() {
     backgroundColor: NAMU_WIKI_COLOR.bg,
     color: NAMU_WIKI_COLOR.fg,
     borderColor: NAMU_WIKI_COLOR.border,
+  }
+}
+
+/** soft tint: 브랜드 색 12% 배경 + 브랜드 텍스트 */
+export function softBrandStyle(bg, fg = bg) {
+  return {
+    backgroundColor: `${bg}14`,
+    color: fg,
+    borderColor: `${bg}55`,
   }
 }

@@ -119,8 +119,14 @@ export default function TastePage() {
       </div>
 
       {sourceWebtoons.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-ink-100 bg-white py-16 text-center text-sm text-ink-500">
-          북마크하거나 인생작을 담으면 취향 리포트가 만들어져요.
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-ink-100 bg-white py-16 text-center text-sm text-ink-500">
+          <img
+            src="/icons/quokka-emoji.png"
+            alt=""
+            aria-hidden
+            className="h-20 w-20 object-contain"
+          />
+          <p>북마크하거나 인생작을 담으면 취향 리포트가 만들어져요.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

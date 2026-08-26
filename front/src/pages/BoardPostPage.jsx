@@ -9,6 +9,7 @@ import ReportModal from '../components/board/ReportModal'
 import { useExperienceNotification } from '../hooks/useExperienceNotification'
 import { nicknameLevelClass } from '../lib/level'
 import { LevelBadge } from '../components/common/LevelBadge'
+import ProfileAvatar from '../components/common/ProfileAvatar'
 import { loginHref } from '../lib/navigation'
 import { useDialog } from '../hooks/useDialog'
 
@@ -68,10 +69,17 @@ function CommentRow({ comment, onReplyClick, onReact, onReport, onDelete, childr
     <div>
       <div className="rounded-xl border border-ink-100 bg-white p-3">
         <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink-900">
-          🙂 <LevelBadge level={comment.authorLevel} /> <span className={nicknameLevelClass(comment.authorLevel)}>{comment.author}</span>{' '}
+          <ProfileAvatar
+            src={comment.authorProfileImageUrl}
+            alt=""
+            sizeClass="h-6 w-6"
+            emojiClass="text-xs"
+          />
+          <LevelBadge level={comment.authorLevel} />
+          <span className={nicknameLevelClass(comment.authorLevel)}>{comment.author}</span>{' '}
           <span className="text-xs font-normal text-ink-300">{comment.date}</span>
         </p>
-        <p className="mb-2 whitespace-pre-wrap break-words text-sm text-ink-700">{comment.text}</p>
+        <p className="mb-2 max-w-full whitespace-pre-wrap break-all [overflow-wrap:anywhere] text-sm text-ink-700">{comment.text}</p>
         <div className="flex items-center gap-3 text-xs text-ink-500">
           <button type="button" onClick={() => onReact(comment.id)} className="hover:text-brand-500">
             👍 {comment.likes}
@@ -261,7 +269,7 @@ export default function BoardPostPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-10">
+    <div className="mx-auto min-w-0 w-full max-w-3xl overflow-x-clip px-6 py-10">
       <button
         type="button"
         onClick={() => navigate(post.board === 'free' ? '/board/free' : '/board/webtoon')}
@@ -273,9 +281,18 @@ export default function BoardPostPage() {
         #{post.board === 'free' ? '자유게시판' : post.board === 'webtoon' ? '웹툰게시판' : '전체게시판'}
         {post.webtoonTag && ` · ${post.webtoonTag}`}
       </span>
-      <h1 className="mb-2 text-xl font-bold text-ink-900">{post.title}</h1>
+      <h1 className="mb-2 max-w-full break-all [overflow-wrap:anywhere] text-xl font-bold text-ink-900">{post.title}</h1>
       <div className="mb-5 flex items-center gap-3 text-xs text-ink-500">
-        <span className="inline-flex items-center gap-1">👤 <LevelBadge level={post.authorLevel} /> <span className={nicknameLevelClass(post.authorLevel)}>{post.author}</span></span>
+        <span className="inline-flex items-center gap-1.5">
+          <ProfileAvatar
+            src={post.authorProfileImageUrl}
+            alt=""
+            sizeClass="h-5 w-5"
+            emojiClass="text-[10px]"
+          />
+          <LevelBadge level={post.authorLevel} />
+          <span className={nicknameLevelClass(post.authorLevel)}>{post.author}</span>
+        </span>
         <span>🗓 {post.date}</span>
         {post.rating && <StarsDisplay rating={post.rating} size="text-xs" />}
         {post.mine && (
@@ -285,7 +302,7 @@ export default function BoardPostPage() {
         )}
       </div>
 
-      <div className="mb-5 min-h-[120px] whitespace-pre-wrap rounded-2xl border border-ink-100 bg-white p-5 text-sm leading-relaxed text-ink-700">
+      <div className="mb-5 min-h-[120px] min-w-0 max-w-full overflow-x-clip whitespace-pre-wrap break-all [overflow-wrap:anywhere] rounded-2xl border border-ink-100 bg-white p-5 text-sm leading-relaxed text-ink-700">
         {post.content}
       </div>
 
@@ -352,10 +369,18 @@ export default function BoardPostPage() {
                 <div key={reply.id} className="ml-8 border-l border-ink-100 pl-4">
                   <div className="rounded-xl bg-ink-50 p-3">
                     <p className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink-900">
-                      ↳ 🙂 <LevelBadge level={reply.authorLevel} /> <span className={nicknameLevelClass(reply.authorLevel)}>{reply.author}</span>{' '}
+                      <span className="text-ink-300">↳</span>
+                      <ProfileAvatar
+                        src={reply.authorProfileImageUrl}
+                        alt=""
+                        sizeClass="h-5 w-5"
+                        emojiClass="text-[10px]"
+                      />
+                      <LevelBadge level={reply.authorLevel} />
+                      <span className={nicknameLevelClass(reply.authorLevel)}>{reply.author}</span>{' '}
                       <span className="text-xs font-normal text-ink-300">{reply.date}</span>
                     </p>
-                    <p className="mb-1 whitespace-pre-wrap break-words text-sm text-ink-700">{reply.text}</p>
+                    <p className="mb-1 max-w-full whitespace-pre-wrap break-all [overflow-wrap:anywhere] text-sm text-ink-700">{reply.text}</p>
                     <button
                       type="button"
                       onClick={() => handleReactComment(reply.id)}

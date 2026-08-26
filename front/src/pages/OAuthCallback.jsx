@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import * as authApi from '../api/auth'
 import { useAuth } from '../hooks/useAuth'
 import { kakaoLogin, naverLogin } from '../api/social'
+import { emitBanned, saveBanStatus } from '../lib/ban'
 
 // provider: 'kakao' | 'naver'
 export default function OAuthCallback({ provider }) {
@@ -37,8 +39,26 @@ export default function OAuthCallback({ provider }) {
           token = await kakaoLogin(code)
         }
         await loginWithAccessToken(token.accessToken)
+
+        let ban = null
+        try {
+          ban = await authApi.getBanStatus()
+        } catch {
+          ban = null
+        }
+        if (ban?.banned) {
+          saveBanStatus(ban)
+          emitBanned(ban)
+          navigate('/banned', { replace: true, state: { ban } })
+          return
+        }
         navigate('/', { replace: true })
       } catch (e) {
+        if (e?.code === 'USER_BANNED') {
+          emitBanned(e.data ?? { banned: true })
+          navigate('/banned', { replace: true, state: { ban: e.data ?? { banned: true } } })
+          return
+        }
         setError(e.message ?? '소셜 로그인에 실패했어요.')
       }
     }

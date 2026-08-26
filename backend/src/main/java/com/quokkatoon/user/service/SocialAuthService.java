@@ -143,9 +143,7 @@ public class SocialAuthService {
                 .map(SocialAccount::getUser)
                 .orElseGet(() -> linkOrCreate(provider, uid, email, nickname, image));
 
-        if (user.isBanned()) {
-            throw new BusinessException(ErrorCode.USER_BANNED, banService.getBanStatus(user.getId()));
-        }
+        // 정지 계정도 JWT 발급 — 문의하기 등 제한적 이용
         String jwt = jwtProvider.createToken(user.getId(), user.getRole().name());
         return new TokenResponse(jwt, user.getId(), user.getNickname(), user.getLevel(), user.getRole().name());
     }

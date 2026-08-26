@@ -90,7 +90,7 @@ export default function FavoritesPage() {
             src="/icons/quokka-emoji.png"
             alt=""
             aria-hidden
-            className="h-14 w-14 object-contain"
+            className="h-24 w-24 object-contain sm:h-28 sm:w-28"
           />
           <p>아직 북마크한 작품이 없어요.</p>
           <Link to="/webtoons" className="text-sm font-semibold text-brand-500 hover:underline">

@@ -1,6 +1,7 @@
 package com.quokkatoon.board.dto;
 
 import com.quokkatoon.board.entity.Comment;
+import com.quokkatoon.user.profile.ProfileImages;
 
 import java.time.LocalDateTime;
 
@@ -9,6 +10,7 @@ public record CommentResponse(
         String author,
         Long authorId,
         int authorLevel,
+        String authorProfileImageUrl,
         boolean mine,
         String text,
         int likes,
@@ -22,6 +24,7 @@ public record CommentResponse(
                 c.getUser().getNickname(),
                 c.getUser().getId(),
                 c.getUser().getLevel(),
+                ProfileImages.forUser(c.getUser()),
                 c.isAuthor(currentUserId),
                 c.getContent(),
                 c.getLikeCount(),

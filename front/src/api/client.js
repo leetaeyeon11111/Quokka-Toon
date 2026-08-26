@@ -1,8 +1,10 @@
 // 공통 HTTP 클라이언트.
 //
-// 백엔드는 모든 응답을 { success, data, message } 형태(ApiResponse)로 내려준다.
+// 백엔드는 모든 응답을 { success, data, message, code } 형태(ApiResponse)로 내려준다.
 // 이 래퍼가 그 껍데기를 벗겨 data 만 반환하고, 실패 시 message 로 에러를 던진다.
 // 인증 토큰은 localStorage 에 보관하며 요청마다 Authorization 헤더로 주입한다.
+
+import { emitBanned } from '../lib/ban'
 
 const TOKEN_KEY = 'quakatoon:token'
 
@@ -22,12 +24,14 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY)
 }
 
-// 서버가 명확한 에러 메시지를 줄 때 이 타입으로 던진다. status 로 401 등 분기 가능.
+// 서버가 명확한 에러 메시지를 줄 때 이 타입으로 던진다. status / code / data 로 분기 가능.
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, code = null, data = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.code = code
+    this.data = data
   }
 }
 
@@ -64,7 +68,12 @@ async function request(method, path, { body, auth = true, signal } = {}) {
 
   if (!res.ok || (payload && payload.success === false)) {
     const message = payload?.message ?? `요청에 실패했어요. (${res.status})`
-    throw new ApiError(message, res.status)
+    const code = payload?.code ?? null
+    const data = payload && typeof payload === 'object' && 'data' in payload ? payload.data : null
+    if (code === 'USER_BANNED') {
+      emitBanned(data ?? { banned: true })
+    }
+    throw new ApiError(message, res.status, code, data)
   }
 
   // ApiResponse 껍데기면 data 만, 아니면 원본 반환

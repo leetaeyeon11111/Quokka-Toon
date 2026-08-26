@@ -10,7 +10,10 @@ export function AuthProvider({ children }) {
 
   // 새로고침 후에도 로그인 유지: 토큰이 있으면 /me 로 유저 정보를 복원한다.
   useEffect(() => {
-    if (!getToken()) return
+    if (!getToken()) {
+      setLoading(false)
+      return
+    }
     let cancelled = false
     authApi
       .getMe()

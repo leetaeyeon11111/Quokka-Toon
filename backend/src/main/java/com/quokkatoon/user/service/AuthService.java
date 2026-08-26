@@ -79,9 +79,7 @@ public class AuthService {
                 || !passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
-        if (user.isBanned()) {
-            throw new BusinessException(ErrorCode.USER_BANNED, banService.getBanStatus(user.getId()));
-        }
+        // 정지 계정도 JWT 발급 — 문의하기 등 제한적 이용을 위해 세션 유지
         String token = jwtProvider.createToken(user.getId(), user.getRole().name());
         return new TokenResponse(token, user.getId(), user.getNickname(),
                 user.getLevel(), user.getRole().name());
@@ -92,10 +90,10 @@ public class AuthService {
     public UserResponse getMe(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-        if (user.isBanned()) {
-            throw new BusinessException(ErrorCode.USER_BANNED, banService.getBanStatus(userId));
+        // 정지 계정도 프로필 조회 허용 (문의하기 세션·BanGuard 용)
+        if (!user.isBanned()) {
+            attendanceService.processFirstMeCallOfDay(userId);
         }
-        attendanceService.processFirstMeCallOfDay(userId);
         LevelProgressResponse progress = experienceService.getProgress(userId);
         return UserResponse.from(user, progress);
     }

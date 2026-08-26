@@ -36,6 +36,11 @@ export function getMe() {
   return api.get('/api/auth/me')
 }
 
+/** 정지 여부·사유 조회 (정지 계정도 호출 가능) */
+export function getBanStatus() {
+  return api.get('/api/auth/ban-status')
+}
+
 /** 기본 제공 프로필 아이콘 목록 */
 export function listProfileIcons() {
   return api.get('/api/auth/profile-icons', { auth: false })

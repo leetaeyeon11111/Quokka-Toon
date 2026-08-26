@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { INQUIRY_CATEGORIES } from '../data/inquiries'
 import { createInquiry, listMyInquiries } from '../api/inquiry'
 import { isInquiryDone } from '../api/labels'
 import { useAuth } from '../hooks/useAuth'
 import PlaceholderPage from '../components/common/PlaceholderPage'
+import * as authApi from '../api/auth'
+import { loadBanStatus } from '../lib/ban'
+import { loginHref } from '../lib/navigation'
 
 function InquiryHistoryItem({ inquiry }) {
   const [open, setOpen] = useState(false)
@@ -45,6 +49,7 @@ export default function InquiryPage() {
   const { isLoggedIn } = useAuth()
   const [tab, setTab] = useState('write')
   const [myInquiries, setMyInquiries] = useState([])
+  const [banned, setBanned] = useState(Boolean(loadBanStatus()?.banned))
 
   const [category, setCategory] = useState('')
   const [title, setTitle] = useState('')
@@ -57,10 +62,20 @@ export default function InquiryPage() {
     listMyInquiries()
       .then(setMyInquiries)
       .catch(() => setMyInquiries([]))
+    authApi
+      .getBanStatus()
+      .then((status) => setBanned(Boolean(status?.banned)))
+      .catch(() => {})
   }, [isLoggedIn])
 
   if (!isLoggedIn) {
-    return <PlaceholderPage title="문의하기" description="문의하기는 로그인 후 이용할 수 있어요." showDemoLogin />
+    return (
+      <PlaceholderPage
+        title="문의하기"
+        description="문의하기는 로그인 후 이용할 수 있어요. 이용 정지 계정도 로그인하면 문의 접수·내역 확인이 가능합니다."
+        loginTo={loginHref('/inquiry')}
+      />
+    )
   }
 
   const contentFilled = content.trim().length > 0
@@ -95,6 +110,18 @@ export default function InquiryPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-6 py-10">
+      {banned && (
+        <div className="mb-5 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-left text-sm text-red-700">
+          <p className="font-semibold">이용 정지 중인 계정이에요.</p>
+          <p className="mt-1 text-xs leading-5 text-red-600/90">
+            문의 접수·내역 확인은 가능합니다. 그 외 서비스 이용은{' '}
+            <Link to="/banned" className="font-semibold underline">
+              정지 안내
+            </Link>
+            를 확인해 주세요.
+          </p>
+        </div>
+      )}
       <div className="mb-5 flex gap-2 border-b border-ink-100">
         {[
           { key: 'write', label: '문의하기' },
@@ -119,18 +146,28 @@ export default function InquiryPage() {
             ⏰ 답변 시간 : 평일 오전 11시 ~ 오후 5시 (공휴일 제외)
           </div>
 
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm outline-none"
-          >
-            <option value="">문의 항목을 선택해주세요.</option>
-            {INQUIRY_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full appearance-none rounded-xl border border-ink-100 bg-ink-50 py-3 pl-4 pr-11 text-sm outline-none"
+            >
+              <option value="">문의 항목을 선택해주세요.</option>
+              {INQUIRY_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-ink-400"
+            >
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">
+                <path d="M5.25 7.5 10 12.25 14.75 7.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </div>
 
           <input
             value={title}

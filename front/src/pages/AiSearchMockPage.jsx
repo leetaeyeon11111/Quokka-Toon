@@ -4,7 +4,7 @@ import AiSummaryMark from '../components/common/AiSummaryMark'
 import RecommendCard from '../components/webtoon/RecommendCard'
 import { buildAiPromptSuggestions } from '../lib/aiSearchPrompts'
 
-const AI_QUOKKA = '/icons/quokka-robot-ai.png'
+const AI_QUOKKA = '/icons/quokka-robot-ai-mark.png'
 
 const MOCK_PROMPTS = {
   tags: ['생존', '회귀', '힐링', '사이다', '성장'],

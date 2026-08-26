@@ -27,7 +27,7 @@ function MenuLink({ to, onClose, children }) {
 }
 
 export default function HamburgerMenu({ onClose }) {
-  const { isLoggedIn, logout } = useAuth()
+  const { isLoggedIn, isAdmin, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const menuRef = useRef(null)
@@ -49,7 +49,7 @@ export default function HamburgerMenu({ onClose }) {
       ref={menuRef}
       role="dialog"
       aria-label="전체 메뉴"
-      className="absolute right-0 top-full z-40 w-72 rounded-2xl border border-ink-100 bg-white py-2 shadow-xl"
+      className="absolute right-0 top-full z-40 max-h-[calc(100svh-var(--site-header-height)-0.75rem)] w-72 overflow-y-auto overscroll-contain rounded-2xl border border-ink-100 bg-white py-2 shadow-xl [scrollbar-gutter:stable]"
     >
       {!isLoggedIn && (
         <div className="px-3 pb-1">
@@ -105,9 +105,28 @@ export default function HamburgerMenu({ onClose }) {
         </MenuLink>
       </Section>
 
+      {isAdmin && (
+        <Section title="관리자">
+          <MenuLink to="/admin" onClose={onClose}>
+            신고함 / 문의게시판
+          </MenuLink>
+          <MenuLink to="/admin?tab=bans" onClose={onClose}>
+            벤 관리
+          </MenuLink>
+          <MenuLink to="/admin?tab=reportHistory" onClose={onClose}>
+            신고 완료 기록
+          </MenuLink>
+          <MenuLink to="/admin?tab=inquiryHistory" onClose={onClose}>
+            문의 완료 기록
+          </MenuLink>
+          <MenuLink to="/admin?tab=quickPrompts" onClose={onClose}>
+            추천 검색어
+          </MenuLink>
+        </Section>
+      )}
 
       {isLoggedIn && (
-        <div className="px-3 pt-1">
+        <div className="px-3 pt-1 pb-1">
           <button
             type="button"
             onClick={handleLogout}
