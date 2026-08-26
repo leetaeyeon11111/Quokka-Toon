@@ -11,17 +11,24 @@ LLM이 줄거리+태그 근거로 '그 작품 대표 축 5개 + 원점수'를 �
 
 캐싱/폴백:
   결과를 캐시(models/webtoon_llm_meta.pkl)에 저장, 있으면 재사용(Lazy).
-  --save-db: radar_json, ai_summary(훅), ai_reason(추천이유) 컬럼에 저장.
+  DB 저장: 배치/특정웹툰 실행 시 기본으로 radar_json·ai_summary(훅)·ai_reason(이유)
+           컬럼에 저장. 저장 원치 않으면 --no-save.
+           (radar_json·ai_reason 컬럼이 DB에 없으면 저장 실패 → 안내 출력)
   LLM 실패 시 → radar는 기존 고정5축(webtoon_radar.pkl), reason은 템플릿 폴백.
 
 핵심 함수:
   ensure_enrichment(webtoon_id, title, summary, tags, genre, cache, client)
-    -> {"reason": str, "radar": [{"axis","score"}...]}
+    -> {"summary": str, "reason": str, "radar": [{"axis","score"}...]}
 
 실행:
-  python make_radar_llm.py --demo
-  python make_radar_llm.py 1234 5678        # 특정 웹툰
-  python make_radar_llm.py --batch --limit 300
+  python make_radar_llm.py --demo                  # 생성만 확인(DB 저장 안 함)
+  python make_radar_llm.py 1234 5678               # 특정 웹툰 (자동 DB 저장)
+  python make_radar_llm.py --batch --limit 300     # 대량 (자동 DB 저장)
+  python make_radar_llm.py --batch --no-save       # 저장 없이 생성만
+
+선행 조건(DB 저장하려면 컬럼 필요):
+  ALTER TABLE webtoon ADD COLUMN radar_json TEXT NULL AFTER ai_summary;
+  ALTER TABLE webtoon ADD COLUMN ai_reason  TEXT NULL AFTER radar_json;
 """
 import argparse
 import json
@@ -199,7 +206,7 @@ def _fetch(conn, ids=None, limit=None, exclude_adult=True):
         return cur.fetchall()
 
 
-def run_db(ids=None, limit=None, save_db=False):
+def run_db(ids=None, limit=None, save_db=True):
     import getpass, pymysql, time
     if not available():
         print("[경고] GEMINI_API_KEY 없음 → LLM 생성 불가.")
@@ -216,31 +223,43 @@ def run_db(ids=None, limit=None, save_db=False):
     cache = load_cache()
     todo = [r for r in rows if r[0] not in cache]
     print(f"[배치] 대상 {len(rows):,} / 신규 생성 {len(todo):,} (캐시 {len(rows)-len(todo):,} 재사용)")
-    done = fail = 0
+    print(f"[DB 저장] {'ON (radar_json·ai_summary·ai_reason)' if save_db else 'OFF (--no-save)'}")
+    done = fail = saved = 0
+    db_ok = True
     for n, (wid, title, summary, genre, tags_raw) in enumerate(todo, 1):
         tags = [t.strip() for t in (tags_raw or "").split(",") if t.strip()]
         res = ensure_enrichment(wid, title, summary, tags, genre,
                                 cache=cache, save=False)
         if res and res.get("source") == "llm":
             done += 1
-            if save_db:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "UPDATE webtoon SET radar_json=%s, ai_summary=%s, ai_reason=%s WHERE webtoon_id=%s",
-                        (json.dumps(res["radar"], ensure_ascii=False),
-                         res.get("summary", ""),   # 한 줄 훅 → ai_summary
-                         res.get("reason", ""),     # 추천 이유 → ai_reason
-                         wid))
-                conn.commit()
+            if save_db and db_ok:
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "UPDATE webtoon SET radar_json=%s, ai_summary=%s, ai_reason=%s WHERE webtoon_id=%s",
+                            (json.dumps(res["radar"], ensure_ascii=False),
+                             res.get("summary", ""),   # 한 줄 훅 → ai_summary
+                             res.get("reason", ""),     # 추천 이유 → ai_reason
+                             wid))
+                    conn.commit()
+                    saved += 1
+                except Exception as e:
+                    # 컬럼 없음 등 → 한 번만 크게 경고하고 저장 중단(생성은 계속, 캐시엔 남음)
+                    db_ok = False
+                    print(f"\n[!!] DB 저장 실패: {str(e)[:120]}")
+                    print("     → radar_json / ai_reason 컬럼이 있는지 확인하세요:")
+                    print("     ALTER TABLE webtoon ADD COLUMN radar_json TEXT NULL AFTER ai_summary;")
+                    print("     ALTER TABLE webtoon ADD COLUMN ai_reason TEXT NULL AFTER radar_json;")
+                    print("     (생성 결과는 캐시에 저장되니, 컬럼 추가 후 다시 실행하면 저장만 재개됩니다)\n")
         else:
             fail += 1
         if n % 20 == 0:
-            print(f"  {n}/{len(todo)} ... 생성 {done} 폴백/실패 {fail}")
+            print(f"  {n}/{len(todo)} ... 생성 {done} 저장 {saved} 폴백/실패 {fail}")
             save_cache(cache)          # 중간 저장(중단 대비)
         time.sleep(float(os.environ.get("QUOKKA_LLM_SLEEP", "0.5")))
     save_cache(cache)
     conn.close()
-    print(f"[완료] LLM 생성 {done} / 폴백·실패 {fail} / 캐시 총 {len(cache)}")
+    print(f"[완료] LLM 생성 {done} / DB 저장 {saved} / 폴백·실패 {fail} / 캐시 총 {len(cache)}")
 
 
 def demo():
@@ -270,15 +289,19 @@ def main():
     ap.add_argument("ids", nargs="*", type=int)
     ap.add_argument("--batch", action="store_true")
     ap.add_argument("--limit", type=int)
-    ap.add_argument("--save-db", action="store_true", help="radar_json·ai_summary·ai_reason 컬럼에 저장")
+    ap.add_argument("--no-save", action="store_true",
+                    help="DB에 저장하지 않음 (기본은 저장). radar_json·ai_summary·ai_reason 컬럼 필요")
+    ap.add_argument("--save-db", action="store_true",
+                    help="(하위호환) 기본으로 저장되므로 붙이지 않아도 됨")
     ap.add_argument("--demo", action="store_true")
     args = ap.parse_args()
+    save = not args.no_save          # 기본 저장, --no-save일 때만 끔
     if args.demo:
         demo()
     elif args.batch:
-        run_db(limit=args.limit, save_db=args.save_db)
+        run_db(limit=args.limit, save_db=save)
     elif args.ids:
-        run_db(ids=args.ids, save_db=args.save_db)
+        run_db(ids=args.ids, save_db=save)
     else:
         ap.print_help()
 
